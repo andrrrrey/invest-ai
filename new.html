@@ -38,20 +38,10 @@
             justify-content: center;
         }
 
-        /* Кнопка бургер-меню */
-        .mobile-menu-btn {
-            display: none;
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            z-index: 1000;
-            background: var(--sidebar-bg);
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 12px;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        .wizard-state {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
         }
 
         .app-window {
@@ -66,7 +56,6 @@
             position: relative;
         }
 
-        /* Боковая панель (Полная копия оригинала) */
         .sidebar {
             width: 260px;
             background: var(--sidebar-bg);
@@ -85,133 +74,433 @@
 
         .nav-menu { flex: 1; }
         .nav-link {
-            display: flex; align-items: center; gap: 15px; color: var(--text-muted);
-            text-decoration: none; padding: 14px 15px; border-radius: 12px;
-            font-size: 14px; margin-bottom: 8px; transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 14px 15px;
+            border-radius: 12px;
+            font-size: 14px;
+            margin-bottom: 8px;
+            transition: 0.3s;
         }
         .nav-link.active, .nav-link:hover { background: var(--sidebar-hover); color: white; }
         .nav-link i { font-size: 18px; width: 20px; text-align: center; }
 
-        /* --- Стили Мастера Создания Проекта --- */
         .main-content {
             flex: 1;
-            display: flex;
-            flex-direction: column;
-            background: var(--bg-body);
-            overflow: hidden; /* Чтобы футер и хедер были фиксированы */
-        }
-
-        .wizard-header {
-            padding: 40px 50px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header-left h1 { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
-        
-        .progress-wrapper { display: flex; align-items: center; gap: 15px; }
-        .progress-track {
-            width: 200px; height: 6px; background: #E5E5E5; border-radius: 10px; overflow: hidden;
-        }
-        .progress-fill {
-            width: 20%; height: 100%; background: var(--accent-purple); transition: 0.5s;
-        }
-        .step-label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-
-        .wizard-content {
-            flex: 1;
-            padding: 20px 50px;
+            padding: 40px 50px;
             overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            justify-content: center; /* Центрируем контент по вертикали для "одного экрана" */
+            background: var(--bg-body);
         }
 
-        .ai-assistant-box {
-            background: var(--card-blue);
-            color: white;
-            padding: 25px;
-            border-radius: var(--radius-md);
-            margin-bottom: 40px;
-            display: flex;
-            align-items: flex-start;
-            gap: 15px;
-            max-width: 800px;
-            box-shadow: 0 10px 20px rgba(94, 92, 230, 0.1);
-        }
-
-        .selection-container {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 25px;
-            max-width: 900px;
-            width: 100%;
-        }
-
-        .choice-card {
-            background: white;
-            padding: 40px 30px;
-            border-radius: var(--radius-md);
-            border: 2px solid transparent;
-            cursor: pointer;
-            transition: 0.3s;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .choice-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.05); }
-        .choice-card.active { border-color: var(--accent-purple); background: #F4F3FF; }
-
-        .choice-icon {
-            width: 60px; height: 60px; background: var(--bg-body); 
-            border-radius: 18px; display: flex; align-items: center; 
-            justify-content: center; font-size: 24px; color: var(--accent-purple);
-            margin-bottom: 20px;
-        }
-
-        .choice-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
-        .choice-card p { font-size: 14px; color: var(--text-muted); line-height: 1.5; }
-
-        .wizard-footer {
-            padding: 30px 50px 40px;
+        .top-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            background: var(--bg-body);
-            border-top: 1px solid rgba(0,0,0,0.05);
+            align-items: flex-start;
+            margin-bottom: 24px;
+            gap: 20px;
         }
 
-        /* Общие кнопки из оригинала */
+        .header-left h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+        .header-left p { font-size: 13px; color: var(--text-muted); max-width: 680px; line-height: 1.45; }
+
+        .header-right { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
         .btn {
-            padding: 14px 28px; border-radius: 14px; font-weight: 600;
-            cursor: pointer; border: none; font-size: 14px; transition: 0.2s;
-            display: flex; align-items: center; gap: 10px;
+            padding: 12px 24px;
+            border-radius: 14px;
+            font-weight: 600;
+            border: none;
+            font-size: 14px;
+            transition: 0.2s;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            text-decoration: none;
         }
         .btn-primary { background: var(--accent-purple); color: white; }
         .btn-outline { background: white; border: 1px solid #E5E5E5; color: var(--text-main); }
-        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
 
-        /* Адаптивность */
+        .ai-banner {
+            background: var(--card-blue);
+            color: white;
+            border-radius: var(--radius-md);
+            padding: 20px;
+            display: flex;
+            gap: 12px;
+            margin-bottom: 18px;
+            box-shadow: 0 8px 18px rgba(94,92,230,0.08);
+        }
+
+        .steps-nav {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .step-label {
+            border: 1px solid #E5E5E5;
+            background: white;
+            color: var(--text-muted);
+            border-radius: 12px;
+            padding: 11px 10px;
+            font-size: 12px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        #step1:checked ~ .app-window .step-label-1,
+        #step2:checked ~ .app-window .step-label-2,
+        #step3:checked ~ .app-window .step-label-3,
+        #step4:checked ~ .app-window .step-label-4,
+        #step5:checked ~ .app-window .step-label-5 {
+            border-color: #D8D5FF;
+            background: #F4F3FF;
+            color: var(--text-main);
+        }
+
+        .wizard-panel {
+            display: none;
+            background: white;
+            border-radius: var(--radius-md);
+            padding: 24px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+            margin-bottom: 16px;
+        }
+
+        #step1:checked ~ .app-window .panel-1,
+        #step2:checked ~ .app-window .panel-2,
+        #step3:checked ~ .app-window .panel-3,
+        #step4:checked ~ .app-window .panel-4,
+        #step5:checked ~ .app-window .panel-5 {
+            display: block;
+        }
+
+        .panel-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .step-counter {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            display: inline-block;
+        }
+
+        .panel-head h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+        .panel-note { font-size: 13px; color: var(--text-muted); line-height: 1.45; }
+
+        .choice-grid,
+        .grid-2,
+        .grid-3 {
+            display: grid;
+            gap: 12px;
+        }
+
+        .choice-grid,
+        .grid-2 { grid-template-columns: repeat(2, minmax(250px, 1fr)); }
+        .grid-3 { grid-template-columns: repeat(3, minmax(160px, 1fr)); }
+
+        .choice-card {
+            border: 1px solid #E9E9EF;
+            border-radius: 16px;
+            padding: 18px;
+            background: white;
+        }
+        .choice-card.active {
+            border-color: #D8D5FF;
+            background: #F4F3FF;
+        }
+        .choice-card h3 { font-size: 16px; margin-bottom: 8px; }
+        .choice-card p { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+        .field { display: flex; flex-direction: column; gap: 8px; }
+        label { font-size: 13px; font-weight: 600; color: #43434d; }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            border: 1px solid #E5E5E5;
+            border-radius: 12px;
+            padding: 10px 12px;
+            font-size: 14px;
+            color: var(--text-main);
+            background: white;
+        }
+
+        textarea { min-height: 100px; resize: vertical; }
+
+        .inline-field {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: end;
+            margin-top: 12px;
+        }
+
+        .subsection {
+            border: 1px solid #EEEEF4;
+            border-radius: 16px;
+            padding: 14px;
+            margin-top: 12px;
+        }
+
+        .subsection h3 { font-size: 16px; margin-bottom: 10px; }
+
+        .hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.4;
+            margin-top: 5px;
+        }
+
+        .table-actions {
+            margin-top: 10px;
+            display: flex;
+            justify-content: flex-start;
+        }
+
+        .switcher-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .switcher-chip {
+            border: 1px solid #E5E5E5;
+            background: white;
+            color: var(--text-main);
+            border-radius: 999px;
+            padding: 7px 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .switcher-chip.active {
+            border-color: #D8D5FF;
+            background: #F4F3FF;
+        }
+
+        .model-variant {
+            border: 1px solid #EEEEF4;
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 12px;
+        }
+
+        .variant-title {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .variant-badge {
+            font-size: 11px;
+            color: var(--text-muted);
+            background: #F7F7FB;
+            border: 1px solid #E9E9EF;
+            border-radius: 999px;
+            padding: 3px 8px;
+            font-weight: 600;
+        }
+
+        .row-delete-btn {
+            border: 1px solid #E5E5E5;
+            background: white;
+            color: #EB5757;
+            border-radius: 8px;
+            padding: 6px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 4px;
+            color: #43434d;
+            font-size: 14px;
+        }
+
+        .checkbox-row input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent-purple);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #E9E9EF;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        th,
+        td {
+            border: 1px solid #E9E9EF;
+            padding: 8px;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        th { background: #F7F7FB; font-weight: 700; }
+
+        td input,
+        td select {
+            border-radius: 8px;
+            border: 1px solid #E5E5E5;
+            padding: 6px;
+            font-size: 12px;
+            min-width: 72px;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(140px, 1fr));
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .metric-card {
+            border: 1px solid #EEEEF4;
+            background: #FAFAFF;
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .metric-card .k {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .metric-card .v {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text-main);
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .tag {
+            border: 1px solid #E5E5E5;
+            border-radius: 999px;
+            padding: 7px 12px;
+            font-size: 13px;
+            background: white;
+        }
+
+        .tag.active {
+            border-color: #CFE0FF;
+            background: #EEF4FF;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .summary-card {
+            border: 1px solid #E9E9EF;
+            border-radius: 14px;
+            padding: 14px;
+            background: white;
+        }
+
+        .summary-card.ai {
+            background: var(--card-green);
+            border-color: #CFE5D4;
+        }
+
+        .summary-card h4 { font-size: 14px; margin-bottom: 8px; }
+        .summary-card p,
+        .summary-card li {
+            font-size: 13px;
+            color: #43434d;
+            line-height: 1.5;
+        }
+
+        .summary-card ul { padding-left: 18px; }
+
+        .panel-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            border-top: 1px solid #F0F0F5;
+            margin-top: 16px;
+            padding-top: 14px;
+        }
+
+        .footer-right {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 1200px) {
+            .steps-nav { grid-template-columns: repeat(3, 1fr); }
+            .metric-grid { grid-template-columns: repeat(2, 1fr); }
+            .summary-grid { grid-template-columns: 1fr; }
+        }
+
         @media (max-width: 992px) {
-            .sidebar { position: absolute; left: -260px; z-index: 1001; height: 100%; }
-            .sidebar.active { left: 0; }
-            .mobile-menu-btn { display: block; }
-            .wizard-header, .wizard-content, .wizard-footer { padding: 20px; }
-            .selection-container { grid-template-columns: 1fr; }
+            body { padding: 0; }
+            .app-window { height: 100vh; border-radius: 0; }
+            .sidebar { display: none; }
+            .main-content { padding: 20px; }
+            .top-header { flex-direction: column; }
+            .steps-nav,
+            .choice-grid,
+            .grid-2,
+            .grid-3,
+            .metric-grid { grid-template-columns: 1fr; }
+            .inline-field { grid-template-columns: 1fr; }
+            .panel-footer { flex-direction: column; align-items: stretch; }
+            .footer-right { width: 100%; }
+            .footer-right .btn { flex: 1; justify-content: center; }
         }
     </style>
 </head>
 <body>
-
-    <button class="mobile-menu-btn" onclick="toggleSidebar()">
-        <i class="fas fa-bars"></i>
-    </button>
+    <input class="wizard-state" type="radio" name="wizard-step" id="step1" checked>
+    <input class="wizard-state" type="radio" name="wizard-step" id="step2">
+    <input class="wizard-state" type="radio" name="wizard-step" id="step3">
+    <input class="wizard-state" type="radio" name="wizard-step" id="step4">
+    <input class="wizard-state" type="radio" name="wizard-step" id="step5">
 
     <div class="app-window">
-        <aside class="sidebar" id="sidebar">
+        <aside class="sidebar">
             <div class="profile-section">
                 <img src="https://ui-avatars.com/api/?name=Марк+Джонсон&background=333&color=fff" alt="Аватар" class="avatar">
                 <p>С возвращением,</p>
@@ -229,77 +518,541 @@
         </aside>
 
         <main class="main-content">
-            <header class="wizard-header">
+            <header class="top-header">
                 <div class="header-left">
-                    <span class="step-label">Шаг 1 из 5</span>
-                    <h1>Суть проекта</h1>
+                    <h1>Создание инвестиционного запроса</h1>
+                    <p>Пошаговая форма 1-5. В каждый момент отображается только один шаг.</p>
                 </div>
-                
-                <div class="progress-wrapper">
-                    <div class="progress-track">
-                        <div class="progress-fill"></div>
-                    </div>
-                    <button class="btn btn-outline">
-                        <i class="far fa-save"></i> Сохранить черновик
-                    </button>
+                <div class="header-right">
+                    <button class="btn btn-outline"><i class="far fa-save"></i> Сохранить как черновик</button>
                 </div>
             </header>
 
-            <div class="wizard-content">
-                <div class="ai-assistant-box">
-                    <i class="fas fa- wand-magic-sparkles" style="font-size: 24px;"></i>
-                    <div>
-                        <strong style="display: block; margin-bottom: 5px;">Ксения, Ваш AI-ассистент</strong>
-                        <p style="font-size: 14px; opacity: 0.9;">Здравствуйте! Давайте начнем с определения типа ваших инвестиций. Это поможет мне подобрать правильные финансовые модели на следующих этапах.</p>
-                    </div>
-                </div>
-
-                <div class="selection-container">
-                    <div class="choice-card active" onclick="selectOption(this)">
-                        <div class="choice-icon">
-                            <i class="fas fa-lightbulb"></i>
-                        </div>
-                        <h3>Инвестиционный проект</h3>
-                        <p>Запуск нового продукта, расширение производства или выход на новые географические рынки.</p>
-                    </div>
-
-                    <div class="choice-card" onclick="selectOption(this)">
-                        <div class="choice-icon">
-                            <i class="fas fa-tools"></i>
-                        </div>
-                        <h3>Операционные затраты</h3>
-                        <p>Вложения в ПО, маркетинг, обучение персонала или обновление текущего оборудования.</p>
-                    </div>
+            <div class="ai-banner">
+                <i class="fas fa-wand-magic-sparkles" style="font-size: 22px; margin-top: 2px;"></i>
+                <div>
+                    <strong style="display:block; margin-bottom: 4px;">Ксения, AI-ассистент</strong>
+                    <p style="font-size: 14px; line-height: 1.45;">Заполняйте шаги по очереди: от выбора типа проекта до итогового резюме с AI-комментариями.</p>
                 </div>
             </div>
 
-            <footer class="wizard-footer">
-                <button class="btn btn-outline" style="visibility: hidden;">Назад</button>
-                <button class="btn btn-primary" style="padding: 14px 60px;">
-                    Далее <i class="fas fa-chevron-right" style="font-size: 12px;"></i>
-                </button>
-            </footer>
+            <nav class="steps-nav">
+                <label class="step-label step-label-1" for="step1">1. Тип проекта</label>
+                <label class="step-label step-label-2" for="step2">2. Суть проекта</label>
+                <label class="step-label step-label-3" for="step3">3. Финансовая модель</label>
+                <label class="step-label step-label-4" for="step4">4. Риски и допущения</label>
+                <label class="step-label step-label-5" for="step5">5. Резюме</label>
+            </nav>
+
+            <section class="wizard-panel panel-1">
+                <div class="panel-head">
+                    <div>
+                        <span class="step-counter">Шаг 1 из 5</span>
+                        <h2>Тип проекта</h2>
+                        <p class="panel-note">Выберите формат запроса.</p>
+                    </div>
+                </div>
+
+                <div class="choice-grid">
+                    <article class="choice-card active">
+                        <h3>1.1 Инвестиционный проект (новый продукт)</h3>
+                        <p>Запуск нового продукта, расширение платформы, развитие новых направлений.</p>
+                    </article>
+                    <article class="choice-card">
+                        <h3>1.2 Операционные инвест затраты</h3>
+                        <p>Инвестиции в персонал, ПО, маркетинг и операционную эффективность.</p>
+                    </article>
+                </div>
+
+                <footer class="panel-footer">
+                    <span class="btn btn-outline" style="visibility: hidden;">Назад</span>
+                    <div class="footer-right">
+                        <button class="btn btn-outline">Сохранить как черновик</button>
+                        <label class="btn btn-primary" for="step2">Далее <i class="fas fa-chevron-right"></i></label>
+                    </div>
+                </footer>
+            </section>
+
+            <section class="wizard-panel panel-2">
+                <div class="panel-head">
+                    <div>
+                        <span class="step-counter">Шаг 2 из 5</span>
+                        <h2>Суть проекта</h2>
+                        <p class="panel-note">Название, бизнес-юнит и краткое описание.</p>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="field">
+                        <label>Название проекта</label>
+                        <input type="text" placeholder="Short text">
+                    </div>
+                    <div class="field">
+                        <label>Направление / бизнес-юнит</label>
+                        <select>
+                            <option>WealthTech</option>
+                            <option>Розничный банкинг</option>
+                            <option>Корпоративный бизнес</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="field" style="margin-top: 12px;">
+                    <label>Краткое описание (1-3 абзаца)</label>
+                    <textarea placeholder="Опишите идею и бизнес-эффект."></textarea>
+                </div>
+                <div style="margin-top: 10px;">
+                    <button class="btn btn-primary"><i class="fas fa-wand-magic-sparkles"></i> Сформулировать с помощью AI</button>
+                </div>
+
+                <footer class="panel-footer">
+                    <label class="btn btn-outline" for="step1"><i class="fas fa-chevron-left"></i> Вернуться</label>
+                    <div class="footer-right">
+                        <button class="btn btn-outline">Сохранить как черновик</button>
+                        <label class="btn btn-primary" for="step3">Далее <i class="fas fa-chevron-right"></i></label>
+                    </div>
+                </footer>
+            </section>
+
+            <section class="wizard-panel panel-3">
+                <div class="panel-head">
+                    <div>
+                        <span class="step-counter">Шаг 3 из 5</span>
+                        <h2>Финансовая модель (Инвестиционный проект)</h2>
+                        <p class="panel-note">Данные для расчета выручки, затрат, дисконтирования и ключевых метрик.</p>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <h3>3.1 Общая информация</h3>
+                    <div class="grid-2">
+                        <div class="field">
+                            <label>Ответственный / Owner</label>
+                            <input type="text" placeholder="Выбор из справочника / ручной ввод">
+                        </div>
+                        <div class="field">
+                            <label>Стадия проекта</label>
+                            <select>
+                                <option>Идея</option>
+                                <option>MVP</option>
+                                <option>Рост</option>
+                                <option>Масштаб</option>
+                                <option>Завершен</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Дата старта</label>
+                            <input type="date">
+                        </div>
+                        <div class="field">
+                            <label>Платформа (опционально)</label>
+                            <input type="text" placeholder="Web / Mobile / Data Platform">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <h3>3.2 Модель выручки</h3>
+                    <div class="grid-3">
+                        <div class="field">
+                            <label>Тип модели</label>
+                            <select>
+                                <option>Подписка (ежемесячная/ежегодная)</option>
+                                <option>Транзакционная (разовые платежи)</option>
+                                <option>Гибридная</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Периодичность подписки</label>
+                            <select>
+                                <option>Ежемесячная</option>
+                                <option>Ежегодная</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Ежегодная индексация стоимости (%)</label>
+                            <input type="text" value="10%">
+                        </div>
+                        <div class="field">
+                            <label>Ежегодная индексация стоимости</label>
+                            <label class="checkbox-row"><input type="checkbox" checked> Применять ежегодную индексацию стоимости</label>
+                        </div>
+                        <div class="field">
+                            <label>Гранулярность ввода/просмотра</label>
+                            <div class="switcher-row">
+                                <span class="switcher-chip">Месяц</span>
+                                <span class="switcher-chip active">Квартал</span>
+                                <span class="switcher-chip">Полугодие</span>
+                                <span class="switcher-chip">Год</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="hint">Единая логика: пользователь может работать с месяцами/кварталами/полугодиями/годами, при этом внутренние расчеты и ключевые метрики приводятся к квартальной сетке.</p>
+
+                    <div class="model-variant">
+                        <div class="variant-title">
+                            Подписка
+                            <span class="variant-badge">Показывается при выборе типа «Подписка»</span>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Стоимость подписки</th>
+                                    <th>Q1</th>
+                                    <th>Q2</th>
+                                    <th>Q3</th>
+                                    <th>Q4</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Год 1</td>
+                                    <td><input type="text" placeholder="ручной"></td>
+                                    <td><input type="text" placeholder="авто/ручной"></td>
+                                    <td><input type="text" placeholder="авто/ручной"></td>
+                                    <td><input type="text" placeholder="авто/ручной"></td>
+                                </tr>
+                                <tr>
+                                    <td>Год 2</td>
+                                    <td><input type="text" placeholder="авто/ручной"></td>
+                                    <td><input type="text" placeholder="авто/ручной"></td>
+                                    <td><input type="text" placeholder="авто/ручной"></td>
+                                    <td><input type="text" placeholder="авто/ручной"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="model-variant">
+                        <div class="variant-title">
+                            Транзакционная (разовые платежи)
+                            <span class="variant-badge">Показывается при выборе типа «Транзакционная»</span>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Параметр</th>
+                                    <th>Q1</th>
+                                    <th>Q2</th>
+                                    <th>Q3</th>
+                                    <th>Q4</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Количество транзакций</td>
+                                    <td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td>
+                                </tr>
+                                <tr>
+                                    <td>Средний чек</td>
+                                    <td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="model-variant">
+                        <div class="variant-title">
+                            Гибридная
+                            <span class="variant-badge">Подписка + транзакции</span>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Компонент выручки</th>
+                                    <th>Q1</th>
+                                    <th>Q2</th>
+                                    <th>Q3</th>
+                                    <th>Q4</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Подписка</td>
+                                    <td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td>
+                                </tr>
+                                <tr>
+                                    <td>Транзакционная часть</td>
+                                    <td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <h3>3.3 Количество пользователей</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Год / Квартал</th>
+                                <th>Q1</th>
+                                <th>Q2</th>
+                                <th>Q3</th>
+                                <th>Q4</th>
+                                <th>Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Год 1</td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><button class="row-delete-btn" type="button"><i class="fas fa-trash"></i></button></td></tr>
+                            <tr><td>Год 2</td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><button class="row-delete-btn" type="button"><i class="fas fa-trash"></i></button></td></tr>
+                            <tr><td>Год 3</td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><button class="row-delete-btn" type="button"><i class="fas fa-trash"></i></button></td></tr>
+                            <tr><td>Год 4</td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><button class="row-delete-btn" type="button"><i class="fas fa-trash"></i></button></td></tr>
+                            <tr><td>Год 5</td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><button class="row-delete-btn" type="button"><i class="fas fa-trash"></i></button></td></tr>
+                        </tbody>
+                    </table>
+                    <div class="table-actions">
+                        <button class="btn btn-outline" type="button"><i class="fas fa-plus"></i> Добавить год</button>
+                    </div>
+
+                    <div class="grid-2" style="margin-top: 10px;">
+                        <div class="field">
+                            <label>Конверсия в платных пользователей (%)</label>
+                            <input type="text" value="85%">
+                        </div>
+                        <div class="field">
+                            <label>Отток клиентов (Churn rate)</label>
+                            <input type="text" value="-10%">
+                        </div>
+                    </div>
+
+                    <div class="grid-2" style="margin-top: 10px;">
+                        <div class="field">
+                            <label>Ежеквартальное изменение churn (quarterlyIncrease)</label>
+                            <input type="text" value="0.0015">
+                        </div>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Churn: Год / Квартал</th>
+                                <th>Q1</th>
+                                <th>Q2</th>
+                                <th>Q3</th>
+                                <th>Q4</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Год 1</td><td><input type="text" value="-10.00%"></td><td><input type="text" value="-9.85%"></td><td><input type="text" value="-9.70%"></td><td><input type="text" value="-9.55%"></td></tr>
+                            <tr><td>Год 2</td><td><input type="text" value="-9.40%"></td><td><input type="text" value="-9.25%"></td><td><input type="text" value="-9.10%"></td><td><input type="text" value="-8.95%"></td></tr>
+                            <tr><td>Год 3</td><td><input type="text" value="-8.80%"></td><td><input type="text" value="-8.65%"></td><td><input type="text" value="-8.50%"></td><td><input type="text" value="-8.35%"></td></tr>
+                            <tr><td>Год 4</td><td><input type="text" value="-8.20%"></td><td><input type="text" value="-8.05%"></td><td><input type="text" value="-7.90%"></td><td><input type="text" value="-7.75%"></td></tr>
+                            <tr><td>Год 5</td><td><input type="text" value="-7.60%"></td><td><input type="text" value="-7.45%"></td><td><input type="text" value="-7.30%"></td><td><input type="text" value="-7.15%"></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="subsection">
+                    <h3>3.4 Затраты</h3>
+                    <p class="panel-note">Режимы ввода по категориям: ручной / % от выручки / CAC для маркетинга.</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Категория</th>
+                                <th>Режим</th>
+                                <th>Параметр</th>
+                                <th>Y1</th>
+                                <th>Y2</th>
+                                <th>Y3</th>
+                                <th>Y4</th>
+                                <th>Y5</th>
+                                <th>Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>COGS</td>
+                                <td><select><option>Ручной</option><option>% от выручки</option></select></td>
+                                <td><input type="text" value="11%"></td>
+                                <td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td>
+                                <td><button class="row-delete-btn" type="button"><i class="fas fa-trash"></i></button></td>
+                            </tr>
+                            <tr>
+                                <td>R&D</td>
+                                <td><select><option>% от выручки</option><option>Ручной</option></select></td>
+                                <td><input type="text" value="28%"></td>
+                                <td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td>
+                                <td><button class="row-delete-btn" type="button"><i class="fas fa-trash"></i></button></td>
+                            </tr>
+                            <tr>
+                                <td>G&A</td>
+                                <td><select><option>% от выручки</option><option>Ручной</option></select></td>
+                                <td><input type="text" value="20%"></td>
+                                <td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td>
+                                <td><button class="row-delete-btn" type="button"><i class="fas fa-trash"></i></button></td>
+                            </tr>
+                            <tr>
+                                <td>Маркетинг</td>
+                                <td><select><option>CAC</option><option>Ручной</option><option>% от выручки</option><option>% от всех затрат</option></select></td>
+                                <td><input type="text" value="CAC 3000 руб"></td>
+                                <td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td>
+                                <td><button class="row-delete-btn" type="button"><i class="fas fa-trash"></i></button></td>
+                            </tr>
+                            <tr>
+                                <td>Support</td>
+                                <td><select><option>% от выручки</option><option>Ручной</option></select></td>
+                                <td><input type="text" value="5%"></td>
+                                <td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td>
+                                <td><button class="row-delete-btn" type="button"><i class="fas fa-trash"></i></button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="table-actions">
+                        <button class="btn btn-outline" type="button"><i class="fas fa-plus"></i> Добавить строку затрат</button>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <h3>3.5 Параметры дисконтирования</h3>
+                    <div class="grid-3">
+                        <div class="field">
+                            <label>Ключевая ставка ЦБ (Key Rate)</label>
+                            <input type="text" placeholder="Заполняется вручную на дату проекта">
+                        </div>
+                        <div class="field">
+                            <label>Надбавка за риск</label>
+                            <input type="text" value="0.03">
+                        </div>
+                        <div class="field">
+                            <label>Итоговая ставка</label>
+                            <input type="text" value="Ключевая ставка + 0.03" readonly>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <h3>3.6 Нулевой период и инвестиции</h3>
+                    <div class="grid-3">
+                        <div class="field">
+                            <label>Нулевой период (Y0)</label>
+                            <input type="text" value="Год 0">
+                        </div>
+                        <div class="field">
+                            <label>netCashFlow[0] / нулевой период</label>
+                            <input type="text" placeholder="Например: -1 200 000">
+                        </div>
+                        <div class="field">
+                            <label>NWC (инвестиции)</label>
+                            <input type="text" placeholder="Например: -1 200 000">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="subsection">
+                    <h3>Ключевые метрики</h3>
+                    <div class="metric-grid">
+                        <div class="metric-card"><div class="k">Коэффициент дисконтирования</div><div class="v">13.00%</div></div>
+                        <div class="metric-card"><div class="k">Чистый дисконтированный поток (DCF)</div><div class="v">1 920 000 ₽</div></div>
+                        <div class="metric-card"><div class="k">Накопленный дисконтированный поток (Cumulative DCF)</div><div class="v">2 450 000 ₽</div></div>
+                        <div class="metric-card"><div class="k">Чистая приведенная стоимость (NPV)</div><div class="v">2 450 000 ₽</div></div>
+                        <div class="metric-card"><div class="k">DPP</div><div class="v">3.1 года</div></div>
+                        <div class="metric-card"><div class="k">PI</div><div class="v">1.34</div></div>
+                        <div class="metric-card"><div class="k">IRR</div><div class="v">24.6%</div></div>
+                        <div class="metric-card"><div class="k">CAC (average)</div><div class="v">2 800 ₽</div></div>
+                        <div class="metric-card"><div class="k">ARPU</div><div class="v">8 950 ₽</div></div>
+                        <div class="metric-card"><div class="k">Средний квартальный отток</div><div class="v">-8.58%</div></div>
+                        <div class="metric-card"><div class="k">Lifetime</div><div class="v">2.9 года</div></div>
+                        <div class="metric-card"><div class="k">LTV</div><div class="v">16 200 ₽</div></div>
+                        <div class="metric-card"><div class="k">LTV / CAC</div><div class="v">2.50</div></div>
+                    </div>
+                </div>
+
+                <footer class="panel-footer">
+                    <label class="btn btn-outline" for="step2"><i class="fas fa-chevron-left"></i> Вернуться</label>
+                    <div class="footer-right">
+                        <button class="btn btn-outline">Сохранить как черновик</button>
+                        <label class="btn btn-primary" for="step4">Далее <i class="fas fa-chevron-right"></i></label>
+                    </div>
+                </footer>
+            </section>
+
+            <section class="wizard-panel panel-4">
+                <div class="panel-head">
+                    <div>
+                        <span class="step-counter">Шаг 4 из 5</span>
+                        <h2>Риски и допущения</h2>
+                        <p class="panel-note">Раздел формируется AI автоматически, без ручного ввода.</p>
+                    </div>
+                </div>
+
+                <div class="summary-card" style="margin-bottom: 12px;">
+                    <h4>Основные риски (AI)</h4>
+                    <ul>
+                        <li>Технические: зависимость от внешних интеграций.</li>
+                        <li>Рыночные: риск недостижения целевой конверсии.</li>
+                        <li>Операционные: задержки внедрения на стороне подрядчика.</li>
+                        <li>Финансовые: чувствительность модели к росту CAC.</li>
+                    </ul>
+                </div>
+
+                <div class="summary-card">
+                    <h4>Ключевые допущения (AI)</h4>
+                    <p>Рост спроса в первые 2 квартала, стабильная доступность подрядчика и отсутствие резких изменений стоимости привлечения пользователей.</p>
+                </div>
+
+                <div style="margin-top: 12px;">
+                    <button class="btn btn-primary"><i class="fas fa-wand-magic-sparkles"></i> Обновить риски и допущения через AI</button>
+                </div>
+
+                <footer class="panel-footer">
+                    <label class="btn btn-outline" for="step3"><i class="fas fa-chevron-left"></i> Вернуться</label>
+                    <div class="footer-right">
+                        <button class="btn btn-outline">Сохранить как черновик</button>
+                        <label class="btn btn-primary" for="step5">Далее <i class="fas fa-chevron-right"></i></label>
+                    </div>
+                </footer>
+            </section>
+
+            <section class="wizard-panel panel-5">
+                <div class="panel-head">
+                    <div>
+                        <span class="step-counter">Шаг 5 из 5</span>
+                        <h2>Резюме перед созданием</h2>
+                        <p class="panel-note">Инвестиционный one-pager для отправки на согласование.</p>
+                    </div>
+                </div>
+
+                <div class="summary-grid">
+                    <article class="summary-card">
+                        <h4>Investment Hypothesis Card</h4>
+                        <p><strong>Суть проекта:</strong> запуск AI-инвестиционного процессора для стандартизации и ускорения инвестиционного цикла.</p>
+                        <p><strong>Цифры:</strong> NPV 2.45 млн ₽, IRR 24.6%, LTV/CAC 2.5.</p>
+                        <p><strong>Сроки:</strong> старт 01.04.2026, горизонт оценки 5 лет.</p>
+                        <p><strong>Риски:</strong> зависимость от подрядчика, чувствительность к CAC.</p>
+                        <p><strong>Предварительный статус:</strong> требуется корректировка маркетинговой модели для достижения LTV/CAC выше 3.</p>
+                    </article>
+
+                    <article class="summary-card ai">
+                        <h4>AI-оценка</h4>
+                        <ul>
+                            <li>Уровень риска: средний.</li>
+                            <li>Сравнение с похожими проектами: доходность выше медианы, окупаемость сопоставима.</li>
+                            <li>Комментарий: рекомендовано снизить CAC и уточнить темпы привлечения в первые кварталы.</li>
+                        </ul>
+                    </article>
+                </div>
+
+                <div class="summary-card" style="margin-top: 12px;">
+                    <h4>Риски и допущения от AI</h4>
+                    <p><strong>Краткий risk-summary:</strong> ключевая уязвимость модели связана с риском недостижения плановой конверсии при текущем уровне CAC и с внешней зависимостью от подрядчика.</p>
+                    <p><strong>Потенциальные слабые места:</strong></p>
+                    <ul>
+                        <li>Недостаточный запас по LTV/CAC относительно целевого порога.</li>
+                        <li>Высокая чувствительность NPV к росту маркетинговых затрат в Год 1-2.</li>
+                        <li>Оптимистичный сценарий квартального churn без стресс-сценария.</li>
+                    </ul>
+                </div>
+
+                <footer class="panel-footer">
+                    <label class="btn btn-outline" for="step4"><i class="fas fa-chevron-left"></i> Вернуться</label>
+                    <div class="footer-right">
+                        <button class="btn btn-outline"><i class="far fa-save"></i> Сохранить как черновик</button>
+                        <button class="btn btn-primary"><i class="fas fa-check"></i> Отправить на согласование</button>
+                    </div>
+                </footer>
+            </section>
         </main>
     </div>
-
-    <script>
-        // Функция переключения сайдбара из оригинала
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('active');
-        }
-
-        // Логика выбора карточки
-        function selectOption(element) {
-            document.querySelectorAll('.choice-card').forEach(card => card.classList.remove('active'));
-            element.classList.add('active');
-        }
-
-        // Закрытие меню для мобилок
-        document.querySelector('.main-content').addEventListener('click', () => {
-            if (window.innerWidth <= 992) {
-                document.getElementById('sidebar').classList.remove('active');
-            }
-        });
-    </script>
 </body>
 </html>
