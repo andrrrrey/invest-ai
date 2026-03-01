@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Создание проекта | Инвестиционный процессор</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg-body: #F8F7F3;
+            --sidebar-bg: #1C1C1E;
+            --sidebar-hover: #2C2C2E;
+            --text-main: #1C1C1E;
+            --text-muted: #8E8E93;
+            --card-green: #DDF0E1;
+            --card-yellow: #FBECCB;
+            --card-blue: #B2B2FF;
+            --accent-purple: #5E5CE6;
+            --radius-lg: 35px;
+            --radius-md: 24px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        body {
+            background-color: #E5E5E5;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Кнопка бургер-меню */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: var(--sidebar-bg);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .app-window {
+            width: 100%;
+            max-width: 1400px;
+            height: 90vh;
+            background: var(--bg-body);
+            border-radius: var(--radius-lg);
+            display: flex;
+            overflow: hidden;
+            box-shadow: 0 50px 100px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        /* Боковая панель (Полная копия оригинала) */
+        .sidebar {
+            width: 260px;
+            background: var(--sidebar-bg);
+            padding: 60px 25px 40px;
+            display: flex;
+            flex-direction: column;
+            color: white;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            flex-shrink: 0;
+        }
+
+        .profile-section { text-align: center; margin-bottom: 50px; }
+        .avatar { width: 90px; height: 90px; border-radius: 50%; border: 3px solid white; margin-bottom: 15px; object-fit: cover; background: #333; }
+        .profile-section p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+        .profile-section h4 { font-size: 16px; font-weight: 600; margin-top: 4px; }
+
+        .nav-menu { flex: 1; }
+        .nav-link {
+            display: flex; align-items: center; gap: 15px; color: var(--text-muted);
+            text-decoration: none; padding: 14px 15px; border-radius: 12px;
+            font-size: 14px; margin-bottom: 8px; transition: 0.3s;
+        }
+        .nav-link.active, .nav-link:hover { background: var(--sidebar-hover); color: white; }
+        .nav-link i { font-size: 18px; width: 20px; text-align: center; }
+
+        /* --- Стили Мастера Создания Проекта --- */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-body);
+            overflow: hidden; /* Чтобы футер и хедер были фиксированы */
+        }
+
+        .wizard-header {
+            padding: 40px 50px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left h1 { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+        
+        .progress-wrapper { display: flex; align-items: center; gap: 15px; }
+        .progress-track {
+            width: 200px; height: 6px; background: #E5E5E5; border-radius: 10px; overflow: hidden;
+        }
+        .progress-fill {
+            width: 20%; height: 100%; background: var(--accent-purple); transition: 0.5s;
+        }
+        .step-label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .wizard-content {
+            flex: 1;
+            padding: 20px 50px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Центрируем контент по вертикали для "одного экрана" */
+        }
+
+        .ai-assistant-box {
+            background: var(--card-blue);
+            color: white;
+            padding: 25px;
+            border-radius: var(--radius-md);
+            margin-bottom: 40px;
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            max-width: 800px;
+            box-shadow: 0 10px 20px rgba(94, 92, 230, 0.1);
+        }
+
+        .selection-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 25px;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .choice-card {
+            background: white;
+            padding: 40px 30px;
+            border-radius: var(--radius-md);
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: 0.3s;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .choice-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.05); }
+        .choice-card.active { border-color: var(--accent-purple); background: #F4F3FF; }
+
+        .choice-icon {
+            width: 60px; height: 60px; background: var(--bg-body); 
+            border-radius: 18px; display: flex; align-items: center; 
+            justify-content: center; font-size: 24px; color: var(--accent-purple);
+            margin-bottom: 20px;
+        }
+
+        .choice-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
+        .choice-card p { font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+
+        .wizard-footer {
+            padding: 30px 50px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-body);
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+
+        /* Общие кнопки из оригинала */
+        .btn {
+            padding: 14px 28px; border-radius: 14px; font-weight: 600;
+            cursor: pointer; border: none; font-size: 14px; transition: 0.2s;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .btn-primary { background: var(--accent-purple); color: white; }
+        .btn-outline { background: white; border: 1px solid #E5E5E5; color: var(--text-main); }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        /* Адаптивность */
+        @media (max-width: 992px) {
+            .sidebar { position: absolute; left: -260px; z-index: 1001; height: 100%; }
+            .sidebar.active { left: 0; }
+            .mobile-menu-btn { display: block; }
+            .wizard-header, .wizard-content, .wizard-footer { padding: 20px; }
+            .selection-container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="mobile-menu-btn" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <div class="app-window">
+        <aside class="sidebar" id="sidebar">
+            <div class="profile-section">
+                <img src="https://ui-avatars.com/api/?name=Марк+Джонсон&background=333&color=fff" alt="Аватар" class="avatar">
+                <p>С возвращением,</p>
+                <h4>Марк Джонсон</h4>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="#" class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
+                <a href="#" class="nav-link active"><i class="fas fa-project-diagram"></i> Проекты</a>
+                <a href="#" class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
+                <a href="#" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
+            </nav>
+
+            <a href="#" class="nav-link" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
+        </aside>
+
+        <main class="main-content">
+            <header class="wizard-header">
+                <div class="header-left">
+                    <span class="step-label">Шаг 1 из 5</span>
+                    <h1>Суть проекта</h1>
+                </div>
+                
+                <div class="progress-wrapper">
+                    <div class="progress-track">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <button class="btn btn-outline">
+                        <i class="far fa-save"></i> Сохранить черновик
+                    </button>
+                </div>
+            </header>
+
+            <div class="wizard-content">
+                <div class="ai-assistant-box">
+                    <i class="fas fa- wand-magic-sparkles" style="font-size: 24px;"></i>
+                    <div>
+                        <strong style="display: block; margin-bottom: 5px;">Ксения, Ваш AI-ассистент</strong>
+                        <p style="font-size: 14px; opacity: 0.9;">Здравствуйте! Давайте начнем с определения типа ваших инвестиций. Это поможет мне подобрать правильные финансовые модели на следующих этапах.</p>
+                    </div>
+                </div>
+
+                <div class="selection-container">
+                    <div class="choice-card active" onclick="selectOption(this)">
+                        <div class="choice-icon">
+                            <i class="fas fa-lightbulb"></i>
+                        </div>
+                        <h3>Инвестиционный проект</h3>
+                        <p>Запуск нового продукта, расширение производства или выход на новые географические рынки.</p>
+                    </div>
+
+                    <div class="choice-card" onclick="selectOption(this)">
+                        <div class="choice-icon">
+                            <i class="fas fa-tools"></i>
+                        </div>
+                        <h3>Операционные затраты</h3>
+                        <p>Вложения в ПО, маркетинг, обучение персонала или обновление текущего оборудования.</p>
+                    </div>
+                </div>
+            </div>
+
+            <footer class="wizard-footer">
+                <button class="btn btn-outline" style="visibility: hidden;">Назад</button>
+                <button class="btn btn-primary" style="padding: 14px 60px;">
+                    Далее <i class="fas fa-chevron-right" style="font-size: 12px;"></i>
+                </button>
+            </footer>
+        </main>
+    </div>
+
+    <script>
+        // Функция переключения сайдбара из оригинала
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+        }
+
+        // Логика выбора карточки
+        function selectOption(element) {
+            document.querySelectorAll('.choice-card').forEach(card => card.classList.remove('active'));
+            element.classList.add('active');
+        }
+
+        // Закрытие меню для мобилок
+        document.querySelector('.main-content').addEventListener('click', () => {
+            if (window.innerWidth <= 992) {
+                document.getElementById('sidebar').classList.remove('active');
+            }
+        });
+    </script>
+</body>
+</html>
