@@ -1,40 +1,33 @@
 /**
  * finance.js — client-side financial calculation engine.
  *
- * Mirrors the logic in backend/app/services/finance_service.py exactly.
- * Calculations run in real time (no network round-trip needed).
+ * Implements the spec formulas 1.1.x (user/revenue/cost tables) and
+ * 1.2.x (key metrics) exactly.  Mirrors backend/app/services/finance_service.py.
  *
- * Usage:
- *   const metrics = Finance.calculate(formData);
+ * All calculations are pure functions — no network calls.
+ * Alpine.js watches form data and calls Finance.calculate() on every change.
  */
 
 const Finance = {
 
-  /* ------------------------------------------------------------------ */
-  /* Helpers                                                              */
-  /* ------------------------------------------------------------------ */
+  /* ─── Safe accessors ──────────────────────────────────────────────────── */
 
-  _safe(matrix, y, q, def_ = 0) {
-    try {
-      const v = matrix?.[y]?.[q];
-      return (v === undefined || v === null || v === '') ? def_ : parseFloat(v) || def_;
-    } catch { return def_; }
+  _s2(m, y, q, d = 0) {
+    try { const v = m?.[y]?.[q]; return (v == null || v === '') ? d : +v || d; }
+    catch { return d; }
   },
 
-  _safeArr(arr, i, def_ = 0) {
-    const v = arr?.[i];
-    return (v === undefined || v === null || v === '') ? def_ : parseFloat(v) || def_;
+  _s1(a, i, d = 0) {
+    try { const v = a?.[i]; return (v == null || v === '') ? d : +v || d; }
+    catch { return d; }
   },
 
-  /* ------------------------------------------------------------------ */
-  /* Churn table                                                          */
-  /* ------------------------------------------------------------------ */
-
+  /* ─── 1.1.2  Churn table ──────────────────────────────────────────────── */
+  /**
+   * churn[y][q] = initialChurn + (quarterIndex - 1) × quarterlyIncrease
+   * quarterIndex is 1-based, so 0-based qIdx maps to (quarterIndex-1).
+   */
   buildChurnTable(initialChurn, quarterlyIncrease, numYears) {
-    /**
-     * initialChurn: negative, e.g. -0.10 for 10% churn
-     * quarterlyIncrease: 0.0015 — churn improves each quarter
-     */
     const table = [];
     let qIdx = 0;
     for (let y = 0; y < numYears; y++) {
@@ -48,252 +41,255 @@ const Finance = {
     return table;
   },
 
-  /* ------------------------------------------------------------------ */
-  /* Revenue                                                              */
-  /* ------------------------------------------------------------------ */
+  /* ─── Price for a given year (with optional indexation) ─────────────────*/
+  _price(form, y) {
+    const manual = this._s1(form.prices, y);
+    if (manual !== 0) return manual;                 // explicit override
+    const base = this._s1(form.prices, 0);
+    if (form.applyIndexation && y > 0)
+      return base * Math.pow(1 + (+form.indexationRate || 0) / 100, y);
+    return base;
+  },
 
-  calcRevenue(form) {
-    const ny = form.numYears;
-    const conv = form.conversionRate / 100;
-    const revenue = [];
+  /* ─── IRR via Newton-Raphson ─────────────────────────────────────────── */
+  _irr(cfs, guess = 0.1) {
+    let r = guess;
+    for (let i = 0; i < 1000; i++) {
+      let f = 0, df = 0;
+      for (let t = 0; t < cfs.length; t++) {
+        const d = Math.pow(1 + r, t);
+        f  += cfs[t] / d;
+        df -= t * cfs[t] / (d * (1 + r));
+      }
+      if (Math.abs(df) < 1e-12) break;
+      const nr = r - f / df;
+      if (Math.abs(nr - r) < 1e-8) { r = nr; break; }
+      r = nr;
+    }
+    return r;
+  },
+
+  /* ─── Main entry point ───────────────────────────────────────────────── */
+  calculate(form) {
+    const ny       = +form.numYears || 5;
+    const conv     = (+form.conversionRate || 0) / 100;
+    const initChurn = (+form.churnRate || 0) / 100;
+    const qInc     = +form.quarterlyChurnIncrease || 0;
+
+    // 1.1.2 Churn table
+    const churnTable = this.buildChurnTable(initChurn, qInc, ny);
+
+    // 1.1.1 / 1.1.3 / 1.1.4  User tables
+    const paidWithoutChurn = [];
+    const paidUsers        = [];
+    const newPaidUsers     = [];
+    let prevPaid = null;
 
     for (let y = 0; y < ny; y++) {
+      const pwcRow = [], puRow = [], npuRow = [];
+      for (let q = 0; q < 4; q++) {
+        // 1.1.1
+        const total = this._s2(form.users, y, q);
+        const pwc   = Math.round(total * conv);
+        pwcRow.push(pwc);
+
+        // 1.1.3
+        const paid = Math.round(pwc * (1 + churnTable[y][q]));
+        puRow.push(paid);
+
+        // 1.1.4
+        const npu = prevPaid === null ? paid : paid - prevPaid;
+        npuRow.push(npu);
+        prevPaid = paid;
+      }
+      paidWithoutChurn.push(pwcRow);
+      paidUsers.push(puRow);
+      newPaidUsers.push(npuRow);
+    }
+
+    // 1.1.5  Quarterly revenue
+    const revenue = [];
+    for (let y = 0; y < ny; y++) {
+      const py  = this._price(form, y);
       const row = [];
       for (let q = 0; q < 4; q++) {
-        const users = this._safe(form.users, y, q);
-        const paying = users * conv;
         let rev = 0;
-
         if (form.revenueModel === 'subscription') {
-          const price = this._safe(form.prices, y, q);
-          const indexFactor = form.applyIndexation
-            ? Math.pow(1 + form.indexationRate / 100, y)
-            : 1;
-          // price per user per month; quarterly revenue = price × 3 months
-          const freqMult = form.subscriptionFreq === 'monthly' ? 3 : 0.25;
-          rev = paying * price * freqMult * indexFactor;
-
+          rev = paidUsers[y][q] * py;
         } else if (form.revenueModel === 'transactional') {
-          const tx = this._safe(form.transactions, y, q);
-          const avgCheck = this._safe(form.avgChecks, y, q);
-          rev = tx * avgCheck;
-
-        } else if (form.revenueModel === 'hybrid') {
-          const subPrice = this._safe(form.hybridSubscription, y, q);
-          const txRev = this._safe(form.hybridTransactional, y, q);
-          rev = paying * subPrice * 3 + txRev;
+          rev = this._s2(form.transactions, y, q) * this._s2(form.avgChecks, y, q);
+        } else {  // hybrid
+          rev = paidUsers[y][q] * py + this._s2(form.hybridTransactional, y, q);
         }
-
         row.push(rev);
       }
       revenue.push(row);
     }
-    return revenue;
-  },
 
-  /* ------------------------------------------------------------------ */
-  /* Costs                                                                */
-  /* ------------------------------------------------------------------ */
+    // 1.1.6  Annual revenue
+    const annualRevenue = revenue.map(r => r.reduce((a, b) => a + b, 0));
 
-  calcCosts(form, revenue) {
-    const ny = form.numYears;
-    const conv = form.conversionRate / 100;
-    const totalCosts = [];
-
-    for (let y = 0; y < ny; y++) {
-      const row = [];
-      for (let q = 0; q < 4; q++) {
-        let cost = 0;
-        const rev = revenue[y][q];
-        const users = this._safe(form.users, y, q);
-
-        for (const c of form.costs) {
-          if (c.mode === 'percent_revenue') {
-            cost += rev * (parseFloat(c.param) / 100);
-          } else if (c.mode === 'cac') {
-            cost += users * parseFloat(c.param || 0);
-          } else {
-            // manual: annual value / 4
-            const annualVal = this._safeArr(c.values, y);
-            cost += annualVal / 4;
-          }
+    // 1.1.7 / 1.1.8  Annual costs (negative values)
+    const annualCostsByCat = {};
+    for (const c of form.costs) {
+      const arr = [];
+      for (let y = 0; y < ny; y++) {
+        let val = 0;
+        if (c.mode === 'percent_revenue') {
+          val = -(annualRevenue[y] * (+c.param || 0) / 100);
+        } else if (c.mode === 'cac') {
+          const newU = newPaidUsers[y].reduce((a, b) => a + b, 0);
+          val = -(newU * (+c.param || 0));
+        } else {  // manual
+          val = -(this._s1(c.values, y));
         }
-        row.push(cost);
+        arr.push(val);
       }
-      totalCosts.push(row);
+      annualCostsByCat[c.category] = arr;
     }
-    return totalCosts;
-  },
 
-  /* ------------------------------------------------------------------ */
-  /* IRR via Newton-Raphson                                               */
-  /* ------------------------------------------------------------------ */
-
-  irr(cashFlows, guess = 0.1) {
-    let rate = guess;
-    for (let i = 0; i < 1000; i++) {
-      let f = 0, df = 0;
-      for (let t = 0; t < cashFlows.length; t++) {
-        const disc = Math.pow(1 + rate, t);
-        f  += cashFlows[t] / disc;
-        df -= t * cashFlows[t] / (disc * (1 + rate));
-      }
-      if (Math.abs(df) < 1e-12) break;
-      const newRate = rate - f / df;
-      if (Math.abs(newRate - rate) < 1e-8) { rate = newRate; break; }
-      rate = newRate;
-    }
-    return rate;
-  },
-
-  /* ------------------------------------------------------------------ */
-  /* Main entry: calculate all metrics                                    */
-  /* ------------------------------------------------------------------ */
-
-  calculate(form) {
-    const ny = form.numYears;
-    const churnTable = this.buildChurnTable(
-      form.churnRate / 100,
-      parseFloat(form.quarterlyChurnIncrease),
-      ny,
+    const totalCosts = Array.from({ length: ny }, (_, y) =>
+      Object.values(annualCostsByCat).reduce((s, a) => s + a[y], 0)
     );
 
-    const revenue  = this.calcRevenue(form);
-    const costs    = this.calcCosts(form, revenue);
+    // 1.1.9  Net cash flow (year 0 = initialInvestment + nwc)
+    const zeroPeriod  = (+form.initialInvestment || 0) + (+form.nwc || 0);
+    const netCashFlow = [zeroPeriod, ...Array.from({ length: ny }, (_, y) =>
+      annualRevenue[y] + totalCosts[y]
+    )];
 
-    // Net quarterly cash flows
-    const ncf = [];
-    for (let y = 0; y < ny; y++)
-      for (let q = 0; q < 4; q++)
-        ncf.push(revenue[y][q] - costs[y][q]);
+    // 1.1.10  Calculated NWC (sum of negative operating years)
+    const nwcCalc = netCashFlow.slice(1).filter(v => v < 0).reduce((a, b) => a + b, 0);
 
-    // Initial investment (zero period)
-    const initial = (parseFloat(form.initialInvestment) || 0)
-                  + (parseFloat(form.nwc) || 0);
-    const allCf = [initial, ...ncf];
+    // 1.2.1  Discount factors (annual)
+    const discountRate = ((+form.keyRate || 0) + (+form.riskPremium || 0)) / 100;
+    const discountFactors = Array.from({ length: ny + 1 }, (_, yr) =>
+      1 / Math.pow(1 + discountRate, yr)
+    );
 
-    // Discount rate
-    const annualRate = ((parseFloat(form.keyRate) || 0)
-                      + (parseFloat(form.riskPremium) || 0)) / 100;
-    const qRate = Math.pow(1 + annualRate, 0.25) - 1;
+    // 1.2.2  Discounted CF
+    const discountedCF = netCashFlow.map((cf, yr) => cf * discountFactors[yr]);
 
-    // DCF series
-    const dcfSeries = ncf.map((cf, t) => cf / Math.pow(1 + qRate, t + 1));
-
-    // Cumulative DCF
+    // 1.2.3  Cumulative discounted CF
     const cumDcf = [];
-    let running = initial;
-    for (const d of dcfSeries) {
-      running += d;
-      cumDcf.push(running);
-    }
+    let running = 0;
+    for (const d of discountedCF) { running += d; cumDcf.push(running); }
 
-    const npv = cumDcf.length ? cumDcf[cumDcf.length - 1] : initial;
+    // 1.2.4  NPV
+    const npv = cumDcf.at(-1) ?? 0;
 
-    // DPP — first quarter where cumulative ≥ 0
+    // 1.2.5  DPP (linear interpolation between years)
     let dpp = null;
-    for (let t = 0; t < cumDcf.length; t++) {
-      if (cumDcf[t] >= 0) { dpp = +((t + 1) / 4).toFixed(1); break; }
+    for (let yr = 1; yr < cumDcf.length; yr++) {
+      if (cumDcf[yr] > 0 && cumDcf[yr - 1] < 0) {
+        const span = cumDcf[yr] - cumDcf[yr - 1];
+        dpp = +(yr - cumDcf[yr - 1] / span).toFixed(2);
+        break;
+      }
     }
 
-    // PI
-    const pi = initial < 0 ? +(1 + npv / Math.abs(initial)).toFixed(2) : 0;
+    // 1.2.6  PI = SUM(discountedCF[1..n]) / |NWC|
+    const nwcAbs     = Math.abs(zeroPeriod) || 1;
+    const sumDisc1N  = discountedCF.slice(1).reduce((a, b) => a + b, 0);
+    const pi         = +(sumDisc1N / nwcAbs).toFixed(2);
 
-    // IRR (annualised)
+    // 1.2.7  IRR (annual)
     let irrAnnual = null;
     try {
-      const irrQ = this.irr(allCf);
-      if (isFinite(irrQ) && !isNaN(irrQ)) {
-        irrAnnual = +((Math.pow(1 + irrQ, 4) - 1) * 100).toFixed(1);
-      }
-    } catch (e) { /* ignore */ }
+      const v = this._irr(netCashFlow);
+      if (isFinite(v) && !isNaN(v)) irrAnnual = +(v * 100).toFixed(1);
+    } catch (_) { /* ignore */ }
 
-    // CAC
-    let totalMktCost = 0, totalNewUsers = 0;
+    // 1.2.8  CAC per year = |marketingCost[y]| / newPaidUsers[y]
+    const mktKey = Object.keys(annualCostsByCat).find(k =>
+      k.toLowerCase().includes('маркетинг') || k.toLowerCase().includes('marketing')
+    );
+    const cacByYear = Array.from({ length: ny }, (_, y) => {
+      const newU = newPaidUsers[y].reduce((a, b) => a + b, 0);
+      if (mktKey && newU > 0) return Math.abs(annualCostsByCat[mktKey][y]) / newU;
+      return +form.costs.find(c => c.mode === 'cac')?.param || 0;
+    });
+    const avgCac = cacByYear.length ? cacByYear.reduce((a, b) => a + b, 0) / cacByYear.length : 0;
+
+    // 1.2.9  ARPU = AVERAGE(revenue[y][q] / paidUsers[y][q])
+    const arpuVals = [];
+    for (let y = 0; y < ny; y++)
+      for (let q = 0; q < 4; q++)
+        if (paidUsers[y][q] > 0) arpuVals.push(revenue[y][q] / paidUsers[y][q]);
+    const arpu = arpuVals.length ? arpuVals.reduce((a, b) => a + b, 0) / arpuVals.length : 0;
+
+    // 1.2.10  Average quarterly churn
+    const allChurn  = churnTable.flat();
+    const avgChurn  = allChurn.reduce((a, b) => a + b, 0) / (allChurn.length || 1);
+
+    // 1.2.11  Lifetime = -1 / avgChurn / 4
+    const lifetimeYears = avgChurn !== 0 ? -1 / avgChurn / 4 : 0;
+
+    // 1.2.12  LTV = ARPU × lifetimeYears × grossMargin
+    let grossMargin = 1;
     for (const c of form.costs) {
-      if (c.mode === 'cac') {
-        for (let y = 0; y < ny; y++)
-          for (let q = 0; q < 4; q++) {
-            const u = this._safe(form.users, y, q);
-            totalMktCost  += u * parseFloat(c.param || 0);
-            totalNewUsers += u;
-          }
+      if (c.mode === 'percent_revenue' &&
+          (c.category.toLowerCase().includes('cogs') ||
+           c.category.toLowerCase().includes('support'))) {
+        grossMargin -= (+c.param || 0) / 100;
       }
     }
-    const cac = totalNewUsers > 0
-      ? totalMktCost / totalNewUsers
-      : (form.costs.find(c => c.mode === 'cac')?.param || 0);
+    grossMargin = Math.max(0, grossMargin);
+    const ltv = arpu * lifetimeYears * grossMargin;
 
-    // ARPU
-    const conv = form.conversionRate / 100;
-    let totalRev = 0, totalPaying = 0;
-    for (let y = 0; y < ny; y++)
-      for (let q = 0; q < 4; q++) {
-        totalRev    += revenue[y][q];
-        totalPaying += this._safe(form.users, y, q) * conv;
-      }
-    const arpu = totalPaying > 0 ? totalRev / totalPaying : 0;
-
-    // Average churn
-    let churnSum = 0, churnCnt = 0;
-    for (let y = 0; y < ny; y++)
-      for (let q = 0; q < 4; q++) {
-        churnSum += churnTable[y][q];
-        churnCnt++;
-      }
-    const avgChurn = churnCnt > 0 ? churnSum / churnCnt : 0; // negative
-
-    // Lifetime & LTV
-    const monthlyArpu  = arpu / 3;
-    const monthlyChurn = Math.abs(avgChurn) / 3;
-    const lifetimeQtrs = avgChurn !== 0 ? 1 / Math.abs(avgChurn) : 0;
-    const lifetimeYrs  = +(lifetimeQtrs / 4).toFixed(1);
-    const ltv          = monthlyChurn > 0 ? monthlyArpu / monthlyChurn : 0;
-    const ltvCac       = cac > 0 ? +(ltv / cac).toFixed(2) : 0;
+    // 1.2.13  LTV/CAC
+    const ltvCac = avgCac > 0 ? +(ltv / avgCac).toFixed(2) : 0;
 
     return {
-      discountRate: +(annualRate * 100).toFixed(2),
-      dcf:          Math.round(dcfSeries.at(-1) ?? 0),
-      cumulativeDcf:Math.round(cumDcf.at(-1) ?? 0),
-      npv:          Math.round(npv),
+      /* key metrics */
+      discountRate:   +(discountRate * 100).toFixed(2),
+      npv:            Math.round(npv),
       dpp,
       pi,
-      irr:          irrAnnual,
-      cac:          Math.round(cac),
-      arpu:         Math.round(arpu),
-      avgChurn:     +(avgChurn * 100).toFixed(2),
-      lifetime:     lifetimeYrs,
-      ltv:          Math.round(ltv),
+      irr:            irrAnnual,
+      cac:            Math.round(avgCac),
+      arpu:           Math.round(arpu),
+      avgChurn:       +(avgChurn * 100).toFixed(2),
+      lifetime:       +lifetimeYears.toFixed(1),
+      ltv:            Math.round(ltv),
       ltvCac,
-      // raw series (for future charts)
-      churnTable,
-      revenue,
-      costs,
-      cashFlows: ncf,
-      dcfSeries,
+      grossMargin:    +(grossMargin * 100).toFixed(1),
+      nwcCalc:        Math.round(nwcCalc),
+      /* series */
+      discountFactors,
+      discountedCF,
       cumulativeDcfSeries: cumDcf,
+      /* tables */
+      churnTable,
+      paidWithoutChurn,
+      paidUsers,
+      newPaidUsers,
+      revenue,
+      annualRevenue,
+      totalCosts,
+      netCashFlow,
+      annualCostsByCat,
+      cacByYear,
     };
   },
 
-  /* ------------------------------------------------------------------ */
-  /* Formatting helpers                                                   */
-  /* ------------------------------------------------------------------ */
+  /* ─── Formatting helpers ────────────────────────────────────────────── */
 
   fmt(n, suffix = '₽') {
     if (n == null || isNaN(n)) return '—';
-    return new Intl.NumberFormat('ru-RU').format(Math.round(n)) + (suffix ? ' ' + suffix : '');
-  },
-
-  fmtPct(n) {
-    if (n == null || isNaN(n)) return '—';
-    return n.toFixed(2) + '%';
+    return new Intl.NumberFormat('ru-RU').format(Math.round(n)) + (suffix ? '\u00a0' + suffix : '');
   },
 
   fmtShort(n) {
     if (n == null || isNaN(n)) return '—';
     const abs = Math.abs(n);
-    if (abs >= 1_000_000) return (n / 1_000_000).toFixed(1) + ' млн ₽';
-    if (abs >= 1_000)     return (n / 1_000).toFixed(0) + ' тыс ₽';
+    if (abs >= 1_000_000) return (n / 1_000_000).toFixed(2) + '\u00a0млн\u00a0₽';
+    if (abs >= 1_000)     return (n / 1_000).toFixed(0)     + '\u00a0тыс\u00a0₽';
     return this.fmt(n);
+  },
+
+  fmtPct(n, dec = 2) {
+    if (n == null || isNaN(n)) return '—';
+    return n.toFixed(dec) + '%';
   },
 };

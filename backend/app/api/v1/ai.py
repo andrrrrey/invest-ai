@@ -26,16 +26,16 @@ class AnalyzeRequest(BaseModel):
 
 
 def _check_api_key():
-    if not settings.ANTHROPIC_API_KEY:
+    if not settings.OPENAI_API_KEY:
         raise HTTPException(
             status_code=503,
-            detail="ANTHROPIC_API_KEY не настроен. Добавьте его в файл .env",
+            detail="OPENAI_API_KEY не настроен. Добавьте его в файл .env",
         )
 
 
 @router.post("/generate-description")
 def generate_description(req: DescriptionRequest) -> dict:
-    """Generate project description using Claude AI."""
+    """Generate project description using OpenAI GPT-4o."""
     _check_api_key()
     text = ai_service.generate_description(
         project_name=req.project_name,
@@ -48,7 +48,7 @@ def generate_description(req: DescriptionRequest) -> dict:
 
 @router.post("/generate-risks")
 def generate_risks(req: RisksRequest) -> dict:
-    """Generate risks and assumptions using Claude AI."""
+    """Generate risks and assumptions using OpenAI GPT-4o."""
     _check_api_key()
     result = ai_service.generate_risks(
         project_name=req.project_name,
