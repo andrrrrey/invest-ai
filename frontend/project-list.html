@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Список проектов | Метрики</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg-body: #F8F7F3;
+            --sidebar-bg: #1C1C1E;
+            --sidebar-hover: #2C2C2E;
+            --text-main: #1C1C1E;
+            --text-muted: #8E8E93;
+            --accent-purple: #5E5CE6;
+            --radius-lg: 35px;
+            --radius-md: 24px;
+            --card-white: #FFFFFF;
+            --danger: #FF3B30;
+            --success: #34C759;
+            --warning: #FF9500;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+
+        body {
+            background-color: #E5E5E5;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: var(--sidebar-bg);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .app-window {
+            width: 100%;
+            max-width: 1400px;
+            height: 90vh;
+            background: var(--bg-body);
+            border-radius: var(--radius-lg);
+            display: flex;
+            overflow: hidden;
+            box-shadow: 0 50px 100px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        /* --- Sidebar (Точно как во втором коде) --- */
+        .sidebar {
+            width: 260px;
+            background: var(--sidebar-bg);
+            padding: 60px 25px 40px;
+            display: flex;
+            flex-direction: column;
+            color: white;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            flex-shrink: 0;
+        }
+
+        .profile-section { text-align: center; margin-bottom: 50px; }
+        .avatar { width: 90px; height: 90px; border-radius: 50%; border: 3px solid white; margin-bottom: 15px; object-fit: cover; background: #333; }
+        .profile-section p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+        .profile-section h4 { font-size: 16px; font-weight: 600; margin-top: 4px; }
+
+        .nav-menu { flex: 1; }
+        .nav-link {
+            display: flex; align-items: center; gap: 15px; color: var(--text-muted);
+            text-decoration: none; padding: 14px 15px; border-radius: 12px;
+            font-size: 14px; margin-bottom: 8px; transition: 0.3s;
+        }
+        .nav-link.active, .nav-link:hover { background: var(--sidebar-hover); color: white; }
+        .nav-link i { font-size: 18px; width: 20px; text-align: center; }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 40px 50px;
+            overflow-y: auto;
+            background: var(--bg-body);
+        }
+
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        /* Filter Panel */
+        .filters-container {
+            background: var(--card-white);
+            border-radius: var(--radius-md);
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filter-group label {
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
+        /* Поправленные стрелочки в select */
+        .filter-group select {
+            appearance: none;
+            padding: 10px 35px 10px 15px;
+            border-radius: 10px;
+            border: 1px solid #F2F2F7;
+            background: #F8F7F3;
+            font-size: 13px;
+            outline: none;
+            transition: 0.2s;
+            cursor: pointer;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+
+        .filter-group input {
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #F2F2F7;
+            background: #F8F7F3;
+            font-size: 13px;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        .filter-group select:focus, .filter-group input:focus { border-color: var(--accent-purple); }
+
+        /* Projects Table */
+        .table-container {
+            background: var(--card-white);
+            border-radius: var(--radius-md);
+            padding: 20px 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+        }
+
+        .projects-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .projects-table th {
+            text-align: left;
+            padding: 15px 25px;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            border-bottom: 1px solid #F2F2F7;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .projects-table th:hover { color: var(--accent-purple); }
+        .projects-table th i { margin-left: 5px; font-size: 10px; }
+
+        .projects-table td {
+            padding: 18px 25px;
+            font-size: 14px;
+            border-bottom: 1px solid #F2F2F7;
+            color: var(--text-main);
+            transition: all 0.3s ease;
+        }
+
+        .projects-table tr {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .projects-table tr:last-child td { border-bottom: none; }
+
+        /* Поправленная анимация при наведении на проект */
+        .projects-table tr:hover { 
+            background: #FBFBFF; 
+            transform: scale(1.01);
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.03);
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Status & Badges */
+        .status-pill {
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .status-ok { background: #DDF0E1; color: var(--success); }
+        .status-delay { background: #FFE5E5; color: var(--danger); }
+        .status-risk { background: #FFF4E5; color: var(--warning); }
+
+        .roi-val { font-weight: 700; color: var(--accent-purple); }
+        .investment-val { font-weight: 600; }
+
+        .deviation-neg { color: var(--danger); font-size: 12px; }
+        .deviation-pos { color: var(--success); font-size: 12px; }
+
+        @media (max-width: 1100px) {
+            .app-window { height: 100vh; border-radius: 0; }
+            .sidebar { 
+                position: absolute; 
+                left: -260px; 
+                height: 100%; 
+                z-index: 1001; 
+                box-shadow: 20px 0 50px rgba(0,0,0,0.1);
+            }
+            .sidebar.active { left: 0; }
+            .mobile-menu-btn { display: block; }
+            .main-content { padding: 80px 20px 30px; }
+            .table-container { overflow-x: auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="mobile-menu-btn" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <div class="app-window">
+        <aside class="sidebar" id="sidebar">
+            <div class="profile-section">
+                <img src="https://ui-avatars.com/api/?name=Марк+Джонсон&background=333&color=fff" alt="Аватар" class="avatar">
+                <p>С возвращением,</p>
+                <h4>Марк Джонсон</h4>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="#" class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
+                <a href="#" class="nav-link active"><i class="fas fa-project-diagram"></i> Проекты</a>
+                <a href="#" class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
+                <a href="#" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
+            </nav>
+
+            <a href="#" class="nav-link" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
+        </aside>
+
+        <main class="main-content">
+            <header class="header-row">
+                <div>
+                    <h1 style="font-size: 26px; font-weight: 800;">Портфель проектов</h1>
+                    <p style="color: var(--text-muted); font-size: 14px;">24 активных проекта в управлении</p>
+                </div>
+                <button style="padding: 12px 24px; border-radius: 14px; border: none; background: var(--accent-purple); color: white; font-weight: 700; cursor: pointer;">
+                    <i class="fas fa-plus"></i> Новый проект
+                </button>
+            </header>
+
+            <section class="filters-container">
+                <div class="filters-grid">
+                    <div class="filter-group">
+                        <label>Стадия</label>
+                        <select>
+                            <option>Все стадии</option>
+                            <option>Инициация</option>
+                            <option>Планирование</option>
+                            <option>Реализация</option>
+                            <option>Завершение</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>ROI (%)</label>
+                        <input type="text" placeholder="Мин. %">
+                    </div>
+                    <div class="filter-group">
+                        <label>Статус</label>
+                        <select>
+                            <option>Любой</option>
+                            <option>В графике</option>
+                            <option>Отставание</option>
+                            <option>Критично</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Уровень риска</label>
+                        <select>
+                            <option>Все</option>
+                            <option>Низкий</option>
+                            <option>Средний</option>
+                            <option>Высокий</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Ответственный</label>
+                        <select>
+                            <option>Все сотрудники</option>
+                            <option>А. Волков</option>
+                            <option>М. Джонсон</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <div class="table-container">
+                <table class="projects-table">
+                    <thead>
+                        <tr>
+                            <th>Название проекта <i class="fas fa-sort"></i></th>
+                            <th>Инвестиции <i class="fas fa-sort-down"></i></th>
+                            <th>ROI / IRR</th>
+                            <th>Окупаемость</th>
+                            <th>Отклонение</th>
+                            <th>Статус</th>
+                            <th>Безубыточность</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <div style="font-weight: 700;">Солнечная Энергия 2.0</div>
+                                <div style="font-size: 11px; color: var(--text-muted);">А. Волков</div>
+                            </td>
+                            <td class="investment-val">12 000 000 ₽</td>
+                            <td class="roi-val">18.5%</td>
+                            <td>29 мес.</td>
+                            <td class="deviation-neg">+5% (CAPEX)</td>
+                            <td>
+                                <span class="status-pill status-delay">
+                                    <i class="fas fa-clock"></i> Отставание
+                                </span>
+                            </td>
+                            <td>Окт 2026</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div style="font-weight: 700;">Ветрогенерация "Норд"</div>
+                                <div style="font-size: 11px; color: var(--text-muted);">Е. Смирнова</div>
+                            </td>
+                            <td class="investment-val">45 200 000 ₽</td>
+                            <td class="roi-val">22.1%</td>
+                            <td>42 мес.</td>
+                            <td class="deviation-pos">-2% (Срок)</td>
+                            <td>
+                                <span class="status-pill status-ok">
+                                    <i class="fas fa-check-circle"></i> В графике
+                                </span>
+                            </td>
+                            <td>Май 2027</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div style="font-weight: 700;">Биодизель Логистик</div>
+                                <div style="font-size: 11px; color: var(--text-muted);">Д. Кац</div>
+                            </td>
+                            <td class="investment-val">8 400 000 ₽</td>
+                            <td class="roi-val">14.2%</td>
+                            <td>18 мес.</td>
+                            <td class="deviation-neg">+12% (Риск)</td>
+                            <td>
+                                <span class="status-pill status-risk">
+                                    <i class="fas fa-exclamation-circle"></i> Риск
+                                </span>
+                            </td>
+                            <td>Янв 2026</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+        }
+
+        // Закрытие при клике по контенту на мобилках
+        document.querySelector('.main-content').addEventListener('click', () => {
+            if (window.innerWidth <= 1100) {
+                document.getElementById('sidebar').classList.remove('active');
+            }
+        });
+    </script>
+</body>
+</html>
