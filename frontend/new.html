@@ -575,7 +575,7 @@
                                     <template x-for="(row, yi) in metrics.churnTable" :key="yi">
                                         <tr>
                                             <td>Год <span x-text="yi+1"></span></td>
-                                            <template x-for="v in row" :key="v">
+                                            <template x-for="(v, qi) in row" :key="qi">
                                                 <td class="cell-comp" x-text="Finance.fmtPct(v*100)"></td>
                                             </template>
                                         </tr>
@@ -595,7 +595,7 @@
                                     <template x-for="(row, yi) in metrics.paidWithoutChurn" :key="yi">
                                         <tr>
                                             <td>Год <span x-text="yi+1"></span></td>
-                                            <template x-for="v in row" :key="v">
+                                            <template x-for="(v, qi) in row" :key="qi">
                                                 <td class="cell-comp"
                                                     x-text="new Intl.NumberFormat('ru-RU').format(v)"></td>
                                             </template>
@@ -616,7 +616,7 @@
                                     <template x-for="(row, yi) in metrics.paidUsers" :key="yi">
                                         <tr>
                                             <td>Год <span x-text="yi+1"></span></td>
-                                            <template x-for="v in row" :key="v">
+                                            <template x-for="(v, qi) in row" :key="qi">
                                                 <td class="cell-comp"
                                                     x-text="new Intl.NumberFormat('ru-RU').format(v)"></td>
                                             </template>
@@ -640,7 +640,7 @@
                                     <template x-for="(row, yi) in metrics.newPaidUsers" :key="yi">
                                         <tr>
                                             <td>Год <span x-text="yi+1"></span></td>
-                                            <template x-for="v in row" :key="v">
+                                            <template x-for="(v, qi) in row" :key="qi">
                                                 <td :class="v>=0?'cell-pos':'cell-neg'"
                                                     x-text="new Intl.NumberFormat('ru-RU').format(v)"></td>
                                             </template>
@@ -666,7 +666,13 @@
                         <thead><tr>
                             <th>Категория</th><th>Режим</th><th>Параметр</th>
                             <template x-for="yi in form.numYears" :key="yi">
-                                <th>Год <span x-text="yi"></span></th>
+                                <th style="white-space:nowrap">
+                                    Год <span x-text="yi"></span>
+                                    <button class="row-del" x-show="form.numYears>1"
+                                        @click="removeYear(yi-1)" title="Удалить год">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </th>
                             </template>
                             <th></th>
                         </tr></thead>
@@ -709,7 +715,10 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="table-actions">
+                <div class="table-actions" style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="btn btn-outline" @click="addYear()">
+                        <i class="fas fa-plus"></i> Добавить год
+                    </button>
                     <button class="btn btn-outline" @click="addCost()">
                         <i class="fas fa-plus"></i> Добавить статью
                     </button>

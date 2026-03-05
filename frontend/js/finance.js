@@ -119,7 +119,8 @@ const Finance = {
         } else if (form.revenueModel === 'transactional') {
           rev = this._s2(form.transactions, y, q) * this._s2(form.avgChecks, y, q);
         } else {  // hybrid
-          rev = paidUsers[y][q] * py + this._s2(form.hybridTransactional, y, q);
+          rev = paidUsers[y][q] * py +
+                this._s2(form.transactions, y, q) * this._s2(form.avgChecks, y, q);
         }
         row.push(rev);
       }
