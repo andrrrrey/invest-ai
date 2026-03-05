@@ -33,24 +33,35 @@
             box-shadow: 0 50px 100px rgba(0,0,0,.1);
         }
 
+        /* Mobile burger */
+        .mobile-menu-btn {
+            display: none; position: fixed; top: 20px; left: 20px; z-index: 1000;
+            background: var(--sb); color: #fff; border: none;
+            padding: 12px; border-radius: 12px; cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,.1);
+        }
+
         /* Sidebar */
         .sidebar {
-            width: 220px; min-width: 220px;
+            width: 260px; min-width: 260px;
             background: var(--sb); color: #fff;
             display: flex; flex-direction: column;
-            padding: 28px 16px; gap: 6px;
+            padding: 60px 25px 40px; gap: 6px;
+            transition: all .4s cubic-bezier(.4,0,.2,1);
+            flex-shrink: 0;
         }
-        .profile-section { text-align: center; margin-bottom: 24px; }
-        .profile-section img { width: 56px; height: 56px; border-radius: 50%; margin-bottom: 8px; }
-        .profile-section p  { font-size: 12px; color: #8E8E93; }
-        .profile-section h4 { font-size: 14px; font-weight: 600; }
-        .nav-menu { display: flex; flex-direction: column; gap: 4px; }
+        .profile-section { text-align: center; margin-bottom: 50px; }
+        .profile-section img { width: 90px; height: 90px; border-radius: 50%; border: 3px solid #fff; margin-bottom: 15px; object-fit: cover; background: #333; }
+        .profile-section p  { font-size: 13px; color: #8E8E93; line-height: 1.6; }
+        .profile-section h4 { font-size: 16px; font-weight: 600; margin-top: 4px; }
+        .nav-menu { flex: 1; }
         .nav-link {
-            display: flex; align-items: center; gap: 10px;
-            padding: 10px 12px; border-radius: 10px;
+            display: flex; align-items: center; gap: 15px;
+            padding: 14px 15px; border-radius: 12px;
             color: #8E8E93; text-decoration: none;
-            font-size: 13px; font-weight: 500; transition: .2s;
+            font-size: 14px; font-weight: 500; margin-bottom: 8px; transition: .3s;
         }
+        .nav-link i { font-size: 18px; width: 20px; text-align: center; }
         .nav-link:hover, .nav-link.active { background: #2C2C2E; color: #fff; }
 
         /* Main */
@@ -226,8 +237,14 @@
         @media (max-width: 992px) {
             body { padding: 0; }
             .app-window { height: 100vh; border-radius: 0; }
-            .sidebar { display: none; }
-            .main-content { padding: 20px; }
+            .mobile-menu-btn { display: block; }
+            .sidebar {
+                position: absolute; left: -260px; top: 0;
+                height: 100%; z-index: 1001;
+                box-shadow: 20px 0 50px rgba(0,0,0,.1);
+            }
+            .sidebar.active { left: 0; }
+            .main-content { padding: 80px 20px 30px; }
             .top-header { flex-direction: column; }
             .steps-nav, .choice-grid, .grid-2, .grid-3, .metric-grid { grid-template-columns: 1fr; }
             .panel-footer { flex-direction: column; align-items: stretch; }
@@ -238,12 +255,16 @@
 </head>
 <body>
 
+<button class="mobile-menu-btn" onclick="toggleSidebar()">
+    <i class="fas fa-bars"></i>
+</button>
+
 <div x-data="wizardApp()" x-init="init()" class="app-window">
 
     <!-- Sidebar -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
         <div class="profile-section">
-            <img src="https://ui-avatars.com/api/?name=Марк+Джонсон&background=333&color=fff" alt="">
+            <img src="https://ui-avatars.com/api/?name=Марк+Джонсон&background=333&color=fff" alt="Аватар">
             <p>С возвращением,</p>
             <h4>Марк Джонсон</h4>
         </div>
@@ -408,6 +429,14 @@
                             <option value="hybrid">Гибридная (подписка + транзакции)</option>
                         </select>
                     </div>
+                    <div class="field"><label>Гранулярность ввода / просмотра</label>
+                        <select x-model="form.granularity" @change="onGranularityChange()">
+                            <option value="month">По месяцам (1–12 в год)</option>
+                            <option value="quarter">По кварталам (Q1–Q4)</option>
+                            <option value="half">По полугодиям (H1–H2)</option>
+                            <option value="year">По годам (итог)</option>
+                        </select>
+                    </div>
                     <div class="field"><label>Индексация в год (%)</label>
                         <input type="number" x-model.number="form.indexationRate" min="0" max="100" step="0.5">
                     </div>
@@ -422,6 +451,13 @@
                                @change="resizeYearArrays()">
                     </div>
                 </div>
+                <p class="hint" style="margin-top:4px">
+                    <i class="fas fa-info-circle" style="color:var(--accent)"></i>
+                    <strong>Гранулярность</strong> определяет, как вы вводите и просматриваете данные.
+                    Все внутренние расчёты и ключевые метрики всегда приводятся к <strong>квартальной сетке</strong>.
+                    Индексация начинается с года 2, поскольку год 1 является базовым (цена вводится вручную),
+                    а с года 2 применяется формула: <em>цена₁ × (1 + ставка)^год</em>.
+                </p>
 
                 <!-- Цены по годам (subscription / hybrid) -->
                 <template x-if="form.revenueModel !== 'transactional'">
@@ -467,22 +503,30 @@
                 <!-- Транзакционная -->
                 <template x-if="form.revenueModel !== 'subscription'">
                     <div>
-                        <p class="tbl-label">Транзакционная выручка — кол-во транзакций и средний чек</p>
-                        <div class="tbl-wrap">
-                            <table>
+                        <p class="tbl-label">Транзакционная выручка — кол-во транзакций и средний чек (прокрутите вправо →)</p>
+                        <div class="tbl-wrap" style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+                            <table style="min-width: max-content; table-layout: auto;">
                                 <thead><tr>
-                                    <th>Параметр</th>
+                                    <th style="min-width:160px; position:sticky; left:0; background:#F7F7FB; z-index:1;">Параметр</th>
                                     <template x-for="yi in form.numYears" :key="yi">
-                                        <th colspan="4">Год <span x-text="yi"></span> (Q1–Q4)</th>
+                                        <th colspan="4" style="min-width:320px; text-align:center; white-space:nowrap;">Год <span x-text="yi"></span> (Q1–Q4)</th>
+                                    </template>
+                                </tr>
+                                <tr>
+                                    <th style="position:sticky; left:0; background:#F7F7FB; z-index:1;"></th>
+                                    <template x-for="(_, yi) in Array.from({length:form.numYears})" :key="yi">
+                                        <template x-for="(ql, qi) in ['Q1','Q2','Q3','Q4']" :key="qi">
+                                            <th style="min-width:80px; white-space:nowrap;" x-text="ql"></th>
+                                        </template>
                                     </template>
                                 </tr></thead>
                                 <tbody>
                                     <tr>
-                                        <td>Кол-во транзакций</td>
+                                        <td style="font-weight:600; position:sticky; left:0; background:#fff; z-index:1; white-space:nowrap;">Кол-во транзакций</td>
                                         <template x-for="(_, yi) in Array.from({length:form.numYears})" :key="yi">
                                             <template x-for="(_, qi) in [0,1,2,3]" :key="qi">
-                                                <td>
-                                                    <input type="number" min="0"
+                                                <td style="min-width:80px;">
+                                                    <input type="number" min="0" style="width:80px;"
                                                         :value="form.transactions[yi]?.[qi]"
                                                         @input="setM('transactions',yi,qi,$event.target.value)">
                                                 </td>
@@ -490,11 +534,11 @@
                                         </template>
                                     </tr>
                                     <tr>
-                                        <td>Средний чек (₽)</td>
+                                        <td style="font-weight:600; position:sticky; left:0; background:#fff; z-index:1; white-space:nowrap;">Средний чек (₽)</td>
                                         <template x-for="(_, yi) in Array.from({length:form.numYears})" :key="yi">
                                             <template x-for="(_, qi) in [0,1,2,3]" :key="qi">
-                                                <td>
-                                                    <input type="number" min="0"
+                                                <td style="min-width:80px;">
+                                                    <input type="number" min="0" style="width:80px;"
                                                         :value="form.avgChecks[yi]?.[qi]"
                                                         @input="setM('avgChecks',yi,qi,$event.target.value)">
                                                 </td>
@@ -513,21 +557,25 @@
                 <h3>3.3 Количество привлечённых пользователей</h3>
 
                 <!-- User input table -->
-                <p class="tbl-label">Всего пользователей (привлечённых) по кварталам</p>
-                <div class="tbl-wrap">
-                    <table>
+                <p class="tbl-label" x-text="'Всего пользователей (привлечённых) — ' + granularityLabel()"></p>
+                <div class="tbl-wrap" style="overflow-x:auto">
+                    <table :style="form.granularity==='month' ? 'min-width:900px' : ''">
                         <thead><tr>
-                            <th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th></th>
+                            <th>Год</th>
+                            <template x-for="col in periodCols()" :key="col.label">
+                                <th x-text="col.label"></th>
+                            </template>
+                            <th></th>
                         </tr></thead>
                         <tbody>
                             <template x-for="(row, yi) in form.users" :key="yi">
                                 <tr>
                                     <td>Год <span x-text="yi+1"></span></td>
-                                    <template x-for="(_, qi) in [0,1,2,3]" :key="qi">
+                                    <template x-for="col in periodCols()" :key="col.label">
                                         <td>
-                                            <input type="number" min="0"
-                                                :value="form.users[yi][qi]"
-                                                @input="setM('users',yi,qi,$event.target.value)">
+                                            <input type="number" min="0" style="width:72px"
+                                                :value="getDisplayVal('users', yi, col.quarters)"
+                                                @input="setDisplayVal('users', yi, col.quarters, $event.target.value)">
                                         </td>
                                     </template>
                                     <td>
@@ -829,6 +877,16 @@
                         <div class="v" x-text="metrics.discountRate + '%'"></div>
                     </div>
                     <div class="metric-card">
+                        <div class="k">Чистый дисконт. поток (DCF)</div>
+                        <div class="v" :class="metrics.dcf>=0?'pos':'neg'"
+                             x-text="Finance.fmtShort(metrics.dcf)"></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="k">Накопл. дисконт. поток (Cumulative DCF)</div>
+                        <div class="v" :class="metrics.npv>=0?'pos':'neg'"
+                             x-text="Finance.fmtShort(metrics.npv)"></div>
+                    </div>
+                    <div class="metric-card">
                         <div class="k">NPV (1.2.4)</div>
                         <div class="v" :class="metrics.npv>=0?'pos':'neg'"
                              x-text="Finance.fmtShort(metrics.npv)"></div>
@@ -1113,6 +1171,7 @@ function wizardApp() {
 
             // Revenue model
             revenueModel: 'subscription',
+            granularity: 'quarter',
             indexationRate: 10,
             applyIndexation: true,
             numYears: 5,
@@ -1219,6 +1278,53 @@ function wizardApp() {
                   values: Array(this.form.numYears).fill(0) }
             ];
         },
+
+        // ── Granularity helpers ────────────────────────────────────────────
+        // Returns display column descriptors: [{label, quarters:[0..3]}]
+        periodCols() {
+            const g = this.form.granularity;
+            if (g === 'quarter') {
+                return [{label:'Q1',quarters:[0]},{label:'Q2',quarters:[1]},
+                        {label:'Q3',quarters:[2]},{label:'Q4',quarters:[3]}];
+            }
+            if (g === 'half') {
+                return [{label:'H1',quarters:[0,1]},{label:'H2',quarters:[2,3]}];
+            }
+            if (g === 'year') {
+                return [{label:'Год (итог)',quarters:[0,1,2,3]}];
+            }
+            // month: 12 months → map to quarters (months 1-3→Q1, 4-6→Q2, 7-9→Q3, 10-12→Q4)
+            const months = [];
+            for (let m = 1; m <= 12; m++) {
+                const q = Math.floor((m - 1) / 3); // quarter index 0..3
+                months.push({ label: 'М' + m, quarters: [q], monthInQ: (m - 1) % 3 });
+            }
+            return months;
+        },
+
+        granularityLabel() {
+            const map = { quarter:'по кварталам (Q1–Q4)', half:'по полугодиям (H1–H2)',
+                          year:'по годам (итог)', month:'по месяцам (М1–М12)' };
+            return map[this.form.granularity] || 'по кварталам';
+        },
+
+        // Read value for a display column (average of the covered quarters)
+        getDisplayVal(field, yi, quarters) {
+            const row = this.form[field][yi] || [];
+            if (quarters.length === 1) return row[quarters[0]] || 0;
+            const sum = quarters.reduce((s, q) => s + (row[q] || 0), 0);
+            return Math.round(sum / quarters.length);
+        },
+
+        // Write value: distribute entered value equally across covered quarters
+        setDisplayVal(field, yi, quarters, val) {
+            const v = parseFloat(val) || 0;
+            const m = this.form[field].map(r => [...r]);
+            quarters.forEach(q => { m[yi][q] = v; });
+            this.form[field] = m;
+        },
+
+        onGranularityChange() { /* reactive — periodCols() recalculates automatically */ },
 
         // ── Navigation ─────────────────────────────────────────────────────
         goTo(n) {
@@ -1329,7 +1435,7 @@ function _m2d(rows, cols) {
 
 function _emptyMetrics() {
     return {
-        discountRate: 0, npv: 0, dpp: null, pi: 0, irr: null,
+        discountRate: 0, dcf: 0, npv: 0, dpp: null, pi: 0, irr: null,
         cac: 0, arpu: 0, avgChurn: 0, lifetime: 0, ltv: 0, ltvCac: 0,
         grossMargin: 0, nwcCalc: 0,
         discountFactors: [], discountedCF: [], cumulativeDcfSeries: [],
@@ -1337,6 +1443,10 @@ function _emptyMetrics() {
         revenue: [], annualRevenue: [], totalCosts: [], netCashFlow: [],
         annualCostsByCat: {}, cacByYear: [],
     };
+}
+
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('active');
 }
 </script>
 
