@@ -241,9 +241,13 @@ const Finance = {
     // 1.2.13  LTV/CAC
     const ltvCac = avgCac > 0 ? +(ltv / avgCac).toFixed(2) : 0;
 
+    // DCF = sum of discounted operating cash flows (years 1..n, excluding year 0)
+    const dcf = Math.round(discountedCF.slice(1).reduce((a, b) => a + b, 0));
+
     return {
       /* key metrics */
       discountRate:   +(discountRate * 100).toFixed(2),
+      dcf,
       npv:            Math.round(npv),
       dpp,
       pi,
