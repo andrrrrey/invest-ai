@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Создание проекта | Инвестиционный процессор</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+    <script src="js/finance.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+        :root {
+            --bg:      #F8F7F3;
+            --sb:      #1C1C1E;
+            --accent:  #5E5CE6;
+            --muted:   #8E8E93;
+            --danger:  #FF3B30;
+            --success: #34C759;
+            --warn:    #FF9500;
+            --green:   #DDF0E1;
+            --blue:    #B2B2FF;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+
+        body { background: #E5E5E5; padding: 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+
+        .app-window {
+            width: 100%; max-width: 1440px; height: 90vh;
+            background: var(--bg); border-radius: 35px;
+            display: flex; overflow: hidden;
+            box-shadow: 0 50px 100px rgba(0,0,0,.1);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 220px; min-width: 220px;
+            background: var(--sb); color: #fff;
+            display: flex; flex-direction: column;
+            padding: 28px 16px; gap: 6px;
+        }
+        .profile-section { text-align: center; margin-bottom: 24px; }
+        .profile-section img { width: 56px; height: 56px; border-radius: 50%; margin-bottom: 8px; }
+        .profile-section p  { font-size: 12px; color: #8E8E93; }
+        .profile-section h4 { font-size: 14px; font-weight: 600; }
+        .nav-menu { display: flex; flex-direction: column; gap: 4px; }
+        .nav-link {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px; border-radius: 10px;
+            color: #8E8E93; text-decoration: none;
+            font-size: 13px; font-weight: 500; transition: .2s;
+        }
+        .nav-link:hover, .nav-link.active { background: #2C2C2E; color: #fff; }
+
+        /* Main */
+        .main-content {
+            flex: 1; display: flex; flex-direction: column;
+            padding: 28px 34px; overflow-y: auto; gap: 16px;
+        }
+
+        /* Header */
+        .top-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+        .top-header h1 { font-size: 22px; font-weight: 700; }
+        .top-header p  { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+        /* AI banner */
+        .ai-banner {
+            background: var(--blue); border-radius: 16px;
+            padding: 13px 20px; display: flex; align-items: flex-start; gap: 14px; font-size: 13px;
+        }
+
+        /* Step nav */
+        .steps-nav { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+        .step-btn {
+            padding: 10px 4px; text-align: center;
+            font-size: 12px; font-weight: 600; border-radius: 10px;
+            border: 1.5px solid #E9E9EF; background: #fff;
+            cursor: pointer; color: var(--muted); transition: .2s;
+        }
+        .step-btn.done   { border-color: var(--success); color: var(--success); background: #f0fff4; }
+        .step-btn.active { border-color: var(--accent);  color: var(--accent);  background: #EEF0FF; }
+        .step-btn:hover:not(.active) { border-color: #ccc; color: #333; }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex; align-items: center; gap: 7px;
+            padding: 10px 20px; border-radius: 14px;
+            font-size: 13px; font-weight: 600; cursor: pointer;
+            border: none; transition: .2s; text-decoration: none;
+        }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { opacity: .88; transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+        .btn-outline { background: #fff; color: #333; border: 1.5px solid #E0E0E8; }
+        .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-success:disabled { opacity: .5; cursor: not-allowed; }
+
+        /* Fields */
+        .field { display: flex; flex-direction: column; gap: 5px; }
+        .field > label { font-size: 12px; font-weight: 600; color: #555; }
+        input[type=text], input[type=date], input[type=number], select, textarea {
+            width: 100%; padding: 8px 12px;
+            border: 1.5px solid #E5E5ED; border-radius: 12px;
+            font-size: 13px; color: #1C1C1E; background: #fff;
+            outline: none; transition: border-color .15s; font-family: inherit;
+        }
+        input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+        textarea { min-height: 100px; resize: vertical; }
+        input[readonly] { background: #F7F7FB; color: var(--muted); }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+        /* Choice cards */
+        .choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .choice-card {
+            border: 2px solid #E9E9EF; border-radius: 16px;
+            padding: 22px; cursor: pointer; transition: .2s; background: #fff;
+        }
+        .choice-card:hover   { border-color: #c0bfff; }
+        .choice-card.active  { border-color: var(--accent); background: #EEF0FF; }
+        .choice-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+        .choice-card p  { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+        /* Subsection */
+        .subsection {
+            border: 1px solid #EBEBF2; border-radius: 16px;
+            padding: 16px 20px; background: #fff;
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .subsection h3 { font-size: 14px; font-weight: 700; }
+
+        /* Tables */
+        .tbl-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th {
+            background: #F7F7FB; padding: 8px 10px; text-align: left;
+            font-weight: 600; color: var(--muted); font-size: 11px; text-transform: uppercase;
+        }
+        td { padding: 5px 8px; border-bottom: 1px solid #F2F2F7; vertical-align: middle; }
+        td input, td select {
+            padding: 5px 8px; border-radius: 8px;
+            font-size: 12px; border: 1.5px solid #E9E9EF; width: 90px;
+        }
+        td input:focus, td select:focus { border-color: var(--accent); outline: none; }
+        .cell-comp { color: var(--muted); font-style: italic; font-size: 11px; }
+        .cell-pos  { color: var(--success); font-weight: 600; }
+        .cell-neg  { color: var(--danger);  font-weight: 600; }
+        .tbl-label { font-size: 12px; font-weight: 600; margin-bottom: 6px; color: #444; }
+
+        .table-actions { margin-top: 8px; }
+        .row-del {
+            background: none; border: none; cursor: pointer;
+            color: var(--muted); padding: 3px 8px; font-size: 13px; transition: color .15s;
+        }
+        .row-del:hover { color: var(--danger); }
+
+        .hint { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+        /* Metric grid */
+        .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .metric-card {
+            background: #fff; border: 1px solid #EBEBF2;
+            border-radius: 14px; padding: 13px;
+        }
+        .metric-card .k { font-size: 11px; color: var(--muted); font-weight: 500; margin-bottom: 5px; line-height: 1.4; }
+        .metric-card .v { font-size: 17px; font-weight: 800; }
+        .metric-card .v.pos { color: var(--success); }
+        .metric-card .v.neg { color: var(--danger); }
+        .metric-card .v.acc { color: var(--accent); }
+
+        /* Summary */
+        .summary-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 12px; }
+        .summary-card {
+            border: 1px solid #E9E9EF; border-radius: 14px;
+            padding: 18px; background: #fff;
+        }
+        .summary-card.ai  { background: var(--green); border-color: #CFE5D4; }
+        .summary-card h4  { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+        .summary-card p, .summary-card li { font-size: 13px; color: #43434d; line-height: 1.55; margin-bottom: 4px; }
+        .summary-card ul  { padding-left: 18px; }
+        .risk-badge {
+            display: inline-block; padding: 3px 10px;
+            border-radius: 999px; font-size: 11px; font-weight: 700; margin-left: 6px;
+        }
+        .risk-низкий  { background: #DDF0E1; color: #1a7a3c; }
+        .risk-средний { background: #FBECCB; color: #7a4f00; }
+        .risk-высокий { background: #FFE5E3; color: #9c1c15; }
+
+        /* Footer */
+        .panel-footer {
+            display: flex; justify-content: space-between; align-items: center; gap: 10px;
+            border-top: 1px solid #F0F0F5; padding-top: 14px; margin-top: 4px;
+        }
+        .footer-right { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        /* Spinner */
+        .spin { display: inline-block; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 28px; right: 28px;
+            background: #1C1C1E; color: #fff;
+            padding: 11px 20px; border-radius: 14px;
+            font-size: 13px; font-weight: 600; z-index: 999;
+            display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.25); transition: opacity .3s;
+        }
+        .toast.success { background: var(--success); }
+        .toast.error   { background: var(--danger); }
+
+        /* Cash flow table colors */
+        .cf-pos  { color: var(--success); }
+        .cf-neg  { color: var(--danger); }
+        .cf-zero { color: var(--muted); }
+
+        @media (max-width: 1200px) {
+            .steps-nav   { grid-template-columns: repeat(3, 1fr); }
+            .metric-grid { grid-template-columns: repeat(2, 1fr); }
+            .summary-grid { grid-template-columns: 1fr; }
+            .grid-3      { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 992px) {
+            body { padding: 0; }
+            .app-window { height: 100vh; border-radius: 0; }
+            .sidebar { display: none; }
+            .main-content { padding: 20px; }
+            .top-header { flex-direction: column; }
+            .steps-nav, .choice-grid, .grid-2, .grid-3, .metric-grid { grid-template-columns: 1fr; }
+            .panel-footer { flex-direction: column; align-items: stretch; }
+            .footer-right { width: 100%; }
+            .footer-right .btn { flex: 1; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+<div x-data="wizardApp()" x-init="init()" class="app-window">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="profile-section">
+            <img src="https://ui-avatars.com/api/?name=Марк+Джонсон&background=333&color=fff" alt="">
+            <p>С возвращением,</p>
+            <h4>Марк Джонсон</h4>
+        </div>
+        <nav class="nav-menu">
+            <a href="main.html"         class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
+            <a href="project-list.html" class="nav-link active"><i class="fas fa-project-diagram"></i> Проекты</a>
+            <a href="export.html"       class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
+            <a href="#"                 class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
+        </nav>
+        <a href="#" class="nav-link" style="margin-top:auto;color:#EB5757">
+            <i class="fas fa-sign-out-alt"></i> Выйти
+        </a>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main-content">
+
+        <!-- Header -->
+        <header class="top-header">
+            <div>
+                <h1>Создание инвестиционного запроса</h1>
+                <p>Шаг <span x-text="step"></span> из 5 · Метрики пересчитываются в реальном времени</p>
+            </div>
+            <button class="btn btn-outline" @click="saveDraft()" :disabled="saving">
+                <i class="fas" :class="saving ? 'fa-spinner spin' : 'fa-save'"></i>
+                <span x-text="saving ? 'Сохраняем...' : 'Сохранить черновик'"></span>
+            </button>
+        </header>
+
+        <!-- AI banner -->
+        <div class="ai-banner">
+            <i class="fas fa-wand-magic-sparkles" style="font-size:22px;margin-top:2px"></i>
+            <div>
+                <strong style="display:block;margin-bottom:3px">Ксения, AI-ассистент (GPT-4o)</strong>
+                <p style="font-size:13px;line-height:1.45">
+                    Заполняйте шаги по очереди. Все расчёты обновляются мгновенно — не нужно нажимать «Рассчитать».
+                </p>
+            </div>
+        </div>
+
+        <!-- Step navigation -->
+        <nav class="steps-nav">
+            <template x-for="(label, i) in stepLabels" :key="i">
+                <button class="step-btn"
+                    :class="{ active: step === i+1, done: step > i+1 }"
+                    @click="goTo(i+1)">
+                    <template x-if="step > i+1"><i class="fas fa-check" style="margin-right:3px"></i></template>
+                    <span x-text="label"></span>
+                </button>
+            </template>
+        </nav>
+
+        <!-- ══════════════════════ STEP 1: Тип проекта ══════════════════════ -->
+        <section class="wizard-panel" x-show="step===1" x-transition>
+            <div>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 1 из 5</span>
+                <h2 style="font-size:20px;font-weight:700;margin-top:4px">Тип проекта</h2>
+                <p class="hint" style="margin-top:3px">Выберите формат инвестиционного запроса.</p>
+            </div>
+
+            <div class="choice-grid">
+                <article class="choice-card" :class="{active: form.projectType==='investment'}"
+                         @click="form.projectType='investment'">
+                    <h3>1.1 Инвестиционный проект (новый продукт)</h3>
+                    <p>Запуск нового продукта, расширение платформы, развитие новых направлений.</p>
+                </article>
+                <article class="choice-card" :class="{active: form.projectType==='operational'}"
+                         @click="form.projectType='operational'">
+                    <h3>1.2 Операционные инвест затраты</h3>
+                    <p>Инвестиции в персонал, ПО, маркетинг и операционную эффективность.</p>
+                </article>
+            </div>
+
+            <div class="panel-footer">
+                <span style="visibility:hidden" class="btn btn-outline">—</span>
+                <div class="footer-right">
+                    <button class="btn btn-outline" @click="saveDraft()">Сохранить черновик</button>
+                    <button class="btn btn-primary" @click="goTo(2)">Далее <i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════════════════ STEP 2: Суть проекта ══════════════════════ -->
+        <section class="wizard-panel" x-show="step===2" x-transition>
+            <div>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 2 из 5</span>
+                <h2 style="font-size:20px;font-weight:700;margin-top:4px">Суть проекта</h2>
+            </div>
+
+            <div class="grid-2">
+                <div class="field">
+                    <label>Название проекта</label>
+                    <input type="text" x-model="form.name" placeholder="Например: AI-аналитика портфеля">
+                </div>
+                <div class="field">
+                    <label>Направление / бизнес-юнит</label>
+                    <select x-model="form.businessUnit">
+                        <option>WealthTech</option>
+                        <option>Розничный банкинг</option>
+                        <option>Корпоративный бизнес</option>
+                        <option>Data Platform</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Краткое описание (1–3 абзаца)</label>
+                <textarea x-model="form.description" placeholder="Опишите идею и бизнес-эффект."></textarea>
+            </div>
+
+            <div>
+                <button class="btn btn-primary" @click="aiDescription()" :disabled="aiLoad.desc">
+                    <i class="fas" :class="aiLoad.desc ? 'fa-spinner spin' : 'fa-wand-magic-sparkles'"></i>
+                    <span x-text="aiLoad.desc ? 'Генерируем...' : 'Сформулировать с GPT-4o'"></span>
+                </button>
+            </div>
+
+            <div class="panel-footer">
+                <button class="btn btn-outline" @click="goTo(1)"><i class="fas fa-chevron-left"></i> Назад</button>
+                <div class="footer-right">
+                    <button class="btn btn-outline" @click="saveDraft()">Сохранить черновик</button>
+                    <button class="btn btn-primary" @click="goTo(3)">Далее <i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════════════════ STEP 3: Финансовая модель ══════════════════════ -->
+        <section class="wizard-panel" x-show="step===3" x-transition>
+            <div>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 3 из 5</span>
+                <h2 style="font-size:20px;font-weight:700;margin-top:4px">Финансовая модель</h2>
+                <p class="hint" style="margin-top:3px">Данные для расчёта выручки, затрат и ключевых метрик.</p>
+            </div>
+
+            <!-- 3.1 Общая информация -->
+            <div class="subsection">
+                <h3>3.1 Общая информация</h3>
+                <div class="grid-2">
+                    <div class="field"><label>Ответственный / Owner</label>
+                        <input type="text" x-model="form.owner" placeholder="Имя"></div>
+                    <div class="field"><label>Стадия проекта</label>
+                        <select x-model="form.stage">
+                            <option>Идея</option><option>MVP</option>
+                            <option>Рост</option><option>Масштаб</option><option>Завершён</option>
+                        </select>
+                    </div>
+                    <div class="field"><label>Дата старта</label>
+                        <input type="date" x-model="form.startDate"></div>
+                    <div class="field"><label>Платформа (опционально)</label>
+                        <input type="text" x-model="form.platform" placeholder="Web / Mobile / Data Platform"></div>
+                </div>
+            </div>
+
+            <!-- 3.2 Модель выручки -->
+            <div class="subsection">
+                <h3>3.2 Модель выручки</h3>
+                <div class="grid-3">
+                    <div class="field"><label>Тип модели</label>
+                        <select x-model="form.revenueModel">
+                            <option value="subscription">Подписка</option>
+                            <option value="transactional">Транзакционная</option>
+                            <option value="hybrid">Гибридная (подписка + транзакции)</option>
+                        </select>
+                    </div>
+                    <div class="field"><label>Индексация в год (%)</label>
+                        <input type="number" x-model.number="form.indexationRate" min="0" max="100" step="0.5">
+                    </div>
+                    <div class="field"><label>Применять индексацию</label>
+                        <label style="display:flex;align-items:center;gap:8px;padding:9px 0;cursor:pointer">
+                            <input type="checkbox" x-model="form.applyIndexation">
+                            <span style="font-size:13px">Да, начиная с года 2</span>
+                        </label>
+                    </div>
+                    <div class="field"><label>Горизонт (лет)</label>
+                        <input type="number" x-model.number="form.numYears" min="1" max="10" step="1"
+                               @change="resizeYearArrays()">
+                    </div>
+                </div>
+
+                <!-- Цены по годам (subscription / hybrid) -->
+                <template x-if="form.revenueModel !== 'transactional'">
+                    <div>
+                        <p class="tbl-label">
+                            Цена подписки на платящего пользователя в квартал (₽)
+                            — год 1 вводится вручную, остальные годы считаются с индексацией
+                        </p>
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead><tr>
+                                    <th>Год</th>
+                                    <th>Цена (₽/польз./кв.)</th>
+                                    <th>С индексацией</th>
+                                    <th>Выручка за год (авто)</th>
+                                </tr></thead>
+                                <tbody>
+                                    <template x-for="(_, yi) in Array.from({length: form.numYears})" :key="yi">
+                                        <tr>
+                                            <td>Год <span x-text="yi+1"></span></td>
+                                            <td>
+                                                <input type="number" min="0"
+                                                    :value="form.prices[yi]"
+                                                    @input="form.prices[yi] = parseFloat($event.target.value)||0"
+                                                    placeholder="0">
+                                            </td>
+                                            <td class="cell-comp"
+                                                x-text="yi>0 && form.applyIndexation
+                                                    ? Finance.fmt(form.prices[0] * Math.pow(1+form.indexationRate/100, yi))
+                                                    : '—'">
+                                            </td>
+                                            <td class="cell-comp"
+                                                x-text="Finance.fmtShort(metrics.annualRevenue?.[yi])">
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Транзакционная -->
+                <template x-if="form.revenueModel !== 'subscription'">
+                    <div>
+                        <p class="tbl-label">Транзакционная выручка — кол-во транзакций и средний чек</p>
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead><tr>
+                                    <th>Параметр</th>
+                                    <template x-for="yi in form.numYears" :key="yi">
+                                        <th colspan="4">Год <span x-text="yi"></span> (Q1–Q4)</th>
+                                    </template>
+                                </tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Кол-во транзакций</td>
+                                        <template x-for="(_, yi) in Array.from({length:form.numYears})" :key="yi">
+                                            <template x-for="(_, qi) in [0,1,2,3]" :key="qi">
+                                                <td>
+                                                    <input type="number" min="0"
+                                                        :value="form.transactions[yi]?.[qi]"
+                                                        @input="setM('transactions',yi,qi,$event.target.value)">
+                                                </td>
+                                            </template>
+                                        </template>
+                                    </tr>
+                                    <tr>
+                                        <td>Средний чек (₽)</td>
+                                        <template x-for="(_, yi) in Array.from({length:form.numYears})" :key="yi">
+                                            <template x-for="(_, qi) in [0,1,2,3]" :key="qi">
+                                                <td>
+                                                    <input type="number" min="0"
+                                                        :value="form.avgChecks[yi]?.[qi]"
+                                                        @input="setM('avgChecks',yi,qi,$event.target.value)">
+                                                </td>
+                                            </template>
+                                        </template>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- 3.3 Пользователи -->
+            <div class="subsection">
+                <h3>3.3 Количество привлечённых пользователей</h3>
+
+                <!-- User input table -->
+                <p class="tbl-label">Всего пользователей (привлечённых) по кварталам</p>
+                <div class="tbl-wrap">
+                    <table>
+                        <thead><tr>
+                            <th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th></th>
+                        </tr></thead>
+                        <tbody>
+                            <template x-for="(row, yi) in form.users" :key="yi">
+                                <tr>
+                                    <td>Год <span x-text="yi+1"></span></td>
+                                    <template x-for="(_, qi) in [0,1,2,3]" :key="qi">
+                                        <td>
+                                            <input type="number" min="0"
+                                                :value="form.users[yi][qi]"
+                                                @input="setM('users',yi,qi,$event.target.value)">
+                                        </td>
+                                    </template>
+                                    <td>
+                                        <button class="row-del" x-show="form.users.length>1"
+                                            @click="removeYear(yi)" title="Удалить год">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-actions">
+                    <button class="btn btn-outline" @click="addYear()"><i class="fas fa-plus"></i> Добавить год</button>
+                </div>
+
+                <!-- Churn params -->
+                <div class="grid-3" style="margin-top:6px">
+                    <div class="field">
+                        <label>Конверсия в платящих (%)</label>
+                        <input type="number" x-model.number="form.conversionRate" min="0" max="100" step="1">
+                    </div>
+                    <div class="field">
+                        <label>Начальный Churn rate (%)</label>
+                        <input type="number" x-model.number="form.churnRate" min="-100" max="0" step="0.5">
+                    </div>
+                    <div class="field">
+                        <label>Ежеквартальное улучшение churn</label>
+                        <input type="number" x-model.number="form.quarterlyChurnIncrease"
+                               min="0" max="0.1" step="0.0005">
+                    </div>
+                </div>
+
+                <!-- Computed tables (read-only) -->
+                <div style="display:grid;gap:12px">
+
+                    <!-- Churn table -->
+                    <div>
+                        <p class="tbl-label">Формула 1.1.2 — Churn rate по кварталам (авто)</p>
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead>
+                                <tbody>
+                                    <template x-for="(row, yi) in metrics.churnTable" :key="yi">
+                                        <tr>
+                                            <td>Год <span x-text="yi+1"></span></td>
+                                            <template x-for="v in row" :key="v">
+                                                <td class="cell-comp" x-text="Finance.fmtPct(v*100)"></td>
+                                            </template>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Paid without churn -->
+                    <div>
+                        <p class="tbl-label">Формула 1.1.1 — Платные пользователи без учёта оттока (авто)</p>
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead>
+                                <tbody>
+                                    <template x-for="(row, yi) in metrics.paidWithoutChurn" :key="yi">
+                                        <tr>
+                                            <td>Год <span x-text="yi+1"></span></td>
+                                            <template x-for="v in row" :key="v">
+                                                <td class="cell-comp"
+                                                    x-text="new Intl.NumberFormat('ru-RU').format(v)"></td>
+                                            </template>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Paid users -->
+                    <div>
+                        <p class="tbl-label">Формула 1.1.3 — Платные пользователи итого (авто)</p>
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>Σ год</th></tr></thead>
+                                <tbody>
+                                    <template x-for="(row, yi) in metrics.paidUsers" :key="yi">
+                                        <tr>
+                                            <td>Год <span x-text="yi+1"></span></td>
+                                            <template x-for="v in row" :key="v">
+                                                <td class="cell-comp"
+                                                    x-text="new Intl.NumberFormat('ru-RU').format(v)"></td>
+                                            </template>
+                                            <td class="cell-comp" style="font-weight:600"
+                                                x-text="new Intl.NumberFormat('ru-RU').format(row.reduce((a,b)=>a+b,0))">
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- New paid users -->
+                    <div>
+                        <p class="tbl-label">Формула 1.1.4 — Новые платные пользователи (авто)</p>
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>Σ год</th></tr></thead>
+                                <tbody>
+                                    <template x-for="(row, yi) in metrics.newPaidUsers" :key="yi">
+                                        <tr>
+                                            <td>Год <span x-text="yi+1"></span></td>
+                                            <template x-for="v in row" :key="v">
+                                                <td :class="v>=0?'cell-pos':'cell-neg'"
+                                                    x-text="new Intl.NumberFormat('ru-RU').format(v)"></td>
+                                            </template>
+                                            <td style="font-weight:600"
+                                                :class="row.reduce((a,b)=>a+b,0)>=0?'cell-pos':'cell-neg'"
+                                                x-text="new Intl.NumberFormat('ru-RU').format(row.reduce((a,b)=>a+b,0))">
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3.4 Затраты -->
+            <div class="subsection">
+                <h3>3.4 Категории затрат</h3>
+                <p class="hint">Режимы: <strong>% от выручки</strong> — считается от годовой выручки; <strong>CAC</strong> — затраты на маркетинг = новые платные пользователи × CAC; <strong>Ручной</strong> — вы вводите сумму в год.</p>
+                <div class="tbl-wrap">
+                    <table style="min-width:600px">
+                        <thead><tr>
+                            <th>Категория</th><th>Режим</th><th>Параметр</th>
+                            <template x-for="yi in form.numYears" :key="yi">
+                                <th>Год <span x-text="yi"></span></th>
+                            </template>
+                            <th></th>
+                        </tr></thead>
+                        <tbody>
+                            <template x-for="(c, ci) in form.costs" :key="ci">
+                                <tr>
+                                    <td><input type="text" x-model="form.costs[ci].category" style="width:90px"></td>
+                                    <td>
+                                        <select x-model="form.costs[ci].mode">
+                                            <option value="percent_revenue">% выручки</option>
+                                            <option value="cac">CAC (₽/польз.)</option>
+                                            <option value="manual">Ручной (₽/год)</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number" x-model.number="form.costs[ci].param" min="0"
+                                            :placeholder="c.mode==='percent_revenue'?'%':'₽'">
+                                    </td>
+                                    <template x-for="(_, yi) in Array.from({length:form.numYears})" :key="yi">
+                                        <td>
+                                            <template x-if="c.mode==='manual'">
+                                                <input type="number" min="0"
+                                                    :value="form.costs[ci].values[yi]"
+                                                    @input="setCostVal(ci,yi,$event.target.value)">
+                                            </template>
+                                            <template x-if="c.mode!=='manual'">
+                                                <span class="cell-comp"
+                                                    x-text="Finance.fmtShort(Math.abs(costForYear(ci,yi)))">
+                                                </span>
+                                            </template>
+                                        </td>
+                                    </template>
+                                    <td>
+                                        <button class="row-del" @click="form.costs.splice(ci,1)">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-actions">
+                    <button class="btn btn-outline" @click="addCost()">
+                        <i class="fas fa-plus"></i> Добавить статью
+                    </button>
+                </div>
+
+                <!-- Annual revenue & cost summary -->
+                <div>
+                    <p class="tbl-label">Сводная таблица — выручка, затраты и чистый поток по годам</p>
+                    <div class="tbl-wrap">
+                        <table>
+                            <thead><tr>
+                                <th>Показатель</th>
+                                <th>Год 0</th>
+                                <template x-for="yi in form.numYears" :key="yi">
+                                    <th>Год <span x-text="yi"></span></th>
+                                </template>
+                            </tr></thead>
+                            <tbody>
+                                <tr>
+                                    <td>Выручка</td>
+                                    <td class="cell-comp">—</td>
+                                    <template x-for="(v, yi) in metrics.annualRevenue" :key="yi">
+                                        <td class="cell-pos" x-text="Finance.fmtShort(v)"></td>
+                                    </template>
+                                </tr>
+                                <tr>
+                                    <td>Затраты (итого)</td>
+                                    <td class="cell-comp">—</td>
+                                    <template x-for="(v, yi) in metrics.totalCosts" :key="yi">
+                                        <td class="cell-neg" x-text="Finance.fmtShort(Math.abs(v))"></td>
+                                    </template>
+                                </tr>
+                                <tr style="font-weight:600">
+                                    <td>Чистый поток (NCF)</td>
+                                    <template x-for="(v, yr) in metrics.netCashFlow" :key="yr">
+                                        <td :class="v>0?'cf-pos':v<0?'cf-neg':'cf-zero'"
+                                            x-text="Finance.fmtShort(v)"></td>
+                                    </template>
+                                </tr>
+                                <tr>
+                                    <td>Дисконт. поток (DCF)</td>
+                                    <template x-for="(v, yr) in metrics.discountedCF" :key="yr">
+                                        <td class="cell-comp" x-text="Finance.fmtShort(v)"></td>
+                                    </template>
+                                </tr>
+                                <tr style="font-weight:600">
+                                    <td>Накопл. DCF</td>
+                                    <template x-for="(v, yr) in metrics.cumulativeDcfSeries" :key="yr">
+                                        <td :class="v>=0?'cf-pos':'cf-neg'"
+                                            x-text="Finance.fmtShort(v)"></td>
+                                    </template>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3.5 Дисконтирование -->
+            <div class="subsection">
+                <h3>3.5 Параметры дисконтирования</h3>
+                <div class="grid-3">
+                    <div class="field"><label>Ключевая ставка ЦБ (%)</label>
+                        <input type="number" x-model.number="form.keyRate" min="0" max="100" step="0.5">
+                    </div>
+                    <div class="field"><label>Надбавка за риск (%)</label>
+                        <input type="number" x-model.number="form.riskPremium" min="0" max="50" step="0.5">
+                    </div>
+                    <div class="field"><label>Итоговая ставка</label>
+                        <input type="text" readonly
+                            :value="(+form.keyRate + +form.riskPremium).toFixed(1) + '%'">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3.6 Нулевой период -->
+            <div class="subsection">
+                <h3>3.6 Нулевой период и инвестиции</h3>
+                <div class="grid-3">
+                    <div class="field"><label>Начальные инвестиции / CAPEX (₽)</label>
+                        <input type="number" x-model.number="form.initialInvestment" placeholder="-1200000">
+                    </div>
+                    <div class="field"><label>NWC — чистый оборотный капитал (₽)</label>
+                        <input type="number" x-model.number="form.nwc" placeholder="0">
+                    </div>
+                    <div class="field"><label>Итого год 0 (NCF₀)</label>
+                        <input type="text" readonly
+                            :value="Finance.fmtShort(+form.initialInvestment + +form.nwc)">
+                    </div>
+                </div>
+                <p class="hint">
+                    Расчётный NWC (сумма отрицательных операционных лет):
+                    <strong x-text="Finance.fmtShort(metrics.nwcCalc)"></strong>
+                </p>
+            </div>
+
+            <!-- 3.7 Ключевые метрики (real-time) -->
+            <div class="subsection">
+                <h3>
+                    Ключевые метрики
+                    <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:6px">
+                        обновляются в реальном времени
+                    </span>
+                </h3>
+                <div class="metric-grid">
+                    <div class="metric-card">
+                        <div class="k">Ставка дисконтирования</div>
+                        <div class="v" x-text="metrics.discountRate + '%'"></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="k">NPV (1.2.4)</div>
+                        <div class="v" :class="metrics.npv>=0?'pos':'neg'"
+                             x-text="Finance.fmtShort(metrics.npv)"></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="k">DPP — дисконт. срок окупаемости (1.2.5)</div>
+                        <div class="v"
+                             x-text="metrics.dpp!=null ? metrics.dpp+' лет' : '> горизонта'"></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="k">IRR (1.2.7)</div>
+                        <div class="v" :class="metrics.irr!=null&&metrics.irr>0?'pos':''"
+                             x-text="metrics.irr!=null ? metrics.irr+'%' : '—'"></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="k">PI — индекс рентабельности (1.2.6)</div>
+                        <div class="v" :class="metrics.pi>=1?'pos':'neg'"
+                             x-text="metrics.pi"></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="k">CAC средний (1.2.8)</div>
+                        <div class="v" x-text="Finance.fmt(metrics.cac)"></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="k">ARPU — ср. выручка/польз./кв. (1.2.9)</div>
+                        <div class="v" x-text="Finance.fmt(metrics.arpu)"></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="k">Средний квартальный отток (1.2.10)</div>
+                        <div class="v neg" x-text="metrics.avgChurn + '%'"></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="k">Lifetime (1.2.11)</div>
+                        <div class="v" x-text="metrics.lifetime + ' лет'"></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="k">Gross Margin (для LTV)</div>
+                        <div class="v acc" x-text="metrics.grossMargin + '%'"></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="k">LTV (1.2.12)</div>
+                        <div class="v acc" x-text="Finance.fmtShort(metrics.ltv)"></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="k">LTV / CAC (1.2.13)</div>
+                        <div class="v" :class="metrics.ltvCac>=3?'pos':metrics.ltvCac>=1?'acc':'neg'"
+                             x-text="metrics.ltvCac"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-footer">
+                <button class="btn btn-outline" @click="goTo(2)"><i class="fas fa-chevron-left"></i> Назад</button>
+                <div class="footer-right">
+                    <button class="btn btn-outline" @click="saveDraft()">Сохранить черновик</button>
+                    <button class="btn btn-primary" @click="goTo(4)">Далее <i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════════════════ STEP 4: Риски ══════════════════════ -->
+        <section class="wizard-panel" x-show="step===4" x-transition>
+            <div>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 4 из 5</span>
+                <h2 style="font-size:20px;font-weight:700;margin-top:4px">Риски и допущения</h2>
+                <p class="hint" style="margin-top:3px">Раздел формируется GPT-4o на основе вашей финансовой модели.</p>
+            </div>
+
+            <!-- Metrics recap -->
+            <div class="subsection" style="background:#F7F7FB">
+                <h3>Текущие метрики из шага 3</h3>
+                <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:13px">
+                    <span><strong>NPV:</strong>
+                        <span :class="metrics.npv>=0?'cf-pos':'cf-neg'"
+                              x-text="Finance.fmtShort(metrics.npv)"></span>
+                    </span>
+                    <span><strong>IRR:</strong>
+                        <span x-text="metrics.irr!=null?metrics.irr+'%':'—'"></span></span>
+                    <span><strong>DPP:</strong>
+                        <span x-text="metrics.dpp!=null?metrics.dpp+' лет':'—'"></span></span>
+                    <span><strong>LTV/CAC:</strong>
+                        <span x-text="metrics.ltvCac"></span></span>
+                    <span><strong>Churn:</strong>
+                        <span x-text="metrics.avgChurn+'%'"></span></span>
+                </div>
+            </div>
+
+            <!-- AI generation -->
+            <template x-if="!risksData && !aiLoad.risks">
+                <div style="text-align:center;padding:30px;color:var(--muted)">
+                    <i class="fas fa-wand-magic-sparkles"
+                       style="font-size:32px;margin-bottom:12px;display:block;color:var(--accent)"></i>
+                    <p style="margin-bottom:16px">
+                        GPT-4o проанализирует финансовую модель и сформулирует риски и допущения.
+                    </p>
+                    <button class="btn btn-primary" @click="aiRisks()">
+                        <i class="fas fa-wand-magic-sparkles"></i> Сформировать риски и допущения
+                    </button>
+                </div>
+            </template>
+
+            <template x-if="aiLoad.risks">
+                <div style="text-align:center;padding:30px;color:var(--muted)">
+                    <i class="fas fa-spinner spin"
+                       style="font-size:32px;margin-bottom:12px;display:block;color:var(--accent)"></i>
+                    <p>GPT-4o анализирует модель...</p>
+                </div>
+            </template>
+
+            <template x-if="risksData && !aiLoad.risks">
+                <div style="display:flex;flex-direction:column;gap:12px">
+                    <div class="summary-card">
+                        <h4>Основные риски</h4>
+                        <ul>
+                            <template x-for="risk in risksData.risks" :key="risk">
+                                <li x-text="risk"></li>
+                            </template>
+                        </ul>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Ключевые допущения</h4>
+                        <p x-text="risksData.assumptions"></p>
+                    </div>
+                    <template x-if="risksData.ai_assessment">
+                        <div class="summary-card ai">
+                            <h4>
+                                AI-оценка
+                                <span class="risk-badge"
+                                    :class="'risk-'+risksData.ai_assessment.risk_level"
+                                    x-text="risksData.ai_assessment.risk_level"></span>
+                            </h4>
+                            <p x-text="risksData.ai_assessment.recommendation"></p>
+                            <ul style="margin-top:8px">
+                                <template x-for="w in risksData.ai_assessment.weaknesses" :key="w">
+                                    <li x-text="w"></li>
+                                </template>
+                            </ul>
+                        </div>
+                    </template>
+                    <div>
+                        <button class="btn btn-primary" @click="aiRisks()">
+                            <i class="fas fa-wand-magic-sparkles"></i> Обновить через GPT-4o
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+            <div class="panel-footer">
+                <button class="btn btn-outline" @click="goTo(3)"><i class="fas fa-chevron-left"></i> Назад</button>
+                <div class="footer-right">
+                    <button class="btn btn-outline" @click="saveDraft()">Сохранить черновик</button>
+                    <button class="btn btn-primary" @click="goTo(5)">Далее <i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════════════════ STEP 5: Резюме ══════════════════════ -->
+        <section class="wizard-panel" x-show="step===5" x-transition>
+            <div>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 5 из 5</span>
+                <h2 style="font-size:20px;font-weight:700;margin-top:4px">Резюме перед созданием</h2>
+                <p class="hint" style="margin-top:3px">Investment one-pager для согласования.</p>
+            </div>
+
+            <div class="summary-grid">
+                <article class="summary-card">
+                    <h4>Investment Hypothesis</h4>
+                    <p><strong>Проект:</strong> <span x-text="form.name||'(без названия)'"></span></p>
+                    <p><strong>Юнит:</strong> <span x-text="form.businessUnit"></span> · <strong>Стадия:</strong> <span x-text="form.stage"></span></p>
+                    <p><strong>Старт:</strong> <span x-text="form.startDate||'не указан'"></span></p>
+                    <p style="margin-top:8px" x-text="form.description?form.description.slice(0,200)+(form.description.length>200?'…':''):'—'"></p>
+                    <p style="margin-top:10px">
+                        <strong>NPV:</strong> <span x-text="Finance.fmtShort(metrics.npv)"></span> ·
+                        <strong>IRR:</strong> <span x-text="metrics.irr!=null?metrics.irr+'%':'—'"></span> ·
+                        <strong>DPP:</strong> <span x-text="metrics.dpp!=null?metrics.dpp+' лет':'—'"></span> ·
+                        <strong>LTV/CAC:</strong> <span x-text="metrics.ltvCac"></span>
+                    </p>
+                </article>
+                <article class="summary-card ai">
+                    <template x-if="risksData?.ai_assessment">
+                        <div>
+                            <h4>AI-оценка
+                                <span class="risk-badge" :class="'risk-'+risksData.ai_assessment.risk_level"
+                                      x-text="risksData.ai_assessment.risk_level"></span>
+                            </h4>
+                            <p x-text="risksData.ai_assessment.recommendation"></p>
+                            <ul style="margin-top:8px">
+                                <template x-for="w in risksData.ai_assessment.weaknesses" :key="w">
+                                    <li x-text="w"></li>
+                                </template>
+                            </ul>
+                        </div>
+                    </template>
+                    <template x-if="!risksData">
+                        <p style="color:var(--muted);text-align:center;padding:20px 0">
+                            Вернитесь на шаг 4, чтобы получить AI-оценку.
+                        </p>
+                    </template>
+                </article>
+            </div>
+
+            <!-- Final metrics -->
+            <div class="subsection">
+                <h3>Итоговые метрики</h3>
+                <div class="metric-grid">
+                    <div class="metric-card"><div class="k">NPV</div>
+                        <div class="v" :class="metrics.npv>=0?'pos':'neg'" x-text="Finance.fmtShort(metrics.npv)"></div></div>
+                    <div class="metric-card"><div class="k">IRR</div>
+                        <div class="v" x-text="metrics.irr!=null?metrics.irr+'%':'—'"></div></div>
+                    <div class="metric-card"><div class="k">DPP</div>
+                        <div class="v" x-text="metrics.dpp!=null?metrics.dpp+' лет':'—'"></div></div>
+                    <div class="metric-card"><div class="k">PI</div>
+                        <div class="v" :class="metrics.pi>=1?'pos':'neg'" x-text="metrics.pi"></div></div>
+                    <div class="metric-card"><div class="k">CAC</div>
+                        <div class="v" x-text="Finance.fmt(metrics.cac)"></div></div>
+                    <div class="metric-card"><div class="k">ARPU</div>
+                        <div class="v" x-text="Finance.fmt(metrics.arpu)"></div></div>
+                    <div class="metric-card"><div class="k">LTV</div>
+                        <div class="v acc" x-text="Finance.fmtShort(metrics.ltv)"></div></div>
+                    <div class="metric-card"><div class="k">LTV / CAC</div>
+                        <div class="v" :class="metrics.ltvCac>=3?'pos':metrics.ltvCac>=1?'acc':'neg'"
+                             x-text="metrics.ltvCac"></div></div>
+                </div>
+            </div>
+
+            <div class="panel-footer">
+                <button class="btn btn-outline" @click="goTo(4)"><i class="fas fa-chevron-left"></i> Назад</button>
+                <div class="footer-right">
+                    <button class="btn btn-outline" @click="saveDraft()">
+                        <i class="far fa-save"></i> Сохранить черновик
+                    </button>
+                    <button class="btn btn-success" @click="submitForApproval()" :disabled="submitting">
+                        <i class="fas" :class="submitting?'fa-spinner spin':'fa-check'"></i>
+                        <span x-text="submitting?'Отправляем...':'Отправить на согласование'"></span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<!-- Toast -->
+<div x-data="{show:false,msg:'',type:'success'}"
+     x-show="show" x-transition
+     @toast.window="show=true;msg=$event.detail.msg;type=$event.detail.type||'success';setTimeout(()=>show=false,3500)"
+     class="toast" :class="type" style="display:none">
+    <i class="fas" :class="type==='success'?'fa-check-circle':'fa-exclamation-circle'"></i>
+    <span x-text="msg"></span>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+//  Alpine.js wizard component
+// ─────────────────────────────────────────────────────────────────────────────
+function wizardApp() {
+    return {
+        step: 1,
+        stepLabels: [
+            '1. Тип проекта',
+            '2. Суть проекта',
+            '3. Фин. модель',
+            '4. Риски',
+            '5. Резюме',
+        ],
+
+        saving: false,
+        submitting: false,
+        aiLoad: { desc: false, risks: false },
+        projectId: null,
+        risksData: null,
+        metrics: _emptyMetrics(),
+
+        form: {
+            projectType: 'investment',
+
+            // Step 2
+            name: '', businessUnit: 'WealthTech', description: '',
+
+            // Step 3 general
+            owner: '', stage: 'Идея', startDate: '', platform: '',
+
+            // Revenue model
+            revenueModel: 'subscription',
+            indexationRate: 10,
+            applyIndexation: true,
+            numYears: 5,
+
+            // Prices: 1D array — one value per year (price per paying user per quarter, ₽)
+            prices: Array(5).fill(0),
+
+            // Transactional [year][quarter]
+            transactions:        _m2d(5, 4),
+            avgChecks:           _m2d(5, 4),
+            hybridTransactional: _m2d(5, 4),
+
+            // Users [year][quarter]
+            users: _m2d(5, 4),
+            conversionRate: 85,
+            churnRate: -10,
+            quarterlyChurnIncrease: 0.0015,
+
+            // Cost rows
+            costs: [
+                { category: 'COGS',      mode: 'percent_revenue', param: 11,   values: [0,0,0,0,0] },
+                { category: 'R&D',       mode: 'percent_revenue', param: 28,   values: [0,0,0,0,0] },
+                { category: 'G&A',       mode: 'percent_revenue', param: 20,   values: [0,0,0,0,0] },
+                { category: 'Маркетинг', mode: 'cac',             param: 3000, values: [0,0,0,0,0] },
+                { category: 'Support',   mode: 'percent_revenue', param: 5,    values: [0,0,0,0,0] },
+            ],
+
+            // Discount
+            keyRate: 10, riskPremium: 3,
+
+            // Zero period
+            initialInvestment: -1200000, nwc: 0,
+        },
+
+        // ── Lifecycle ──────────────────────────────────────────────────────
+        init() {
+            this.recalc();
+            this.$watch('form', () => this.recalc(), { deep: true });
+        },
+
+        // ── Calculations ───────────────────────────────────────────────────
+        recalc() { this.metrics = Finance.calculate(this.form); },
+
+        // ── Matrix helpers ─────────────────────────────────────────────────
+        setM(field, y, q, val) {
+            const m = this.form[field].map(r => [...r]);
+            m[y][q] = parseFloat(val) || 0;
+            this.form[field] = m;
+        },
+
+        setCostVal(ci, yi, val) {
+            const costs = this.form.costs.map(c => ({ ...c, values: [...(c.values||[])] }));
+            while (costs[ci].values.length <= yi) costs[ci].values.push(0);
+            costs[ci].values[yi] = parseFloat(val) || 0;
+            this.form.costs = costs;
+        },
+
+        // Cost preview for auto-computed cells
+        costForYear(ci, yi) {
+            const c   = this.form.costs[ci];
+            const rev = this.metrics.annualRevenue?.[yi] || 0;
+            if (c.mode === 'percent_revenue') return rev * (c.param / 100);
+            if (c.mode === 'cac') {
+                const newU = (this.metrics.newPaidUsers?.[yi] || []).reduce((a,b)=>a+b, 0);
+                return newU * (c.param || 0);
+            }
+            return c.values?.[yi] || 0;
+        },
+
+        // ── Year add / remove ─────────────────────────────────────────────
+        addYear() {
+            const ny = this.form.numYears + 1;
+            this.form.prices = [...this.form.prices, 0];
+            ['users','transactions','avgChecks','hybridTransactional'].forEach(f => {
+                this.form[f] = [...this.form[f].map(r=>[...r]), [0,0,0,0]];
+            });
+            this.form.costs = this.form.costs.map(c => ({
+                ...c, values: [...(c.values||[]), 0]
+            }));
+            this.form.numYears = ny;
+        },
+
+        removeYear(yi) {
+            if (this.form.users.length <= 1) return;
+            this.form.prices = this.form.prices.filter((_, i) => i !== yi);
+            ['users','transactions','avgChecks','hybridTransactional'].forEach(f => {
+                this.form[f] = this.form[f].filter((_, i) => i !== yi);
+            });
+            this.form.costs = this.form.costs.map(c => ({
+                ...c, values: (c.values||[]).filter((_, i) => i !== yi)
+            }));
+            this.form.numYears = this.form.numYears - 1;
+        },
+
+        resizeYearArrays() {
+            const ny = Math.max(1, Math.min(10, this.form.numYears));
+            while (this.form.prices.length < ny) this.addYear();
+            while (this.form.prices.length > ny) this.removeYear(this.form.prices.length - 1);
+        },
+
+        addCost() {
+            this.form.costs = [...this.form.costs,
+                { category: 'Новая статья', mode: 'percent_revenue', param: 0,
+                  values: Array(this.form.numYears).fill(0) }
+            ];
+        },
+
+        // ── Navigation ─────────────────────────────────────────────────────
+        goTo(n) {
+            if (n < 1 || n > 5) return;
+            this.step = n;
+            this.$nextTick(() => document.querySelector('.main-content')?.scrollTo({top:0,behavior:'smooth'}));
+        },
+
+        // ── Backend API calls ──────────────────────────────────────────────
+        _payload() {
+            return {
+                project_type: this.form.projectType,
+                name: this.form.name, business_unit: this.form.businessUnit,
+                description: this.form.description, owner: this.form.owner,
+                stage: this.form.stage, start_date: this.form.startDate,
+                platform: this.form.platform,
+                financial_model: { ...this.form },
+                risks_data: this.risksData,
+                status: 'draft',
+            };
+        },
+
+        async saveDraft() {
+            this.saving = true;
+            try {
+                const url = this.projectId ? `/api/v1/projects/${this.projectId}` : '/api/v1/projects/';
+                const method = this.projectId ? 'PUT' : 'POST';
+                const res = await fetch(url, {
+                    method, headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify(this._payload()),
+                });
+                if (!res.ok) throw new Error(await res.text());
+                const data = await res.json();
+                this.projectId = data.id;
+                this._toast('Черновик сохранён', 'success');
+            } catch(e) {
+                this._toast('Ошибка: ' + e.message, 'error');
+            } finally { this.saving = false; }
+        },
+
+        async submitForApproval() {
+            this.submitting = true;
+            try {
+                await this.saveDraft();
+                if (!this.projectId) throw new Error('Проект не сохранён');
+                const res = await fetch(`/api/v1/projects/${this.projectId}/status`, {
+                    method: 'PATCH', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ status: 'pending_approval' }),
+                });
+                if (!res.ok) throw new Error(await res.text());
+                this._toast('Проект отправлен на согласование!', 'success');
+                setTimeout(() => { window.location.href = 'project-list.html'; }, 2000);
+            } catch(e) {
+                this._toast('Ошибка: ' + e.message, 'error');
+            } finally { this.submitting = false; }
+        },
+
+        // ── AI calls ───────────────────────────────────────────────────────
+        async aiDescription() {
+            if (!this.form.name) { this._toast('Введите название проекта', 'error'); return; }
+            this.aiLoad.desc = true;
+            try {
+                const res = await fetch('/api/v1/ai/generate-description', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({
+                        project_name: this.form.name,
+                        business_unit: this.form.businessUnit,
+                        project_type: this.form.projectType,
+                        stage: this.form.stage,
+                    }),
+                });
+                if (!res.ok) throw new Error((await res.json()).detail);
+                this.form.description = (await res.json()).description;
+                this._toast('Описание сгенерировано', 'success');
+            } catch(e) {
+                this._toast('AI недоступен: ' + e.message, 'error');
+            } finally { this.aiLoad.desc = false; }
+        },
+
+        async aiRisks() {
+            this.aiLoad.risks = true;
+            try {
+                const res = await fetch('/api/v1/ai/generate-risks', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({
+                        project_name: this.form.name || '(без названия)',
+                        metrics: this.metrics,
+                        financial_model: this.form,
+                    }),
+                });
+                if (!res.ok) throw new Error((await res.json()).detail);
+                this.risksData = await res.json();
+                this._toast('Риски сформированы', 'success');
+            } catch(e) {
+                this._toast('AI недоступен: ' + e.message, 'error');
+            } finally { this.aiLoad.risks = false; }
+        },
+
+        _toast(msg, type='success') {
+            window.dispatchEvent(new CustomEvent('toast', { detail: { msg, type } }));
+        },
+    };
+}
+
+function _m2d(rows, cols) {
+    return Array.from({ length: rows }, () => Array(cols).fill(0));
+}
+
+function _emptyMetrics() {
+    return {
+        discountRate: 0, npv: 0, dpp: null, pi: 0, irr: null,
+        cac: 0, arpu: 0, avgChurn: 0, lifetime: 0, ltv: 0, ltvCac: 0,
+        grossMargin: 0, nwcCalc: 0,
+        discountFactors: [], discountedCF: [], cumulativeDcfSeries: [],
+        churnTable: [], paidWithoutChurn: [], paidUsers: [], newPaidUsers: [],
+        revenue: [], annualRevenue: [], totalCosts: [], netCashFlow: [],
+        annualCostsByCat: {}, cacByYear: [],
+    };
+}
+</script>
+
+</body>
+</html>
