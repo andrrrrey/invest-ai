@@ -269,9 +269,9 @@
             <h4>Марк Джонсон</h4>
         </div>
         <nav class="nav-menu">
-            <a href="main.html"         class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
-            <a href="project-list.html" class="nav-link active"><i class="fas fa-project-diagram"></i> Проекты</a>
-            <a href="export.html"       class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
+            <a href="/"              class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
+            <a href="/project-list" class="nav-link active"><i class="fas fa-project-diagram"></i> Проекты</a>
+            <a href="/export"       class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
             <a href="#"                 class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
         </nav>
         <a href="#" class="nav-link" style="margin-top:auto;color:#EB5757">
@@ -1376,7 +1376,7 @@ function wizardApp() {
                 });
                 if (!res.ok) throw new Error(await res.text());
                 this._toast('Проект отправлен на согласование!', 'success');
-                setTimeout(() => { window.location.href = 'project-list.html'; }, 2000);
+                setTimeout(() => { window.location.href = '/project-list'; }, 2000);
             } catch(e) {
                 this._toast('Ошибка: ' + e.message, 'error');
             } finally { this.submitting = false; }
