@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Карточка проекта | Метрики</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg-body: #F8F7F3;
+            --sidebar-bg: #1C1C1E;
+            --sidebar-hover: #2C2C2E;
+            --text-main: #1C1C1E;
+            --text-muted: #8E8E93;
+            --accent-purple: #5E5CE6;
+            --radius-lg: 35px;
+            --radius-md: 24px;
+            --card-white: #FFFFFF;
+            --danger: #FF3B30;
+            --success: #34C759;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+
+        body {
+            background-color: #E5E5E5;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Кнопка бургер-меню */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: var(--sidebar-bg);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .app-window {
+            width: 100%;
+            max-width: 1400px;
+            height: 90vh;
+            background: var(--bg-body);
+            border-radius: var(--radius-lg);
+            display: flex;
+            overflow: hidden;
+            box-shadow: 0 50px 100px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        /* Боковая панель (из второго кода) */
+        .sidebar {
+            width: 260px;
+            background: var(--sidebar-bg);
+            padding: 60px 25px 40px;
+            display: flex;
+            flex-direction: column;
+            color: white;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            flex-shrink: 0;
+        }
+
+        .profile-section { text-align: center; margin-bottom: 50px; }
+        .avatar { width: 90px; height: 90px; border-radius: 50%; border: 3px solid white; margin-bottom: 15px; object-fit: cover; background: #333; }
+        .profile-section p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+        .profile-section h4 { font-size: 16px; font-weight: 600; margin-top: 4px; }
+
+        .nav-menu { flex: 1; }
+        .nav-link {
+            display: flex; align-items: center; gap: 15px; color: var(--text-muted);
+            text-decoration: none; padding: 14px 15px; border-radius: 12px;
+            font-size: 14px; margin-bottom: 8px; transition: 0.3s;
+        }
+        .nav-link.active, .nav-link:hover { background: var(--sidebar-hover); color: white; }
+        .nav-link i { font-size: 18px; width: 20px; text-align: center; }
+
+        /* Основной контент */
+        .main-content {
+            flex: 1;
+            padding: 40px 50px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            background: var(--bg-body);
+        }
+
+        /* Стили специфичные для карточки проекта */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .project-badge {
+            background: #FFE5E5;
+            color: var(--danger);
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 25px;
+        }
+
+        .card-block {
+            background: var(--card-white);
+            border-radius: var(--radius-md);
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+        }
+
+        .block-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .metrics-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .metrics-table tr { border-bottom: 1px solid #F2F2F7; }
+        .metrics-table td { padding: 12px 0; font-size: 14px; }
+        .metrics-table .label { color: var(--text-muted); }
+        .metrics-table .value { text-align: right; font-weight: 700; color: var(--text-main); }
+        .metrics-table .diff { font-size: 12px; margin-left: 5px; }
+        .diff-neg { color: var(--danger); }
+        .diff-pos { color: var(--success); }
+
+        .ai-comment {
+            background: #F0EFFF;
+            border-left: 4px solid var(--accent-purple);
+            padding: 15px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+
+        .anomaly-alert {
+            background: #FFF0F0;
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--danger);
+            margin-top: 10px;
+        }
+
+        .comparison-badge {
+            background: #F4F3FF;
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--accent-purple);
+            margin-top: 10px;
+            border: 1px solid #E5E2FF;
+        }
+
+        .history-list { list-style: none; font-size: 13px; }
+        .history-item {
+            padding-left: 15px;
+            border-left: 2px solid #F2F2F7;
+            padding-bottom: 15px;
+            position: relative;
+        }
+        .history-item::before {
+            content: '';
+            position: absolute;
+            left: -5px;
+            top: 0;
+            width: 8px;
+            height: 8px;
+            background: #D1D1D6;
+            border-radius: 50%;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 992px) {
+            body { padding: 0; }
+            .app-window { height: 100vh; border-radius: 0; }
+            .mobile-menu-btn { display: block; }
+            .sidebar {
+                position: absolute;
+                left: -260px;
+                top: 0;
+                height: 100%;
+                z-index: 1001;
+                box-shadow: 20px 0 50px rgba(0,0,0,0.1);
+            }
+            .sidebar.active { left: 0; }
+            .main-content { padding: 80px 20px 30px; }
+            .grid-layout { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="mobile-menu-btn" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <div class="app-window">
+        <aside class="sidebar" id="sidebar">
+            <div class="profile-section">
+                <img src="https://ui-avatars.com/api/?name=Марк+Джонсон&background=333&color=fff" alt="Аватар" class="avatar">
+                <p>С возвращением,</p>
+                <h4>Марк Джонсон</h4>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="#" class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
+                <a href="#" class="nav-link active"><i class="fas fa-project-diagram"></i> Проекты</a>
+                <a href="#" class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
+                <a href="#" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
+            </nav>
+
+            <a href="#" class="nav-link" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
+        </aside>
+
+        <main class="main-content">
+            <header class="header-row">
+                <div>
+                    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 4px;">Проект #042</p>
+                    <h1 style="font-size: 26px; font-weight: 800;">Солнечная Энергия 2.0</h1>
+                </div>
+                <div class="project-badge">
+                    <i class="fas fa-exclamation-triangle"></i> В реализации (Отставание)
+                </div>
+            </header>
+
+            <div class="grid-layout">
+                <div style="display: flex; flex-direction: column; gap: 25px;">
+                    
+                    <section class="card-block">
+                        <div class="block-title">Финансовые Метрики & ROI</div>
+                        <table class="metrics-table">
+                            <tr>
+                                <td class="label">Объём инвестиций (CAPEX)</td>
+                                <td class="value">12 000 000 ₽ <span class="diff diff-neg">+5% к плану</span></td>
+                            </tr>
+                            <tr>
+                                <td class="label">Операционные расходы (OPEX)</td>
+                                <td class="value">150 000 ₽ / мес.</td>
+                            </tr>
+                            <tr>
+                                <td class="label">Срок окупаемости (Плановый / Факт)</td>
+                                <td class="value">24 мес. / <span style="color: var(--danger)">29 мес.</span></td>
+                            </tr>
+                            <tr>
+                                <td class="label">Выход на безубыточность</td>
+                                <td class="value">Октябрь 2026</td>
+                            </tr>
+                            <tr>
+                                <td class="label">Прогнозируемый ROI / IRR</td>
+                                <td class="value">18.5% / 22.1%</td>
+                            </tr>
+                        </table>
+                    </section>
+
+                    <section class="card-block">
+                        <div class="block-title">Денежные потоки (Cash Flow) <i class="fas fa-chart-line" style="color: var(--accent-purple)"></i></div>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+                            <div style="background: #F8F7F3; padding: 15px; border-radius: 16px;">
+                                <p style="font-size: 11px; color: var(--text-muted);">Приток (LTM)</p>
+                                <p style="font-weight: 700; color: var(--success);">+4.2 млн ₽</p>
+                            </div>
+                            <div style="background: #F8F7F3; padding: 15px; border-radius: 16px;">
+                                <p style="font-size: 11px; color: var(--text-muted);">Отток (LTM)</p>
+                                <p style="font-weight: 700; color: var(--danger);">-3.8 млн ₽</p>
+                            </div>
+                            <div style="background: #F8F7F3; padding: 15px; border-radius: 16px;">
+                                <p style="font-size: 11px; color: var(--text-muted);">Чистый поток</p>
+                                <p style="font-weight: 700;">+0.4 млн ₽</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="card-block">
+                        <div class="block-title">Описание проекта</div>
+                        <p style="font-size: 14px; color: #444; line-height: 1.6;">
+                            Масштабирование сети солнечных панелей в южных регионах. Интеграция 150 новых фотоэлектрических модулей. Текущее отставание обусловлено логистикой инверторов из КНР.
+                        </p>
+                    </section>
+
+                    <section class="card-block">
+                        <div class="block-title">Комментарии ответственных</div>
+                        <div style="display: flex; gap: 20px; align-items: flex-start;">
+                            <img src="https://ui-avatars.com/api/?name=Александр+Волков&background=5E5CE6&color=fff" style="width: 40px; height: 40px; border-radius: 10px;">
+                            <div>
+                                <p style="font-size: 14px; font-weight: 700; margin-bottom: 4px;">Александр Волков <span style="font-weight: 400; color: var(--text-muted); font-size: 12px; margin-left: 10px;">Вчера, 18:42</span></p>
+                                <p style="font-size: 14px; color: #444; line-height: 1.5;">"Заказали альтернативные комплектующие у локального поставщика, чтобы сократить срок ожидания. Ждем подтверждения спецификаций в среду."</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 25px;">
+                    <section class="card-block">
+                        <div class="block-title">AI Ассистент <span style="font-size: 10px; background: var(--accent-purple); color: white; padding: 2px 6px; border-radius: 4px;">Smart</span></div>
+                        <div class="ai-comment">
+                            «Внимание: CAPEX превышен на 5% из-за курсовой разницы. Срок окупаемости сместился на +2 мес.»
+                        </div>
+                        <div class="anomaly-alert">
+                            <i class="fas fa-microchip"></i>
+                            <span>Аномалия: Стоимость логистики на 15% выше среднего.</span>
+                        </div>
+                        <div class="comparison-badge">
+                            <i class="fas fa-balance-scale"></i>
+                            <span>Сравнение с "Проект Сириус": Эффективность ROI выше на 3.2%.</span>
+                        </div>
+                    </section>
+
+                    <section class="card-block">
+                        <div class="block-title">Управление</div>
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                            <div style="width: 12px; height: 12px; background: var(--danger); border-radius: 50%; box-shadow: 0 0 10px rgba(255,59,48,0.4);"></div>
+                            <span style="font-weight: 700;">Критический приоритет</span>
+                        </div>
+                        <button style="width: 100%; padding: 15px; border-radius: 14px; border: 1px solid #E5E5E5; background: white; font-weight: 700; cursor: pointer; margin-bottom: 10px;">Изменить статус</button>
+                        <button style="width: 100%; padding: 15px; border-radius: 14px; border: none; background: var(--accent-purple); color: white; font-weight: 700; cursor: pointer;">Скачать отчет</button>
+                    </section>
+
+                    <section class="card-block">
+                        <div class="block-title">История изменений</div>
+                        <ul class="history-list">
+                            <li class="history-item"><strong>12.05</strong> — Скорректирован ROI (+0.4%)</li>
+                            <li class="history-item"><strong>05.05</strong> — Статус: "Отставание"</li>
+                            <li class="history-item" style="border:none;"><strong>28.04</strong> — Обновлен план Cash Flow</li>
+                        </ul>
+                    </section>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+        }
+
+        // Логика закрытия из второго кода
+        document.querySelector('.main-content').addEventListener('click', () => {
+            if (window.innerWidth <= 992) {
+                document.getElementById('sidebar').classList.remove('active');
+            }
+        });
+    </script>
+</body>
+</html>
