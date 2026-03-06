@@ -481,6 +481,7 @@
                                             <td>
                                                 <input type="number" min="0"
                                                     :value="form.prices[yi]"
+                                                    @focus="$event.target.select()"
                                                     @input="form.prices[yi] = parseFloat($event.target.value)||0"
                                                     placeholder="0">
                                             </td>
@@ -573,8 +574,10 @@
                                     <td>Год <span x-text="yi+1"></span></td>
                                     <template x-for="col in periodCols()" :key="col.label">
                                         <td>
-                                            <input type="number" min="0" style="width:72px"
+                                            <input type="number" min="0"
+                                                :style="col.quarters.length===4 ? 'width:120px' : 'width:72px'"
                                                 :value="getDisplayVal('users', yi, col.quarters)"
+                                                @focus="$event.target.select()"
                                                 @input="setDisplayVal('users', yi, col.quarters, $event.target.value)">
                                         </td>
                                     </template>
@@ -659,7 +662,7 @@
                         <p class="tbl-label">Формула 1.1.3 — Платные пользователи итого (авто)</p>
                         <div class="tbl-wrap">
                             <table>
-                                <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>Σ год</th></tr></thead>
+                                <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th style="min-width:100px">Σ год</th></tr></thead>
                                 <tbody>
                                     <template x-for="(row, yi) in metrics.paidUsers" :key="yi">
                                         <tr>
@@ -683,7 +686,7 @@
                         <p class="tbl-label">Формула 1.1.4 — Новые платные пользователи (авто)</p>
                         <div class="tbl-wrap">
                             <table>
-                                <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>Σ год</th></tr></thead>
+                                <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th style="min-width:100px">Σ год</th></tr></thead>
                                 <tbody>
                                     <template x-for="(row, yi) in metrics.newPaidUsers" :key="yi">
                                         <tr>
@@ -729,21 +732,27 @@
                                 <tr>
                                     <td><input type="text" x-model="form.costs[ci].category" style="width:90px"></td>
                                     <td>
-                                        <select x-model="form.costs[ci].mode">
+                                        <select x-model="form.costs[ci].mode"
+                                            @change="if($event.target.value==='manual') form.costs[ci].param=0">
                                             <option value="percent_revenue">% выручки</option>
-                                            <option value="cac">CAC (₽/польз.)</option>
+                                            <option value="cac"
+                                                x-show="form.costs[ci].category.toLowerCase().includes('маркетинг') || form.costs[ci].category.toLowerCase().includes('marketing')">
+                                                CAC (₽/польз.)
+                                            </option>
                                             <option value="manual">Ручной (₽/год)</option>
                                         </select>
                                     </td>
                                     <td>
                                         <input type="number" x-model.number="form.costs[ci].param" min="0"
-                                            :placeholder="c.mode==='percent_revenue'?'%':'₽'">
+                                            :placeholder="c.mode==='percent_revenue'?'%':'₽'"
+                                            @focus="$event.target.select()">
                                     </td>
                                     <template x-for="(_, yi) in Array.from({length:form.numYears})" :key="yi">
                                         <td>
                                             <template x-if="c.mode==='manual'">
                                                 <input type="number" min="0"
                                                     :value="form.costs[ci].values[yi]"
+                                                    @focus="$event.target.select()"
                                                     @input="setCostVal(ci,yi,$event.target.value)">
                                             </template>
                                             <template x-if="c.mode!=='manual'">
