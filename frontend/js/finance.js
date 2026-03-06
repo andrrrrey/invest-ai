@@ -159,8 +159,13 @@ const Finance = {
       annualRevenue[y] + totalCosts[y]
     )];
 
-    // 1.1.10  Calculated NWC (sum of negative operating years)
-    const nwcCalc = netCashFlow.slice(1).filter(v => v < 0).reduce((a, b) => a + b, 0);
+    // 1.1.10  Calculated NWC (sum of consecutive negative operating years from year 1
+    //         until the first year where revenue - costs >= 0)
+    let nwcCalc = 0;
+    for (let i = 1; i < netCashFlow.length; i++) {
+      if (netCashFlow[i] < 0) nwcCalc += netCashFlow[i];
+      else break;
+    }
 
     // 1.2.1  Discount factors (annual)
     const discountRate = ((+form.keyRate || 0) + (+form.riskPremium || 0)) / 100;

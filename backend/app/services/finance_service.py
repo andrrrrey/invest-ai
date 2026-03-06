@@ -148,8 +148,14 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
         annual_revenue[y] + total_costs[y] for y in range(ny)
     ]
 
-    # ── 1.1.10  Calculated NWC (sum of negative operating years) ────────────
-    nwc_calc = sum(v for v in net_cash_flow[1:] if v < 0)
+    # ── 1.1.10  Calculated NWC (sum of consecutive negative operating years
+    #            from year 1 until the first year where revenue - costs >= 0)
+    nwc_calc = 0.0
+    for v in net_cash_flow[1:]:
+        if v < 0:
+            nwc_calc += v
+        else:
+            break
 
     # ── 1.2.1  Discount factors (annual) ────────────────────────────────────
     discount_rate = (model.keyRate + model.riskPremium) / 100.0
