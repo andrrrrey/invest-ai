@@ -20,6 +20,10 @@ class RisksRequest(BaseModel):
     financial_model: dict
 
 
+class RiskScoreRequest(BaseModel):
+    application: dict
+
+
 class AnalyzeRequest(BaseModel):
     project: dict
     metrics: dict
@@ -56,6 +60,13 @@ def generate_risks(req: RisksRequest) -> dict:
         financial_model=req.financial_model,
     )
     return result
+
+
+@router.post("/generate-risk-score")
+def generate_risk_score(req: RiskScoreRequest) -> dict:
+    """Generate AI Risk Score for a type 1.2 operational investment request."""
+    _check_api_key()
+    return ai_service.generate_risk_score(application=req.application)
 
 
 @router.post("/analyze")

@@ -223,6 +223,17 @@
         .toast.success { background: var(--success); }
         .toast.error   { background: var(--danger); }
 
+        /* Score buttons (Value Score) */
+        .score-btn {
+            width: 38px; height: 38px; border-radius: 10px;
+            border: 1.5px solid #E0E0E8; background: #fff;
+            font-size: 14px; font-weight: 700; cursor: pointer;
+            color: var(--muted); transition: .15s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .score-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .score-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
         /* Cash flow table colors */
         .cf-pos  { color: var(--success); }
         .cf-neg  { color: var(--danger); }
@@ -307,7 +318,7 @@
 
         <!-- Step navigation -->
         <nav class="steps-nav">
-            <template x-for="(label, i) in stepLabels" :key="i">
+            <template x-for="(label, i) in getStepLabels()" :key="i">
                 <button class="step-btn"
                     :class="{ active: step === i+1, done: step > i+1 }"
                     @click="goTo(i+1)">
@@ -349,38 +360,232 @@
 
         <!-- ══════════════════════ STEP 2: Суть проекта ══════════════════════ -->
         <section class="wizard-panel" x-show="step===2" x-transition>
-            <div>
-                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 2 из 5</span>
-                <h2 style="font-size:20px;font-weight:700;margin-top:4px">Суть проекта</h2>
-            </div>
-
-            <div class="grid-2">
-                <div class="field">
-                    <label>Название проекта</label>
-                    <input type="text" x-model="form.name" placeholder="Например: AI-аналитика портфеля">
+            <!-- ── Инвестиционный проект (1.1) ── -->
+            <template x-if="form.projectType !== 'operational'">
+                <div style="display:flex;flex-direction:column;gap:14px">
+                    <div>
+                        <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 2 из 5</span>
+                        <h2 style="font-size:20px;font-weight:700;margin-top:4px">Суть проекта</h2>
+                    </div>
+                    <div class="grid-2">
+                        <div class="field">
+                            <label>Название проекта</label>
+                            <input type="text" x-model="form.name" placeholder="Например: AI-аналитика портфеля">
+                        </div>
+                        <div class="field">
+                            <label>Направление / бизнес-юнит</label>
+                            <select x-model="form.businessUnit">
+                                <option>WealthTech</option>
+                                <option>Розничный банкинг</option>
+                                <option>Корпоративный бизнес</option>
+                                <option>Data Platform</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label>Краткое описание (1–3 абзаца)</label>
+                        <textarea x-model="form.description" placeholder="Опишите идею и бизнес-эффект."></textarea>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary" @click="aiDescription()" :disabled="aiLoad.desc">
+                            <i class="fas" :class="aiLoad.desc ? 'fa-spinner spin' : 'fa-wand-magic-sparkles'"></i>
+                            <span x-text="aiLoad.desc ? 'Генерируем...' : 'Сформулировать с GPT-4o'"></span>
+                        </button>
+                    </div>
                 </div>
-                <div class="field">
-                    <label>Направление / бизнес-юнит</label>
-                    <select x-model="form.businessUnit">
-                        <option>WealthTech</option>
-                        <option>Розничный банкинг</option>
-                        <option>Корпоративный бизнес</option>
-                        <option>Data Platform</option>
-                    </select>
+            </template>
+
+            <!-- ── Операционные инвест затраты (1.2) — 1-page заявка ── -->
+            <template x-if="form.projectType === 'operational'">
+                <div style="display:flex;flex-direction:column;gap:14px">
+                    <div>
+                        <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 2 из 5 · 1.2 Операционные инвест затраты</span>
+                        <h2 style="font-size:20px;font-weight:700;margin-top:4px">Заявка 1-page</h2>
+                        <p class="hint" style="margin-top:3px">Заполните все обязательные поля для подачи инвестиционного запроса.</p>
+                    </div>
+
+                    <!-- Блок 1: Идентификация -->
+                    <div class="subsection">
+                        <h3>Идентификация запроса</h3>
+                        <div class="grid-2">
+                            <div class="field">
+                                <label>Название инициативы <span style="color:var(--danger)">*</span></label>
+                                <input type="text" x-model="form.name" placeholder="Краткое название запроса">
+                            </div>
+                            <div class="field">
+                                <label>Категория <span style="color:var(--danger)">*</span></label>
+                                <select x-model="form.op_category">
+                                    <option value="">— Выберите категорию —</option>
+                                    <option>Marketing</option>
+                                    <option>Sales</option>
+                                    <option>R&amp;D</option>
+                                    <option>HR</option>
+                                    <option>Infra</option>
+                                    <option>CS</option>
+                                    <option>Ops</option>
+                                    <option>Finance</option>
+                                    <option>Legal</option>
+                                    <option>Other</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- МВЗ — каскадные списки -->
+                        <div style="display:flex;flex-direction:column;gap:10px">
+                            <p style="font-size:12px;font-weight:600;color:#555">МВЗ (место возникновения затрат) <span style="color:var(--danger)">*</span></p>
+                            <div class="grid-3">
+                                <div class="field">
+                                    <label>Главный круг</label>
+                                    <select x-model="form.op_mvz_main" @change="form.op_mvz_sub1=''; form.op_mvz_sub2=''">
+                                        <option value="">— Выберите —</option>
+                                        <template x-for="mc in MVZ.mainCircles" :key="mc.id">
+                                            <option :value="mc.id" x-text="mc.id + ' | ' + mc.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label>Подкруг 1</label>
+                                    <select x-model="form.op_mvz_sub1" @change="form.op_mvz_sub2=''" :disabled="!form.op_mvz_main">
+                                        <option value="">— Выберите —</option>
+                                        <template x-for="s1 in (MVZ.sub1[form.op_mvz_main] || [])" :key="s1.id">
+                                            <option :value="s1.id" x-text="s1.id + ' | ' + s1.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label>Подкруг 2</label>
+                                    <select x-model="form.op_mvz_sub2" :disabled="!form.op_mvz_sub1">
+                                        <option value="">— Выберите —</option>
+                                        <template x-for="s2 in (MVZ.sub2[form.op_mvz_sub1] || [])" :key="s2.id">
+                                            <option :value="s2.id" x-text="s2.id + ' | ' + s2.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid-2">
+                            <div class="field">
+                                <label>Тип инвестиции <span style="color:var(--danger)">*</span></label>
+                                <select x-model="form.op_investment_type">
+                                    <option value="">— Выберите —</option>
+                                    <option>Рост и развитие</option>
+                                    <option>Платформы и технологии</option>
+                                    <option>Защита и устойчивость</option>
+                                    <option>Эффективность и ресурсы</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Ответственный / Owner</label>
+                                <input type="text" x-model="form.owner" placeholder="Имя инициатора">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Блок 2: Описание запроса -->
+                    <div class="subsection">
+                        <h3>Описание запроса</h3>
+                        <div class="field">
+                            <label>Запрашиваемый ресурс <span style="color:var(--danger)">*</span></label>
+                            <textarea x-model="form.op_requested_resource"
+                                placeholder="Опишите, что именно вы запрашиваете: ФОТ, подписка на ПО, подрядчик, бюджет на рекламу, и т.д."
+                                style="min-height:80px"></textarea>
+                        </div>
+                        <div class="field">
+                            <label>Инвестиционный тезис <span style="color:var(--danger)">*</span>
+                                <span class="hint" style="font-weight:400"> — «Если не инвестируем сейчас → что потеряем через 12 месяцев»</span>
+                            </label>
+                            <textarea x-model="form.op_investment_thesis"
+                                placeholder="Опишите, что произойдёт через 12 месяцев, если эта инвестиция не будет сделана."
+                                style="min-height:90px"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Блок 3: Value Drivers & Метрики -->
+                    <div class="subsection">
+                        <h3>Value Drivers и метрики</h3>
+                        <div class="grid-2">
+                            <div class="field">
+                                <label>Value Drivers (до 2) <span style="color:var(--danger)">*</span></label>
+                                <div style="display:flex;flex-direction:column;gap:6px;padding:6px 0">
+                                    <template x-for="vd in ['Новые деньги', 'Новый рынок', 'Скорость выпуска фич', 'Удержание текущих доходов/клиентов', 'Защита от сбоев и штрафов', 'Экономия времени и денег']" :key="vd">
+                                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+                                            <input type="checkbox"
+                                                :value="vd"
+                                                :checked="form.op_value_drivers.includes(vd)"
+                                                @change="toggleValueDriver(vd)"
+                                                :disabled="!form.op_value_drivers.includes(vd) && form.op_value_drivers.length >= 2">
+                                            <span x-text="vd"></span>
+                                        </label>
+                                    </template>
+                                </div>
+                                <p class="hint">Выберите не более 2 драйверов создания ценности</p>
+                            </div>
+                            <div class="field">
+                                <label>Ключевая метрика <span style="color:var(--danger)">*</span></label>
+                                <select x-model="form.op_metrics">
+                                    <option value="">— Выберите метрику —</option>
+                                    <option value="TTV">1. Time to Value (TTV) — скорость первого результата</option>
+                                    <option value="NRR">2. Net Revenue Retention (NRR) — удержание и расширение базы</option>
+                                    <option value="LTV/CAC">3. LTV / CAC — юнит-экономика</option>
+                                    <option value="Lead Time">4. Lead Time for Changes — скорость разработки</option>
+                                    <option value="Revenue/Employee">5. Revenue per Employee — операционная эффективность</option>
+                                    <option value="CAC Payback">6. CAC Payback — возврат затрат на привлечение</option>
+                                    <option value="Confidence Score">7. Confidence Score — уверенность в прогнозах</option>
+                                    <option value="Churn Rate">8. Churn Rate — риск потери выручки</option>
+                                    <option value="Burn Multiple">9. Burn Multiple — эффективность сжигания ресурсов</option>
+                                    <option value="ROI">10. Return of Investment (ROI) — финансовая эффективность</option>
+                                    <option value="New Logo/MRR">11. New Logo / MRR</option>
+                                    <option value="TTM">12. Time to Market (TTM)</option>
+                                    <option value="CAC">13. САС</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Блок 4: Baseline & Target -->
+                    <div class="subsection">
+                        <h3>Baseline и Target</h3>
+                        <div class="grid-2">
+                            <div class="field">
+                                <label>Baseline (отправная точка) <span style="color:var(--danger)">*</span></label>
+                                <textarea x-model="form.op_baseline"
+                                    placeholder="Текущее значение метрики или текущее состояние. Пример: «NRR = 92%, отток 4 клиентов в месяц»"
+                                    style="min-height:70px"></textarea>
+                            </div>
+                            <div class="field">
+                                <label>Target / план <span style="color:var(--danger)">*</span></label>
+                                <textarea x-model="form.op_target"
+                                    placeholder="Целевое значение и источник данных. Пример: «NRR = 105% через 6 месяцев, источник — CRM»"
+                                    style="min-height:70px"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Блок 5: Экономика и контроль -->
+                    <div class="subsection">
+                        <h3>Экономика и контроль рисков</h3>
+                        <div class="field">
+                            <label>Экономика: эффект, диапазон отслеживания, payback</label>
+                            <textarea x-model="form.op_economics"
+                                placeholder="Подсказка: укажите ожидаемый денежный или операционный эффект, горизонт отслеживания (3/6/12 мес.) и ожидаемый срок окупаемости. Пример: «экономия ФОТ ~2M₽/год, payback 6 мес., отслеживаем ежеквартально»"
+                                style="min-height:80px"></textarea>
+                        </div>
+                        <div class="field">
+                            <label>Stop-loss критерии <span style="color:var(--danger)">*</span></label>
+                            <textarea x-model="form.op_stop_loss"
+                                placeholder='Подсказка: "При каких показателях мы признаем, что «ставка не сыграла», и немедленно прекратим финансирование?"&#10;Пример: «если через 3 месяца NRR не вырос на 2 п.п. — останавливаем»'
+                                style="min-height:80px"></textarea>
+                        </div>
+                        <div class="field">
+                            <label>Stage-gates и критерии успеха</label>
+                            <textarea x-model="form.op_stage_gates"
+                                placeholder="Подсказка: опишите контрольные точки. Пример: «Gate 1 (30 дней): онбординг завершён; Gate 2 (90 дней): первые измеримые результаты по метрике; Gate 3 (180 дней): ROI подтверждён»"
+                                style="min-height:80px"></textarea>
+                        </div>
+                    </div>
                 </div>
-            </div>
-
-            <div class="field">
-                <label>Краткое описание (1–3 абзаца)</label>
-                <textarea x-model="form.description" placeholder="Опишите идею и бизнес-эффект."></textarea>
-            </div>
-
-            <div>
-                <button class="btn btn-primary" @click="aiDescription()" :disabled="aiLoad.desc">
-                    <i class="fas" :class="aiLoad.desc ? 'fa-spinner spin' : 'fa-wand-magic-sparkles'"></i>
-                    <span x-text="aiLoad.desc ? 'Генерируем...' : 'Сформулировать с GPT-4o'"></span>
-                </button>
-            </div>
+            </template>
 
             <div class="panel-footer">
                 <button class="btn btn-outline" @click="goTo(1)"><i class="fas fa-chevron-left"></i> Назад</button>
@@ -391,13 +596,181 @@
             </div>
         </section>
 
-        <!-- ══════════════════════ STEP 3: Финансовая модель ══════════════════════ -->
+        <!-- ══════════════════════ STEP 3: Финансовая модель / Value Score ══════════════════════ -->
         <section class="wizard-panel" x-show="step===3" x-transition>
-            <div>
-                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 3 из 5</span>
-                <h2 style="font-size:20px;font-weight:700;margin-top:4px">Финансовая модель</h2>
-                <p class="hint" style="margin-top:3px">Данные для расчёта выручки, затрат и ключевых метрик.</p>
-            </div>
+
+            <!-- ── Value Score (1.2 Операционные) ── -->
+            <template x-if="form.projectType === 'operational'">
+                <div style="display:flex;flex-direction:column;gap:14px">
+                    <div>
+                        <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 3 из 5 · Value Score</span>
+                        <h2 style="font-size:20px;font-weight:700;margin-top:4px">Скоринг ценности</h2>
+                        <p class="hint" style="margin-top:3px">Оцените инициативу по 5 критериям от 1 до 5. Система рассчитает итоговый балл и коридор решения.</p>
+                    </div>
+
+                    <div class="subsection">
+                        <h3>Оценка по критериям (1 — минимум, 5 — максимум)</h3>
+
+                        <!-- Критерий 1: Влияние на EV -->
+                        <div style="border:1px solid #EBEBF2;border-radius:12px;padding:14px;background:#FAFAFA">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+                                <div style="flex:1;min-width:200px">
+                                    <p style="font-size:13px;font-weight:700">1. Влияние на EV <span style="color:var(--accent);font-size:11px">(вес ×3)</span></p>
+                                    <p class="hint" style="margin-top:3px">Если мы НЕ инвестируем это сейчас, как это повлияет на наше положение на рынке через 12 месяцев? Потеряем долю рынка? Упадёт Velocity? Вырастет Churn?</p>
+                                </div>
+                                <div style="display:flex;gap:6px">
+                                    <template x-for="n in [1,2,3,4,5]" :key="n">
+                                        <button class="score-btn" :class="{active: form.vs_ev_impact===n}" @click="form.vs_ev_impact=n" x-text="n"></button>
+                                    </template>
+                                </div>
+                            </div>
+                            <template x-if="form.vs_ev_impact >= 4">
+                                <div class="field" style="margin-top:10px">
+                                    <label style="font-size:11px;color:var(--danger)">Обоснование обязательно при оценке 4–5</label>
+                                    <textarea x-model="form.vs_ev_justification" placeholder="Опишите, как именно эта инвестиция влияет на EV компании..." style="min-height:60px"></textarea>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Критерий 2: Срочность -->
+                        <div style="border:1px solid #EBEBF2;border-radius:12px;padding:14px;background:#FAFAFA">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+                                <div style="flex:1;min-width:200px">
+                                    <p style="font-size:13px;font-weight:700">2. Срочность / Opportunity Cost <span style="color:var(--accent);font-size:11px">(вес ×2)</span></p>
+                                    <p class="hint" style="margin-top:3px">Какова стоимость промедления? Есть ли дедлайн, конкурентное окно или регуляторный срок?</p>
+                                </div>
+                                <div style="display:flex;gap:6px">
+                                    <template x-for="n in [1,2,3,4,5]" :key="n">
+                                        <button class="score-btn" :class="{active: form.vs_urgency===n}" @click="form.vs_urgency=n" x-text="n"></button>
+                                    </template>
+                                </div>
+                            </div>
+                            <template x-if="form.vs_urgency >= 4">
+                                <div class="field" style="margin-top:10px">
+                                    <label style="font-size:11px;color:var(--danger)">Обоснование обязательно при оценке 4–5</label>
+                                    <textarea x-model="form.vs_urgency_justification" placeholder="Почему это срочно?" style="min-height:60px"></textarea>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Критерий 3: ROI -->
+                        <div style="border:1px solid #EBEBF2;border-radius:12px;padding:14px;background:#FAFAFA">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+                                <div style="flex:1;min-width:200px">
+                                    <p style="font-size:13px;font-weight:700">3. Прогнозируемость ROI <span style="color:var(--accent);font-size:11px">(вес ×1)</span></p>
+                                    <p class="hint" style="margin-top:3px">Совместима ли эта трата с целью 20% чистой маржи? Для маркетинга: LTV/CAC &gt; 3.5. Для найма: Revenue per Employee &gt; $150k. Для инфры: COGS &lt; 12%.</p>
+                                </div>
+                                <div style="display:flex;gap:6px">
+                                    <template x-for="n in [1,2,3,4,5]" :key="n">
+                                        <button class="score-btn" :class="{active: form.vs_roi_predictability===n}" @click="form.vs_roi_predictability=n" x-text="n"></button>
+                                    </template>
+                                </div>
+                            </div>
+                            <div class="field" style="margin-top:10px">
+                                <label style="font-size:11px;color:var(--muted)">Обоснование (опционально)</label>
+                                <textarea x-model="form.vs_roi_justification" placeholder="Как эта трата выведет нас на целевые показатели?" style="min-height:50px"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Критерий 4: Масштабируемость -->
+                        <div style="border:1px solid #EBEBF2;border-radius:12px;padding:14px;background:#FAFAFA">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+                                <div style="flex:1;min-width:200px">
+                                    <p style="font-size:13px;font-weight:700">4. Масштабируемость — The x10 Rule <span style="color:var(--accent);font-size:11px">(вес ×2)</span></p>
+                                    <p class="hint" style="margin-top:3px">Что произойдёт, если увеличить инвестицию в 10 раз? Результат вырастет тоже в 10 раз или понадобится в 10 раз больше людей? Приоритет — технологические решения.</p>
+                                </div>
+                                <div style="display:flex;gap:6px">
+                                    <template x-for="n in [1,2,3,4,5]" :key="n">
+                                        <button class="score-btn" :class="{active: form.vs_scalability===n}" @click="form.vs_scalability=n" x-text="n"></button>
+                                    </template>
+                                </div>
+                            </div>
+                            <div class="field" style="margin-top:10px">
+                                <label style="font-size:11px;color:var(--muted)">Обоснование (опционально)</label>
+                                <textarea x-model="form.vs_scalability_justification" placeholder="Когда трата перестанет быть инвестицией и станет базовым процессом?" style="min-height:50px"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Критерий 5: Unit-экономика -->
+                        <div style="border:1px solid #EBEBF2;border-radius:12px;padding:14px;background:#FAFAFA">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+                                <div style="flex:1;min-width:200px">
+                                    <p style="font-size:13px;font-weight:700">5. Влияние на unit-экономику <span style="color:var(--accent);font-size:11px">(вес ×2)</span></p>
+                                    <p class="hint" style="margin-top:3px">Как эта инвестиция повлияет на ключевые юнит-метрики: LTV, CAC, ARPU, Margin? Улучшает ли she структуру затрат?</p>
+                                </div>
+                                <div style="display:flex;gap:6px">
+                                    <template x-for="n in [1,2,3,4,5]" :key="n">
+                                        <button class="score-btn" :class="{active: form.vs_unit_economics===n}" @click="form.vs_unit_economics=n" x-text="n"></button>
+                                    </template>
+                                </div>
+                            </div>
+                            <div class="field" style="margin-top:10px">
+                                <label style="font-size:11px;color:var(--muted)">Обоснование (опционально)</label>
+                                <textarea x-model="form.vs_unit_eco_justification" placeholder="Какой юнит-экономический эффект ожидается?" style="min-height:50px"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Результат Value Score -->
+                    <template x-if="form.vs_total !== null">
+                        <div class="subsection" :style="'border-color:' + vsBandColor() + ';background:' + vsBandBg()">
+                            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+                                <div>
+                                    <h3>Value Score</h3>
+                                    <p class="hint">EV×3 + Срочность×2 + ROI×1 + Масштаб×2 + Unit×2</p>
+                                </div>
+                                <div style="text-align:right">
+                                    <div style="font-size:36px;font-weight:800" :style="'color:' + vsBandColor()" x-text="form.vs_total + ' / 50'"></div>
+                                    <div style="font-size:13px;font-weight:700;margin-top:4px" :style="'color:' + vsBandColor()" x-text="vsBandLabel()"></div>
+                                </div>
+                            </div>
+                            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px">
+                                <div style="text-align:center;padding:8px;background:rgba(255,255,255,.7);border-radius:10px">
+                                    <div style="font-size:10px;color:var(--muted)">EV ×3</div>
+                                    <div style="font-size:18px;font-weight:700" x-text="(form.vs_ev_impact||0)*3"></div>
+                                </div>
+                                <div style="text-align:center;padding:8px;background:rgba(255,255,255,.7);border-radius:10px">
+                                    <div style="font-size:10px;color:var(--muted)">Срочн. ×2</div>
+                                    <div style="font-size:18px;font-weight:700" x-text="(form.vs_urgency||0)*2"></div>
+                                </div>
+                                <div style="text-align:center;padding:8px;background:rgba(255,255,255,.7);border-radius:10px">
+                                    <div style="font-size:10px;color:var(--muted)">ROI ×1</div>
+                                    <div style="font-size:18px;font-weight:700" x-text="(form.vs_roi_predictability||0)*1"></div>
+                                </div>
+                                <div style="text-align:center;padding:8px;background:rgba(255,255,255,.7);border-radius:10px">
+                                    <div style="font-size:10px;color:var(--muted)">Масштаб ×2</div>
+                                    <div style="font-size:18px;font-weight:700" x-text="(form.vs_scalability||0)*2"></div>
+                                </div>
+                                <div style="text-align:center;padding:8px;background:rgba(255,255,255,.7);border-radius:10px">
+                                    <div style="font-size:10px;color:var(--muted)">Unit ×2</div>
+                                    <div style="font-size:18px;font-weight:700" x-text="(form.vs_unit_economics||0)*2"></div>
+                                </div>
+                            </div>
+                            <p class="hint" style="margin-top:8px" x-text="vsBandDescription()"></p>
+                        </div>
+                    </template>
+
+                    <button class="btn btn-primary" @click="computeValueScore()"
+                        :disabled="!form.vs_ev_impact || !form.vs_urgency || !form.vs_roi_predictability || !form.vs_scalability || !form.vs_unit_economics">
+                        <i class="fas fa-calculator"></i> Рассчитать Value Score
+                    </button>
+                </div>
+            </template>
+
+            <!-- ── Финансовая модель (1.1 Инвестиционный проект) ── -->
+            <template x-if="form.projectType !== 'operational'">
+                <div>
+                    <div>
+                        <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 3 из 5</span>
+                        <h2 style="font-size:20px;font-weight:700;margin-top:4px">Финансовая модель</h2>
+                        <p class="hint" style="margin-top:3px">Данные для расчёта выручки, затрат и ключевых метрик.</p>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Financial model content BELOW (shared section visible only for investment type) -->
+            <template x-if="form.projectType !== 'operational'">
+                <div style="display:flex;flex-direction:column;gap:14px">
 
             <!-- 3.1 Общая информация -->
             <div class="subsection">
@@ -947,22 +1320,162 @@
                 </div>
             </div>
 
+                </div>
+            </template>
+            <!-- /financial model template -->
+
             <div class="panel-footer">
                 <button class="btn btn-outline" @click="goTo(2)"><i class="fas fa-chevron-left"></i> Назад</button>
                 <div class="footer-right">
                     <button class="btn btn-outline" @click="saveDraft()">Сохранить черновик</button>
-                    <button class="btn btn-primary" @click="goTo(4)">Далее <i class="fas fa-chevron-right"></i></button>
+                    <button class="btn btn-primary" @click="goTo(4)"
+                        :disabled="form.projectType === 'operational' && !form.vs_total">
+                        Далее <i class="fas fa-chevron-right"></i>
+                    </button>
                 </div>
             </div>
         </section>
 
-        <!-- ══════════════════════ STEP 4: Риски ══════════════════════ -->
+        <!-- ══════════════════════ STEP 4: Риски / AI Risk Score ══════════════════════ -->
         <section class="wizard-panel" x-show="step===4" x-transition>
-            <div>
-                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 4 из 5</span>
-                <h2 style="font-size:20px;font-weight:700;margin-top:4px">Риски и допущения</h2>
-                <p class="hint" style="margin-top:3px">Раздел формируется GPT-4o на основе вашей финансовой модели.</p>
-            </div>
+
+            <!-- ── AI Risk Score (1.2 Операционные) ── -->
+            <template x-if="form.projectType === 'operational'">
+                <div style="display:flex;flex-direction:column;gap:14px">
+                    <div>
+                        <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 4 из 5 · AI Risk Score</span>
+                        <h2 style="font-size:20px;font-weight:700;margin-top:4px">AI-скоринг рисков</h2>
+                        <p class="hint" style="margin-top:3px">GPT-4o анализирует заявку и Value Score, возвращает оценку рисков и рекомендацию по маршруту.</p>
+                    </div>
+
+                    <!-- Value Score recap -->
+                    <div class="subsection" :style="'border-color:' + vsBandColor() + ';background:' + vsBandBg()">
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+                            <div>
+                                <h3>Value Score</h3>
+                                <p class="hint">Рассчитан на Шаге 3</p>
+                            </div>
+                            <div style="text-align:right">
+                                <div style="font-size:28px;font-weight:800" :style="'color:' + vsBandColor()" x-text="(form.vs_total || '—') + ' / 50'"></div>
+                                <div style="font-size:13px;font-weight:700" :style="'color:' + vsBandColor()" x-text="vsBandLabel()"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Risk Score generation -->
+                    <template x-if="!riskScoreData && !aiLoad.riskScore">
+                        <div style="text-align:center;padding:30px;color:var(--muted)">
+                            <i class="fas fa-shield-halved" style="font-size:32px;margin-bottom:12px;display:block;color:var(--accent)"></i>
+                            <p style="margin-bottom:16px">GPT-4o проанализирует заявку и оценит риски по 4 категориям.</p>
+                            <button class="btn btn-primary" @click="aiRiskScore()">
+                                <i class="fas fa-wand-magic-sparkles"></i> Запустить AI Risk Score
+                            </button>
+                        </div>
+                    </template>
+
+                    <template x-if="aiLoad.riskScore">
+                        <div style="text-align:center;padding:30px;color:var(--muted)">
+                            <i class="fas fa-spinner spin" style="font-size:32px;margin-bottom:12px;display:block;color:var(--accent)"></i>
+                            <p>GPT-4o анализирует заявку...</p>
+                        </div>
+                    </template>
+
+                    <template x-if="riskScoreData && !aiLoad.riskScore">
+                        <div style="display:flex;flex-direction:column;gap:12px">
+                            <!-- Overall risk -->
+                            <div class="summary-card" :class="'risk-' + riskScoreData.overall_risk">
+                                <div style="display:flex;justify-content:space-between;align-items:center">
+                                    <h4>Общий уровень риска</h4>
+                                    <span class="risk-badge" :class="'risk-' + riskScoreData.overall_risk"
+                                          x-text="riskScoreData.overall_risk"></span>
+                                </div>
+                                <p style="margin-top:8px" x-text="riskScoreData.commentary"></p>
+                            </div>
+
+                            <!-- Risk scores by type -->
+                            <div class="subsection">
+                                <h3>Риски по категориям (1-5)</h3>
+                                <div class="metric-grid">
+                                    <div class="metric-card">
+                                        <div class="k">Риск исполнения</div>
+                                        <div class="v" :class="(riskScoreData.risk_scores?.execution_risk||0)>=4?'neg':(riskScoreData.risk_scores?.execution_risk||0)<=2?'pos':'acc'"
+                                             x-text="riskScoreData.risk_scores?.execution_risk || '—'"></div>
+                                    </div>
+                                    <div class="metric-card">
+                                        <div class="k">Рыночный риск</div>
+                                        <div class="v" :class="(riskScoreData.risk_scores?.market_risk||0)>=4?'neg':(riskScoreData.risk_scores?.market_risk||0)<=2?'pos':'acc'"
+                                             x-text="riskScoreData.risk_scores?.market_risk || '—'"></div>
+                                    </div>
+                                    <div class="metric-card">
+                                        <div class="k">Финансовый риск</div>
+                                        <div class="v" :class="(riskScoreData.risk_scores?.financial_risk||0)>=4?'neg':(riskScoreData.risk_scores?.financial_risk||0)<=2?'pos':'acc'"
+                                             x-text="riskScoreData.risk_scores?.financial_risk || '—'"></div>
+                                    </div>
+                                    <div class="metric-card">
+                                        <div class="k">Стратегический риск</div>
+                                        <div class="v" :class="(riskScoreData.risk_scores?.strategic_risk||0)>=4?'neg':(riskScoreData.risk_scores?.strategic_risk||0)<=2?'pos':'acc'"
+                                             x-text="riskScoreData.risk_scores?.strategic_risk || '—'"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Risk reasons -->
+                            <div class="summary-card">
+                                <h4>Причины риск-оценки</h4>
+                                <ul>
+                                    <template x-for="r in riskScoreData.risk_reasons" :key="r">
+                                        <li x-text="r"></li>
+                                    </template>
+                                </ul>
+                            </div>
+
+                            <!-- Controls & Stage-gates -->
+                            <div class="grid-2">
+                                <div class="summary-card">
+                                    <h4>Рекомендуемые контроли</h4>
+                                    <ul>
+                                        <template x-for="c in riskScoreData.controls" :key="c">
+                                            <li x-text="c"></li>
+                                        </template>
+                                    </ul>
+                                </div>
+                                <div class="summary-card">
+                                    <h4>Рекомендации по Stage-Gates</h4>
+                                    <ul>
+                                        <template x-for="sg in riskScoreData.stage_gate_recommendations" :key="sg">
+                                            <li x-text="sg"></li>
+                                        </template>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Manual Review flag -->
+                            <template x-if="riskScoreData.manual_review_required">
+                                <div style="background:#FFF3E0;border:1.5px solid #FF9500;border-radius:14px;padding:14px;display:flex;gap:12px;align-items:flex-start">
+                                    <i class="fas fa-triangle-exclamation" style="color:#FF9500;font-size:20px;margin-top:2px"></i>
+                                    <div>
+                                        <p style="font-size:13px;font-weight:700;color:#7a4f00">AI рекомендует: MANUAL REVIEW</p>
+                                        <p style="font-size:13px;color:#7a4f00;margin-top:4px">Заявка требует ручного рассмотрения CEO/CFO/инвесткомитетом из-за высокого риска или стратегической значимости.</p>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <button class="btn btn-primary" @click="aiRiskScore()">
+                                <i class="fas fa-wand-magic-sparkles"></i> Пересчитать Risk Score
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <!-- ── Риски (1.1 Инвестиционный) ── -->
+            <template x-if="form.projectType !== 'operational'">
+                <div style="display:flex;flex-direction:column;gap:14px">
+                    <div>
+                        <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 4 из 5</span>
+                        <h2 style="font-size:20px;font-weight:700;margin-top:4px">Риски и допущения</h2>
+                        <p class="hint" style="margin-top:3px">Раздел формируется GPT-4o на основе вашей финансовой модели.</p>
+                    </div>
 
             <!-- Metrics recap -->
             <div class="subsection" style="background:#F7F7FB">
@@ -1042,6 +1555,9 @@
                     </div>
                 </div>
             </template>
+                </div>
+            </template>
+            <!-- /investment risks template -->
 
             <div class="panel-footer">
                 <button class="btn btn-outline" @click="goTo(3)"><i class="fas fa-chevron-left"></i> Назад</button>
@@ -1052,13 +1568,154 @@
             </div>
         </section>
 
-        <!-- ══════════════════════ STEP 5: Резюме ══════════════════════ -->
+        <!-- ══════════════════════ STEP 5: Резюме / Decision Routing ══════════════════════ -->
         <section class="wizard-panel" x-show="step===5" x-transition>
-            <div>
-                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 5 из 5</span>
-                <h2 style="font-size:20px;font-weight:700;margin-top:4px">Резюме перед созданием</h2>
-                <p class="hint" style="margin-top:3px">Investment one-pager для согласования.</p>
-            </div>
+
+            <!-- ── Decision Routing (1.2 Операционные) ── -->
+            <template x-if="form.projectType === 'operational'">
+                <div style="display:flex;flex-direction:column;gap:14px">
+                    <div>
+                        <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 5 из 5 · Решение по маршруту</span>
+                        <h2 style="font-size:20px;font-weight:700;margin-top:4px">Резюме и Decision Routing</h2>
+                        <p class="hint" style="margin-top:3px">Итоговая картина: заявка, Value Score, Risk Score и рекомендуемый маршрут.</p>
+                    </div>
+
+                    <!-- Decision Route Banner -->
+                    <div x-show="form.vs_total" :style="'border-radius:16px;padding:20px;border:2px solid ' + vsBandColor() + ';background:' + vsBandBg()">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+                            <div>
+                                <p style="font-size:11px;font-weight:700;text-transform:uppercase;opacity:.7">Рекомендуемый маршрут</p>
+                                <h3 style="font-size:22px;font-weight:800;margin-top:4px" :style="'color:' + vsBandColor()" x-text="decisionRouteLabel()"></h3>
+                                <p style="font-size:13px;margin-top:6px;max-width:500px" x-text="decisionRouteDescription()"></p>
+                            </div>
+                            <div style="text-align:center">
+                                <div style="font-size:40px;font-weight:900" :style="'color:' + vsBandColor()" x-text="(form.vs_total || 0) + '/50'"></div>
+                                <div style="font-size:12px;opacity:.7">Value Score</div>
+                            </div>
+                        </div>
+                        <template x-if="riskScoreData?.manual_review_required">
+                            <div style="margin-top:12px;padding:10px 14px;background:rgba(255,149,0,.15);border-radius:10px;display:flex;gap:8px;align-items:center">
+                                <i class="fas fa-triangle-exclamation" style="color:#FF9500"></i>
+                                <span style="font-size:13px;font-weight:600;color:#7a4f00">MANUAL REVIEW: требует рассмотрения CEO/CFO/инвесткомитетом</span>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Summary grid -->
+                    <div class="summary-grid">
+                        <!-- Left: application summary -->
+                        <article class="summary-card">
+                            <h4>Инвестиционный запрос</h4>
+                            <p><strong>Инициатива:</strong> <span x-text="form.name||'(без названия)'"></span></p>
+                            <p><strong>Категория:</strong> <span x-text="form.op_category||'—'"></span></p>
+                            <p><strong>МВЗ:</strong> <span x-text="[form.op_mvz_main, form.op_mvz_sub1, form.op_mvz_sub2].filter(Boolean).join(' / ') || '—'"></span></p>
+                            <p><strong>Тип:</strong> <span x-text="form.op_investment_type||'—'"></span></p>
+                            <p><strong>Value Drivers:</strong> <span x-text="form.op_value_drivers.join(', ')||'—'"></span></p>
+                            <p><strong>Метрика:</strong> <span x-text="form.op_metrics||'—'"></span></p>
+                            <p style="margin-top:8px"><strong>Тезис:</strong></p>
+                            <p x-text="form.op_investment_thesis ? form.op_investment_thesis.slice(0,200) + (form.op_investment_thesis.length>200?'…':'') : '—'"></p>
+                            <p style="margin-top:8px"><strong>Stop-loss:</strong></p>
+                            <p x-text="form.op_stop_loss ? form.op_stop_loss.slice(0,150) + (form.op_stop_loss.length>150?'…':'') : '—'"></p>
+                        </article>
+
+                        <!-- Right: scores -->
+                        <div style="display:flex;flex-direction:column;gap:10px">
+                            <article class="summary-card" :style="'border-color:' + vsBandColor()">
+                                <h4>Value Score: <span :style="'color:' + vsBandColor()" x-text="(form.vs_total||'—') + ' / 50'"></span></h4>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;font-size:12px">
+                                    <span>Влияние на EV ×3:</span><strong x-text="(form.vs_ev_impact||0)*3"></strong>
+                                    <span>Срочность ×2:</span><strong x-text="(form.vs_urgency||0)*2"></strong>
+                                    <span>ROI ×1:</span><strong x-text="(form.vs_roi_predictability||0)*1"></strong>
+                                    <span>Масштаб ×2:</span><strong x-text="(form.vs_scalability||0)*2"></strong>
+                                    <span>Unit-эк. ×2:</span><strong x-text="(form.vs_unit_economics||0)*2"></strong>
+                                </div>
+                                <p style="margin-top:8px;font-size:12px" :style="'color:' + vsBandColor();font-weight:700" x-text="vsBandLabel()"></p>
+                            </article>
+                            <template x-if="riskScoreData">
+                                <article class="summary-card ai">
+                                    <h4>Risk Score:
+                                        <span class="risk-badge" :class="'risk-' + riskScoreData.overall_risk"
+                                              x-text="riskScoreData.overall_risk"></span>
+                                    </h4>
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;font-size:12px">
+                                        <span>Исполнение:</span><strong x-text="riskScoreData.risk_scores?.execution_risk||'—'"></strong>
+                                        <span>Рынок:</span><strong x-text="riskScoreData.risk_scores?.market_risk||'—'"></strong>
+                                        <span>Финансы:</span><strong x-text="riskScoreData.risk_scores?.financial_risk||'—'"></strong>
+                                        <span>Стратегия:</span><strong x-text="riskScoreData.risk_scores?.strategic_risk||'—'"></strong>
+                                    </div>
+                                    <p style="margin-top:8px;font-size:12px" x-text="riskScoreData.commentary?.slice(0,120)+'…'"></p>
+                                </article>
+                            </template>
+                            <template x-if="!riskScoreData">
+                                <div style="padding:16px;text-align:center;color:var(--muted);border:1.5px dashed #E0E0E8;border-radius:14px">
+                                    <p style="font-size:13px">Risk Score не запущен.</p>
+                                    <button class="btn btn-primary" style="margin-top:10px" @click="goTo(4)">← Вернуться на шаг 4</button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Validation checklist -->
+                    <div class="subsection">
+                        <h3>Чеклист перед отправкой</h3>
+                        <div style="display:flex;flex-direction:column;gap:6px;font-size:13px">
+                            <p :style="form.name ? 'color:var(--success)' : 'color:var(--danger)'">
+                                <i class="fas" :class="form.name ? 'fa-check-circle' : 'fa-times-circle'"></i>
+                                Название инициативы
+                            </p>
+                            <p :style="form.op_category ? 'color:var(--success)' : 'color:var(--danger)'">
+                                <i class="fas" :class="form.op_category ? 'fa-check-circle' : 'fa-times-circle'"></i>
+                                Категория
+                            </p>
+                            <p :style="form.op_mvz_main ? 'color:var(--success)' : 'color:var(--danger)'">
+                                <i class="fas" :class="form.op_mvz_main ? 'fa-check-circle' : 'fa-times-circle'"></i>
+                                МВЗ (главный круг)
+                            </p>
+                            <p :style="form.op_investment_type ? 'color:var(--success)' : 'color:var(--danger)'">
+                                <i class="fas" :class="form.op_investment_type ? 'fa-check-circle' : 'fa-times-circle'"></i>
+                                Тип инвестиции
+                            </p>
+                            <p :style="form.op_requested_resource ? 'color:var(--success)' : 'color:var(--danger)'">
+                                <i class="fas" :class="form.op_requested_resource ? 'fa-check-circle' : 'fa-times-circle'"></i>
+                                Запрашиваемый ресурс
+                            </p>
+                            <p :style="form.op_investment_thesis ? 'color:var(--success)' : 'color:var(--danger)'">
+                                <i class="fas" :class="form.op_investment_thesis ? 'fa-check-circle' : 'fa-times-circle'"></i>
+                                Инвестиционный тезис
+                            </p>
+                            <p :style="form.op_value_drivers.length ? 'color:var(--success)' : 'color:var(--danger)'">
+                                <i class="fas" :class="form.op_value_drivers.length ? 'fa-check-circle' : 'fa-times-circle'"></i>
+                                Value Drivers (минимум 1)
+                            </p>
+                            <p :style="form.op_metrics ? 'color:var(--success)' : 'color:var(--danger)'">
+                                <i class="fas" :class="form.op_metrics ? 'fa-check-circle' : 'fa-times-circle'"></i>
+                                Ключевая метрика
+                            </p>
+                            <p :style="form.op_baseline && form.op_target ? 'color:var(--success)' : 'color:var(--danger)'">
+                                <i class="fas" :class="form.op_baseline && form.op_target ? 'fa-check-circle' : 'fa-times-circle'"></i>
+                                Baseline и Target
+                            </p>
+                            <p :style="form.op_stop_loss ? 'color:var(--success)' : 'color:var(--danger)'">
+                                <i class="fas" :class="form.op_stop_loss ? 'fa-check-circle' : 'fa-times-circle'"></i>
+                                Stop-loss критерии
+                            </p>
+                            <p :style="form.vs_total ? 'color:var(--success)' : 'color:var(--danger)'">
+                                <i class="fas" :class="form.vs_total ? 'fa-check-circle' : 'fa-times-circle'"></i>
+                                Value Score рассчитан
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- ── Резюме (1.1 Инвестиционный) ── -->
+            <template x-if="form.projectType !== 'operational'">
+                <div>
+                    <div>
+                        <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 5 из 5</span>
+                        <h2 style="font-size:20px;font-weight:700;margin-top:4px">Резюме перед созданием</h2>
+                        <p class="hint" style="margin-top:3px">Investment one-pager для согласования.</p>
+                    </div>
 
             <div class="summary-grid">
                 <article class="summary-card">
@@ -1120,6 +1777,9 @@
                              x-text="metrics.ltvCac"></div></div>
                 </div>
             </div>
+                </div>
+            </template>
+            <!-- /investment summary template -->
 
             <div class="panel-footer">
                 <button class="btn btn-outline" @click="goTo(4)"><i class="fas fa-chevron-left"></i> Назад</button>
@@ -1154,19 +1814,22 @@
 function wizardApp() {
     return {
         step: 1,
-        stepLabels: [
-            '1. Тип проекта',
-            '2. Суть проекта',
-            '3. Фин. модель',
-            '4. Риски',
-            '5. Резюме',
-        ],
+
+        getStepLabels() {
+            if (this.form.projectType === 'operational') {
+                return ['1. Тип проекта', '2. Заявка 1-page', '3. Value Score', '4. Risk Score', '5. Резюме'];
+            }
+            return ['1. Тип проекта', '2. Суть проекта', '3. Фин. модель', '4. Риски', '5. Резюме'];
+        },
+
+        MVZ,
 
         saving: false,
         submitting: false,
-        aiLoad: { desc: false, risks: false },
+        aiLoad: { desc: false, risks: false, riskScore: false },
         projectId: null,
         risksData: null,
+        riskScoreData: null,
         metrics: _emptyMetrics(),
 
         form: {
@@ -1177,6 +1840,33 @@ function wizardApp() {
 
             // Step 3 general
             owner: '', stage: 'Идея', startDate: '', platform: '',
+
+            // ── 1.2 Операционные затраты: 1-page fields ──────────────────
+            op_category: '',
+            op_mvz_main: '', op_mvz_sub1: '', op_mvz_sub2: '',
+            op_investment_type: '',
+            op_requested_resource: '',
+            op_investment_thesis: '',
+            op_value_drivers: [],
+            op_metrics: '',
+            op_baseline: '', op_target: '',
+            op_economics: '',
+            op_stop_loss: '',
+            op_stage_gates: '',
+
+            // ── Value Score ───────────────────────────────────────────────
+            vs_ev_impact: null,
+            vs_urgency: null,
+            vs_roi_predictability: null,
+            vs_scalability: null,
+            vs_unit_economics: null,
+            vs_ev_justification: '',
+            vs_urgency_justification: '',
+            vs_roi_justification: '',
+            vs_scalability_justification: '',
+            vs_unit_eco_justification: '',
+            vs_total: null,
+            vs_band: null,
 
             // Revenue model
             revenueModel: 'subscription',
@@ -1342,8 +2032,97 @@ function wizardApp() {
             this.$nextTick(() => document.querySelector('.main-content')?.scrollTo({top:0,behavior:'smooth'}));
         },
 
+        // ── Value drivers toggle (max 2) ────────────────────────────────
+        toggleValueDriver(vd) {
+            const idx = this.form.op_value_drivers.indexOf(vd);
+            if (idx >= 0) {
+                this.form.op_value_drivers = this.form.op_value_drivers.filter(v => v !== vd);
+            } else if (this.form.op_value_drivers.length < 2) {
+                this.form.op_value_drivers = [...this.form.op_value_drivers, vd];
+            }
+        },
+
+        // ── Value Score calculation ─────────────────────────────────────
+        computeValueScore() {
+            const ev  = this.form.vs_ev_impact || 0;
+            const urg = this.form.vs_urgency || 0;
+            const roi = this.form.vs_roi_predictability || 0;
+            const sc  = this.form.vs_scalability || 0;
+            const ue  = this.form.vs_unit_economics || 0;
+            const total = (ev * 3) + (urg * 2) + (roi * 1) + (sc * 2) + (ue * 2);
+            const band = total >= 40 ? 'fast_track' : total >= 25 ? 'efficiency_play' : 'backlog_stop';
+            this.form.vs_total = total;
+            this.form.vs_band  = band;
+            this._toast('Value Score: ' + total + '/50 — ' + this.vsBandLabel(), 'success');
+        },
+
+        // ── Value Score display helpers ─────────────────────────────────
+        vsBandColor() {
+            const b = this.form.vs_band;
+            if (b === 'fast_track')      return 'var(--success)';
+            if (b === 'efficiency_play') return 'var(--warn)';
+            return 'var(--danger)';
+        },
+        vsBandBg() {
+            const b = this.form.vs_band;
+            if (b === 'fast_track')      return '#DDF0E1';
+            if (b === 'efficiency_play') return '#FFF8EC';
+            return '#FFE5E3';
+        },
+        vsBandLabel() {
+            const b = this.form.vs_band;
+            if (b === 'fast_track')      return '🟢 FAST TRACK (40–50)';
+            if (b === 'efficiency_play') return '🟡 EFFICIENCY PLAY (25–39)';
+            if (b === 'backlog_stop')    return '🔴 BACKLOG / STOP (<25)';
+            return '—';
+        },
+        vsBandDescription() {
+            const b = this.form.vs_band;
+            if (b === 'fast_track')      return 'Автоматическое утверждение на Discovery/Pilot. Выделение ресурсов из резерва.';
+            if (b === 'efficiency_play') return 'Требуется детальный unit-кейс и подтверждение окупаемости в течение 12 месяцев.';
+            if (b === 'backlog_stop')    return 'Отказ или возврат на переработку с рекомендациями.';
+            return '';
+        },
+
+        // ── Decision Route label & description ─────────────────────────
+        decisionRouteLabel() {
+            const aiRoute = this.riskScoreData?.recommended_route;
+            const vsRoute = this.form.vs_band;
+            const manualReview = this.riskScoreData?.manual_review_required;
+            if (manualReview) return '⚠️ MANUAL REVIEW';
+            const route = aiRoute || vsRoute;
+            if (route === 'fast_track')      return '✅ FAST TRACK';
+            if (route === 'efficiency_play') return '⚡ EFFICIENCY PLAY';
+            if (route === 'backlog_stop')    return '🚫 BACKLOG / STOP';
+            return vsRoute ? this.vsBandLabel() : '—';
+        },
+        decisionRouteDescription() {
+            const manualReview = this.riskScoreData?.manual_review_required;
+            const route = this.riskScoreData?.recommended_route || this.form.vs_band;
+            if (manualReview) return 'Обязательное рассмотрение CEO/CFO/инвесткомитетом.';
+            if (route === 'fast_track')      return 'Автоматическое утверждение на Discovery/Pilot. Ресурсы выделяются из резерва.';
+            if (route === 'efficiency_play') return 'Должна окупить сама себя в течение 12 месяцев. Требуется unit-кейс.';
+            if (route === 'backlog_stop')    return 'Отказ или возврат на переработку с рекомендациями AI.';
+            return '';
+        },
+
         // ── Backend API calls ──────────────────────────────────────────────
         _payload() {
+            const valueScoreData = this.form.vs_total !== null ? {
+                ev_impact: this.form.vs_ev_impact,
+                urgency: this.form.vs_urgency,
+                roi_predictability: this.form.vs_roi_predictability,
+                scalability: this.form.vs_scalability,
+                unit_economics: this.form.vs_unit_economics,
+                total: this.form.vs_total,
+                band: this.form.vs_band,
+                ev_justification: this.form.vs_ev_justification,
+                urgency_justification: this.form.vs_urgency_justification,
+                roi_justification: this.form.vs_roi_justification,
+                scalability_justification: this.form.vs_scalability_justification,
+                unit_eco_justification: this.form.vs_unit_eco_justification,
+            } : null;
+
             return {
                 project_type: this.form.projectType,
                 name: this.form.name, business_unit: this.form.businessUnit,
@@ -1351,7 +2130,9 @@ function wizardApp() {
                 stage: this.form.stage, start_date: this.form.startDate,
                 platform: this.form.platform,
                 financial_model: { ...this.form },
-                risks_data: this.risksData,
+                risks_data: this.form.projectType === 'operational' ? this.riskScoreData : this.risksData,
+                value_score_data: valueScoreData,
+                decision_route: this.form.vs_band || null,
                 status: 'draft',
             };
         },
@@ -1432,11 +2213,144 @@ function wizardApp() {
             } finally { this.aiLoad.risks = false; }
         },
 
+        async aiRiskScore() {
+            this.aiLoad.riskScore = true;
+            try {
+                const application = {
+                    name: this.form.name,
+                    op_category: this.form.op_category,
+                    op_mvz_main: this.form.op_mvz_main,
+                    op_mvz_sub1: this.form.op_mvz_sub1,
+                    op_mvz_sub2: this.form.op_mvz_sub2,
+                    op_investment_type: this.form.op_investment_type,
+                    op_requested_resource: this.form.op_requested_resource,
+                    op_investment_thesis: this.form.op_investment_thesis,
+                    op_value_drivers: this.form.op_value_drivers,
+                    op_metrics: this.form.op_metrics,
+                    op_baseline: this.form.op_baseline,
+                    op_target: this.form.op_target,
+                    op_economics: this.form.op_economics,
+                    op_stop_loss: this.form.op_stop_loss,
+                    op_stage_gates: this.form.op_stage_gates,
+                    value_score_data: {
+                        ev_impact: this.form.vs_ev_impact,
+                        urgency: this.form.vs_urgency,
+                        roi_predictability: this.form.vs_roi_predictability,
+                        scalability: this.form.vs_scalability,
+                        unit_economics: this.form.vs_unit_economics,
+                        total: this.form.vs_total,
+                        band: this.form.vs_band,
+                    },
+                };
+                const res = await fetch('/api/v1/ai/generate-risk-score', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ application }),
+                });
+                if (!res.ok) throw new Error((await res.json()).detail);
+                this.riskScoreData = await res.json();
+                this._toast('AI Risk Score сформирован', 'success');
+            } catch(e) {
+                this._toast('AI недоступен: ' + e.message, 'error');
+            } finally { this.aiLoad.riskScore = false; }
+        },
+
         _toast(msg, type='success') {
             window.dispatchEvent(new CustomEvent('toast', { detail: { msg, type } }));
         },
     };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  MVZ Hierarchy (МВЗ каскадные списки)
+// ─────────────────────────────────────────────────────────────────────────────
+const MVZ = {
+    mainCircles: [
+        {id:'1',name:'PARTNERS'},{id:'100',name:'Sales'},{id:'1000',name:'Marketing'},
+        {id:'1100',name:'Board of director'},{id:'1400',name:'Relations'},
+        {id:'2',name:'Customer Support'},{id:'3',name:'R&D'},{id:'400',name:'Otherside'},
+        {id:'5',name:'G&A'},{id:'7',name:'COGS'},{id:'700',name:'Clients'},{id:'800',name:'OPS'},
+    ],
+    sub1: {
+        '1':    [{id:'1.1',name:'PARTNERS'}],
+        '100':  [{id:'110',name:'Sales'},{id:'140',name:'KAM'},{id:'150',name:'New Logos'},{id:'160',name:'Inbound'},{id:'180',name:'Sales OPS'}],
+        '1000': [{id:'1010',name:'Marketing'},{id:'1020',name:'Events'},{id:'1030',name:'Content'},{id:'1040',name:'Sites'},{id:'1060',name:'Креативный маркетинг'},{id:'1070',name:'Acquisition'},{id:'1090',name:'PM'}],
+        '1100': [{id:'1110',name:'Board of director'}],
+        '1400': [{id:'1410',name:'Relations'}],
+        '2':    [{id:'2.1',name:'Custom technical support'}],
+        '3':    [{id:'3.1',name:'New Business'},{id:'3.2',name:'Право (судопроизводство)'},{id:'3.3',name:'eJ. КАД/MA'},{id:'3.4',name:'eJ. ПК САД (САС)'},{id:'3.5',name:'Право (Редактор)'},{id:'3.8',name:'CB. Discovery Право (дела)'},{id:'3.9',name:'CB. Discovery(данные)'},{id:'3.10',name:'CB. API. Tech'},{id:'3.11',name:'CB. CbForce'},{id:'3.12',name:'CB. Аркада'},{id:'3.13',name:'CB. Авангард'},{id:'3.15',name:'C1. Discovery Право (департамент)'},{id:'3.16',name:'C1. OPS + Arch'},{id:'3.17',name:'C1. Core Delivery TI'},{id:'3.18',name:'C1. Team.Two (T2)'},{id:'3.19',name:'C1. Core Discovery'},{id:'3.20',name:'C1. CustDev TI'},{id:'3.22',name:'Caselook'},{id:'3.23',name:'CL. Discovery (инициативы)'},{id:'3.24',name:'CL. Discovery (практика)'},{id:'3.25',name:'Doc.one'},{id:'3.26',name:'Bot.one'},{id:'3.27',name:'D1. Discovery(договоры)'},{id:'3.29',name:'CB. Право (Картотека)'},{id:'3.30',name:'D&D Process'},{id:'3.31',name:'Discovery AI'},{id:'3.40',name:'eJ. САС Support'}],
+        '400':  [{id:'420',name:'Otherside'}],
+        '5':    [{id:'5.1',name:'C&B'},{id:'5.2',name:'Employee Experience'},{id:'5.3',name:'Recruitment'},{id:'5.5',name:'Кибербезопасность'}],
+        '7':    [{id:'7.1',name:'DevOps'},{id:'7.2',name:'DevSup'}],
+        '700':  [{id:'720',name:'Support'},{id:'730',name:'Academy'},{id:'740',name:'Clients GEN'},{id:'750',name:'Tutors'},{id:'760',name:'VIP поддержка'}],
+        '800':  [{id:'810',name:'Finance'},{id:'8110',name:'Docs'},{id:'820',name:'Legal'},{id:'830',name:'Information systems'},{id:'840',name:'Infrastucture & IT'},{id:'850',name:'A&D'},{id:'860',name:'Offices & Services'},{id:'870',name:'KDP'},{id:'890',name:'OPS'}],
+    },
+    sub2: {
+        '1.1':   [{id:'1.1.1',name:'PARTNERS GEN'}],
+        '110':   [{id:'111',name:'Sales GEN'}],
+        '140':   [{id:'142',name:'KAM ENT Unit 1'},{id:'143',name:'KAM SMALL Unit 1'},{id:'144',name:'KAM ENT Unit 2'},{id:'145',name:'Experts'},{id:'146',name:'KYC'}],
+        '150':   [{id:'151',name:'New logos Performers 1'},{id:'152',name:'New logos Performers 2'},{id:'153',name:'New logos Researchers 1'},{id:'154',name:'New logos Performers 3'},{id:'155',name:'New logos Performers 4'},{id:'156',name:'New logos Researchers 2'}],
+        '160':   [{id:'161',name:'Inbound GEN'}],
+        '180':   [{id:'181',name:'Sales OPS GEN'}],
+        '1010':  [{id:'1014',name:'Marketing GEN'}],
+        '1020':  [{id:'1021',name:'Events GEN'}],
+        '1030':  [{id:'1031',name:'Content GEN'}],
+        '1040':  [{id:'1041',name:'Sites GEN'}],
+        '1060':  [{id:'1061',name:'Креативный маркетинг GEN'}],
+        '1070':  [{id:'1071',name:'Acquisition GEN'}],
+        '1090':  [{id:'1091',name:'PM GEN'}],
+        '1110':  [{id:'1111',name:'Board of director'}],
+        '1410':  [{id:'1411',name:'Relations GEN'}],
+        '2.1':   [{id:'2.1.1',name:'Custom technical support GEN'}],
+        '3.1':   [{id:'3.1.1',name:'New Business GEN'}],
+        '3.2':   [{id:'3.2.1',name:'Право (судопроизводство) GEN'}],
+        '3.3':   [{id:'3.3.1',name:'eJ. КАД/MA GEN'}],
+        '3.4':   [{id:'3.4.1',name:'eJ. ПК САД (САС) GEN'}],
+        '3.5':   [{id:'3.5.1',name:'eJ. САС Support GEN'}],
+        '3.8':   [{id:'3.8.1',name:'CB. Discovery Право (дела) GEN'}],
+        '3.9':   [{id:'3.9.1',name:'CB. Discovery(данные) GEN'}],
+        '3.10':  [{id:'3.10.1',name:'CB. API. Tech GEN'}],
+        '3.11':  [{id:'3.11.1',name:'CB. CbForce GEN'}],
+        '3.12':  [{id:'3.12.1',name:'CB. Аркада GEN'}],
+        '3.13':  [{id:'3.13.1',name:'CB. Авангард GEN'}],
+        '3.15':  [{id:'3.15.1',name:'C1. Discovery Право (департамент) GEN'}],
+        '3.16':  [{id:'3.16.1',name:'C1. OPS + Arch GEN'}],
+        '3.17':  [{id:'3.17.1',name:'C1. Core Delivery TI GEN'}],
+        '3.18':  [{id:'3.18.1',name:'C1. Team.Two (T2) GEN'}],
+        '3.19':  [{id:'3.19.1',name:'C1. Core Discovery GEN'}],
+        '3.20':  [{id:'3.20.1',name:'C1. CustDev TI GEN'}],
+        '3.22':  [{id:'3.22.1',name:'Caselook GEN'}],
+        '3.23':  [{id:'3.23.1',name:'CL. Discovery (инициативы) GEN'}],
+        '3.24':  [{id:'3.24.1',name:'CL. Discovery (практика) GEN'}],
+        '3.25':  [{id:'3.25.1',name:'Doc.one GEN'}],
+        '3.26':  [{id:'3.26.1',name:'Bot.one GEN'}],
+        '3.27':  [{id:'3.27.1',name:'D1. Discovery(договоры) GEN'}],
+        '3.29':  [{id:'3.29.1',name:'CB. Право (Картотека) GEN'}],
+        '3.30':  [{id:'3.30.1',name:'D&D Process GEN'}],
+        '3.31':  [{id:'3.31.1',name:'Discovery AI GEN'}],
+        '3.40':  [{id:'3.40.1',name:'eJ. САС Support GEN'}],
+        '420':   [{id:'421',name:'Otherside'}],
+        '5.1':   [{id:'5.1.1',name:'C&B GEN'}],
+        '5.2':   [{id:'5.2.1',name:'Employee Experience GEN'}],
+        '5.3':   [{id:'5.3.1',name:'Recruitment GEN'}],
+        '5.5':   [{id:'5.5.1',name:'Кибербезопасность GEN'}],
+        '7.1':   [{id:'7.1.1',name:'DevOps GEN'}],
+        '7.2':   [{id:'7.2.1',name:'DevSup GEN'}],
+        '720':   [{id:'721',name:'Support Casebook & Caselook'},{id:'722',name:'Support API Casebook'},{id:'723',name:'Support Work'},{id:'724',name:'Support GEN'},{id:'725',name:'Support КАД'}],
+        '730':   [{id:'731',name:'Academy GEN'}],
+        '740':   [{id:'741',name:'Clients GEN'}],
+        '750':   [{id:'751',name:'Tutors GEN'}],
+        '760':   [{id:'761',name:'VIP поддержка GEN'}],
+        '810':   [{id:'811',name:'Financial reporting & budgeting'},{id:'812',name:'Accounting'},{id:'814',name:'Finance GEN'}],
+        '8110':  [{id:'8111',name:'Docs GEN'},{id:'8112',name:'K.Docs'},{id:'8113',name:'W.Docs'},{id:'8114',name:'Service'}],
+        '820':   [{id:'821',name:'Legal GEN'}],
+        '830':   [{id:'831',name:'Information systems GEN'}],
+        '840':   [{id:'841',name:'Infrastucture & IT GEN'}],
+        '850':   [{id:'851',name:'A&D GEN'}],
+        '860':   [{id:'861',name:'Offices & Services GEN'}],
+        '870':   [{id:'871',name:'KDP'}],
+        '890':   [{id:'891',name:'OPS GEN'}],
+    }
+};
 
 function _m2d(rows, cols) {
     return Array.from({ length: rows }, () => Array(cols).fill(0));

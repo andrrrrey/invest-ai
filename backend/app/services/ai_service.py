@@ -97,6 +97,59 @@ def generate_risks(project_name: str, metrics: dict, financial_model: dict) -> d
         }
 
 
+def generate_risk_score(application: dict) -> dict:
+    """
+    Generate AI Risk Score for a type 1.2 operational investment request.
+    Returns risk levels, recommendations, routing suggestion, and manual review flag.
+    """
+    vs = application.get("value_score_data", {}) or {}
+    prompt = (
+        f"Ты — AI-инвестиционный процессор. Оцени риски операционной инвестиционной заявки.\n\n"
+        f"Инициатива: {application.get('name', 'не указана')}\n"
+        f"Категория: {application.get('op_category', '—')}\n"
+        f"МВЗ: {application.get('op_mvz_main', '—')} / {application.get('op_mvz_sub1', '—')} / {application.get('op_mvz_sub2', '—')}\n"
+        f"Тип инвестиции: {application.get('op_investment_type', '—')}\n"
+        f"Запрашиваемый ресурс: {application.get('op_requested_resource', '—')}\n"
+        f"Инвестиционный тезис: {application.get('op_investment_thesis', '—')}\n"
+        f"Value drivers: {application.get('op_value_drivers', [])}\n"
+        f"Метрики: {application.get('op_metrics', '—')}\n"
+        f"Baseline: {application.get('op_baseline', '—')}\n"
+        f"Target: {application.get('op_target', '—')}\n"
+        f"Экономика/Payback: {application.get('op_economics', '—')}\n"
+        f"Stop-loss критерии: {application.get('op_stop_loss', '—')}\n"
+        f"Stage-gates: {application.get('op_stage_gates', '—')}\n\n"
+        f"Value Score: {vs.get('total', '—')} / 50 (зона: {vs.get('band', '—')})\n"
+        f"  - Влияние на EV (x3): {vs.get('ev_impact', '—')}\n"
+        f"  - Срочность (x2): {vs.get('urgency', '—')}\n"
+        f"  - Прогнозируемость ROI (x1): {vs.get('roi_predictability', '—')}\n"
+        f"  - Масштабируемость (x2): {vs.get('scalability', '—')}\n"
+        f"  - Unit-экономика (x2): {vs.get('unit_economics', '—')}\n\n"
+        "Верни строго JSON (только JSON, без Markdown):\n"
+        '{"overall_risk": "низкий|умеренный|высокий",'
+        '"risk_scores": {"execution_risk": 1-5, "market_risk": 1-5, "financial_risk": 1-5, "strategic_risk": 1-5},'
+        '"risk_reasons": ["причина 1", "причина 2", "причина 3"],'
+        '"controls": ["контроль 1", "контроль 2"],'
+        '"stage_gate_recommendations": ["критерий 1", "критерий 2"],'
+        '"recommended_route": "fast_track|efficiency_play|backlog_stop|manual_review",'
+        '"manual_review_required": true|false,'
+        '"commentary": "2-3 предложения с ключевым выводом"}'
+    )
+    text = _strip_fences(_chat(prompt, max_tokens=1000))
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return {
+            "overall_risk": "умеренный",
+            "risk_scores": {"execution_risk": 3, "market_risk": 3, "financial_risk": 3, "strategic_risk": 3},
+            "risk_reasons": ["Ошибка парсинга ответа AI"],
+            "controls": [],
+            "stage_gate_recommendations": [],
+            "recommended_route": "efficiency_play",
+            "manual_review_required": False,
+            "commentary": text[:300] if text else "AI недоступен",
+        }
+
+
 def analyze_project(project: dict, metrics: dict) -> dict:
     """Analyze anomalies and give AI commentary for project detail page."""
     prompt = (
