@@ -31,6 +31,10 @@ class Project(Base):
     # Step 4 — AI-generated
     risks_data = Column(JSON, nullable=True)
 
+    # Operational type (1.2) specific fields
+    value_score_data = Column(JSON, nullable=True)   # Value Score inputs + calculated result
+    decision_route = Column(String, nullable=True)   # fast_track | efficiency_play | backlog_stop | manual_review
+
     # Workflow status
     status = Column(String, default="draft")  # draft | pending_approval | approved | rejected
 

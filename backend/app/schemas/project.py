@@ -14,6 +14,8 @@ class ProjectBase(BaseModel):
     platform: Optional[str] = None
     financial_model: Optional[Any] = None
     risks_data: Optional[Any] = None
+    value_score_data: Optional[Any] = None
+    decision_route: Optional[str] = None
     status: str = "draft"
 
 
