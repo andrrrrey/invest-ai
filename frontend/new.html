@@ -339,13 +339,11 @@
             <div class="choice-grid">
                 <article class="choice-card" :class="{active: form.projectType==='investment'}"
                          @click="form.projectType='investment'">
-                    <h3>1.1 Инвестиционный проект (новый продукт)</h3>
-                    <p>Запуск нового продукта, расширение платформы, развитие новых направлений.</p>
+                    <h3>Запрос на инвестиции в стратегические инициативы (новые продукты, выход на новые рынки, запуск новых направлений бизнеса)</h3>
                 </article>
                 <article class="choice-card" :class="{active: form.projectType==='operational'}"
                          @click="form.projectType='operational'">
-                    <h3>1.2 Операционные инвест затраты</h3>
-                    <p>Инвестиции в персонал, ПО, маркетинг и операционную эффективность.</p>
+                    <h3>Запрос на инвестиции (в персонал, маркетинг, оборудование, операционную эффективность и прочее)</h3>
                 </article>
             </div>
 
@@ -399,8 +397,8 @@
             <template x-if="form.projectType === 'operational'">
                 <div style="display:flex;flex-direction:column;gap:14px">
                     <div>
-                        <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 2 из 5 · 1.2 Операционные инвест затраты</span>
-                        <h2 style="font-size:20px;font-weight:700;margin-top:4px">Заявка 1-page</h2>
+                        <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 2 из 5</span>
+                        <h2 style="font-size:20px;font-weight:700;margin-top:4px">Заявка</h2>
                         <p class="hint" style="margin-top:3px">Заполните все обязательные поля для подачи инвестиционного запроса.</p>
                     </div>
 
@@ -501,25 +499,29 @@
                         </div>
                     </div>
 
-                    <!-- Блок 3: Value Drivers & Метрики -->
+                    <!-- Блок 3: Драйверы роста стоимости компании & Метрики -->
                     <div class="subsection">
-                        <h3>Value Drivers и метрики</h3>
+                        <h3>Драйверы роста стоимости компании</h3>
                         <div class="grid-2">
                             <div class="field">
-                                <label>Value Drivers (до 2) <span style="color:var(--danger)">*</span></label>
-                                <div style="display:flex;flex-direction:column;gap:6px;padding:6px 0">
-                                    <template x-for="vd in ['Новые деньги', 'Новый рынок', 'Скорость выпуска фич', 'Удержание текущих доходов/клиентов', 'Защита от сбоев и штрафов', 'Экономия времени и денег']" :key="vd">
-                                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-                                            <input type="checkbox"
-                                                :value="vd"
-                                                :checked="form.op_value_drivers.includes(vd)"
-                                                @change="toggleValueDriver(vd)"
-                                                :disabled="!form.op_value_drivers.includes(vd) && form.op_value_drivers.length >= 2">
-                                            <span x-text="vd"></span>
-                                        </label>
-                                    </template>
-                                </div>
-                                <p class="hint">Выберите не более 2 драйверов создания ценности</p>
+                                <label>Драйверы роста стоимости компании <span style="color:var(--danger)">*</span></label>
+                                <select multiple x-model="form.op_value_drivers"
+                                    style="min-height:200px;padding:4px">
+                                    <option value="Прибыльность">Прибыльность</option>
+                                    <option value="Новые рынки">Новые рынки</option>
+                                    <option value="Денежный поток">Денежный поток</option>
+                                    <option value="Рентабельность">Рентабельность</option>
+                                    <option value="Количество клиентов">Количество клиентов</option>
+                                    <option value="Удержание клиентов">Удержание клиентов</option>
+                                    <option value="Ценность клиента (LTV — Lifetime Value)">Ценность клиента (LTV — Lifetime Value)</option>
+                                    <option value="Удовлетворенность и лояльность (NPS)">Удовлетворенность и лояльность (NPS)</option>
+                                    <option value="Качество (Quality)">Качество (Quality)</option>
+                                    <option value="Скорость (Time-to-Market)">Скорость (Time-to-Market)</option>
+                                    <option value="Таланты и компетенции">Таланты и компетенции</option>
+                                    <option value="Защита от сбоев и штрафов">Защита от сбоев и штрафов</option>
+                                    <option value="Прочее">Прочее (можно добавить от руки)</option>
+                                </select>
+                                <p class="hint">Удерживайте Ctrl (или Cmd на Mac) для выбора нескольких вариантов</p>
                             </div>
                             <div class="field">
                                 <label>Ключевая метрика <span style="color:var(--danger)">*</span></label>
@@ -615,7 +617,7 @@
                         <div style="border:1px solid #EBEBF2;border-radius:12px;padding:14px;background:#FAFAFA">
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
                                 <div style="flex:1;min-width:200px">
-                                    <p style="font-size:13px;font-weight:700">1. Влияние на EV <span style="color:var(--accent);font-size:11px">(вес ×3)</span></p>
+                                    <p style="font-size:13px;font-weight:700">1. Влияние на EV (Стоимость бизнеса) <span style="color:var(--accent);font-size:11px">(вес ×3)</span></p>
                                     <p class="hint" style="margin-top:3px">Если мы НЕ инвестируем это сейчас, как это повлияет на наше положение на рынке через 12 месяцев? Потеряем долю рынка? Упадёт Velocity? Вырастет Churn?</p>
                                 </div>
                                 <div style="display:flex;gap:6px">
@@ -657,8 +659,8 @@
                         <div style="border:1px solid #EBEBF2;border-radius:12px;padding:14px;background:#FAFAFA">
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
                                 <div style="flex:1;min-width:200px">
-                                    <p style="font-size:13px;font-weight:700">3. Прогнозируемость ROI <span style="color:var(--accent);font-size:11px">(вес ×1)</span></p>
-                                    <p class="hint" style="margin-top:3px">Совместима ли эта трата с целью 20% чистой маржи? Для маркетинга: LTV/CAC &gt; 3.5. Для найма: Revenue per Employee &gt; $150k. Для инфры: COGS &lt; 12%.</p>
+                                    <p style="font-size:13px;font-weight:700">3. Прогнозируемость ROI (вес ×1) Совместима ли эта трата с целью 20% чистой маржи?</p>
+                                    <p class="hint" style="margin-top:3px">Для маркетинга: LTV/CAC &gt; 3.5. Для найма: Revenue per Employee &gt; $150k. Для инфры: COGS &lt; 12%.</p>
                                 </div>
                                 <div style="display:flex;gap:6px">
                                     <template x-for="n in [1,2,3,4,5]" :key="n">
@@ -696,7 +698,7 @@
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
                                 <div style="flex:1;min-width:200px">
                                     <p style="font-size:13px;font-weight:700">5. Влияние на unit-экономику <span style="color:var(--accent);font-size:11px">(вес ×2)</span></p>
-                                    <p class="hint" style="margin-top:3px">Как эта инвестиция повлияет на ключевые юнит-метрики: LTV, CAC, ARPU, Margin? Улучшает ли she структуру затрат?</p>
+                                    <p class="hint" style="margin-top:3px">Как эта инвестиция повлияет на ключевые юнит-метрики: LTV, CAC, ARPU, Margin? Улучшает ли это структуру затрат? «Мы сделаем Х, это изменит Y, и в цифрах получится Z».</p>
                                 </div>
                                 <div style="display:flex;gap:6px">
                                     <template x-for="n in [1,2,3,4,5]" :key="n">
