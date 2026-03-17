@@ -5,7 +5,7 @@ import os
 
 from .config import settings
 from .database import init_db
-from .api.v1 import projects, finance, ai
+from .api.v1 import projects, finance, ai, stats
 
 app = FastAPI(
     title="Инвестиционный процессор",
@@ -25,6 +25,7 @@ app.add_middleware(
 app.include_router(projects.router, prefix="/api/v1")
 app.include_router(finance.router, prefix="/api/v1")
 app.include_router(ai.router, prefix="/api/v1")
+app.include_router(stats.router, prefix="/api/v1")
 
 
 @app.on_event("startup")

@@ -165,6 +165,7 @@
         .status-pill { padding: 6px 12px; border-radius: 10px; font-size: 12px; font-weight: 600; }
         .st-completed { background: #DDF0E1; color: #2D9B63; }
         .st-risk { background: #FFE5E5; color: #EB5757; }
+        .st-draft { background: #F0F0F0; color: #8E8E93; }
 
         .period-select {
             appearance: none; background: white; border: 1px solid #E5E5E5;
@@ -241,117 +242,176 @@
             <a href="#" class="nav-link" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
         </aside>
 
-        <main class="main-content">
+        <main class="main-content" x-data="dashboardApp()" x-init="init()">
             <header class="top-header">
                 <div class="header-left">
                     <h1>Главный экран</h1>
                 </div>
-                
+
                 <div class="header-right">
                     <div class="ai-status">
                         <span class="dot"></span> AI Активен
                     </div>
-                    <select class="period-select">
-                        <option>Квартал</option>
-                        <option>Год</option>
-                        <option>Весь период</option>
-                    </select>
-                    <button class="btn btn-outline">Экспорт отчёта</button>
+                    <button class="btn btn-outline" onclick="window.location.href='/export'">Экспорт отчёта</button>
                     <button class="btn btn-primary" onclick="window.location.href='/new'">Создать проект</button>
                 </div>
             </header>
 
             <section class="kpi-row">
                 <div class="kpi-card card-1">
-                    <div class="label"><i class="fas fa-wallet"></i> Баланс</div>
-                    <div class="value">4 850 000 ₽</div>
-                    <span class="trend">+17%</span>
+                    <div class="label"><i class="fas fa-layer-group"></i> Всего проектов</div>
+                    <div class="value" x-text="loading ? '...' : stats.total"></div>
+                    <span class="trend" x-text="'Инв: ' + (stats.by_type?.investment || 0) + ' / Опер: ' + (stats.by_type?.operational || 0)"></span>
                 </div>
                 <div class="kpi-card card-2">
-                    <div class="label"><i class="fas fa-chart-line"></i> Продажи</div>
-                    <div class="value">1 240 500 ₽</div>
-                    <span class="trend">+23%</span>
+                    <div class="label"><i class="fas fa-chart-line"></i> Суммарный NPV</div>
+                    <div class="value" x-text="loading ? '...' : totalNpvFormatted"></div>
+                    <span class="trend" x-show="stats.avg_irr" x-text="'Ср. IRR: ' + stats.avg_irr + '%'"></span>
                 </div>
                 <div class="kpi-card card-3">
                     <div class="label"><i class="fas fa-briefcase"></i> Активные</div>
-                    <div class="value">18 проектов</div>
+                    <div class="value" x-text="loading ? '...' : (activeCount + ' проек' + (activeCount === 1 ? 'т' : activeCount < 5 ? 'та' : 'тов'))"></div>
+                    <span class="trend" x-text="'На согл.: ' + (stats.by_status?.pending_approval || 0)"></span>
                 </div>
                 <div class="kpi-card card-4">
                     <div class="label"><i class="fas fa-exclamation-triangle"></i> В зоне риска</div>
-                    <div class="value">3 проекта</div>
+                    <div class="value" x-text="loading ? '...' : (stats.high_risk_count + ' проек' + (stats.high_risk_count === 1 ? 'т' : stats.high_risk_count < 5 ? 'та' : 'тов'))"></div>
                 </div>
                 <div class="kpi-card card-5">
-                    <div class="label">Ожидаемый ROI</div>
-                    <div class="value">24.5%</div>
-                    <p style="font-size: 11px; opacity: 0.9;">Прогноз на год</p>
+                    <div class="label">Черновики / Отклонены</div>
+                    <div class="value" x-text="loading ? '...' : ((stats.by_status?.draft || 0) + ' / ' + (stats.by_status?.rejected || 0))"></div>
+                    <p style="font-size: 11px; opacity: 0.9;">Требуют внимания</p>
                 </div>
             </section>
 
             <div class="section-title">
-                <h2>Последние инвестиционные проекты</h2>
+                <h2>Последние проекты</h2>
             </div>
 
             <div class="table-responsive">
-                <table class="projects-table">
+                <template x-if="loading">
+                    <p style="color: var(--text-muted); padding: 20px;">Загрузка данных...</p>
+                </template>
+                <template x-if="!loading && projects.length === 0">
+                    <p style="color: var(--text-muted); padding: 20px;">Проектов пока нет. <a href="/new" style="color: var(--accent-purple);">Создать первый</a></p>
+                </template>
+                <table class="projects-table" x-show="!loading && projects.length > 0">
                     <thead>
                         <tr>
                             <th>Проект</th>
-                            <th>Инвестиции</th>
+                            <th>Тип</th>
+                            <th>Инвестиции / Score</th>
                             <th>Статус</th>
-                            <th>Дата запуска</th>
+                            <th>Дата создания</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr class="project-row">
-                            <td>
-                                <div class="user-info">
-                                    <img src="https://i.pravatar.cc/150?u=11" class="user-avatar" alt="">
-                                    <div>Солнечная Энергия</div>
-                                </div>
-                            </td>
-                            <td>1 450 000 ₽</td>
-                            <td><span class="status-pill st-completed">Завершен</span></td>
-                            <td style="color: var(--text-muted);">11 Сент 2025</td>
-                        </tr>
-                        <tr class="project-row">
-                            <td>
-                                <div class="user-info">
-                                    <img src="https://i.pravatar.cc/150?u=22" class="user-avatar" alt="">
-                                    <div>AI Аналитика</div>
-                                </div>
-                            </td>
-                            <td>420 000 ₽</td>
-                            <td><span class="status-pill st-risk">В зоне риска</span></td>
-                            <td style="color: var(--text-muted);">08 Сент 2025</td>
-                        </tr>
-                        <tr class="project-row">
-                            <td>
-                                <div class="user-info">
-                                    <img src="https://i.pravatar.cc/150?u=33" class="user-avatar" alt="">
-                                    <div>Логистика BioGen</div>
-                                </div>
-                            </td>
-                            <td>3 412 000 ₽</td>
-                            <td><span class="status-pill st-completed">Завершен</span></td>
-                            <td style="color: var(--text-muted);">01 Сент 2025</td>
-                        </tr>
+                        <template x-for="p in recentProjects" :key="p.id">
+                            <tr class="project-row" @click="openProject(p.id)">
+                                <td>
+                                    <div class="user-info">
+                                        <div style="width:35px;height:35px;border-radius:10px;background:var(--accent-purple);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px;flex-shrink:0" x-text="(p.name || '?').charAt(0).toUpperCase()"></div>
+                                        <div>
+                                            <div x-text="p.name || '(без названия)'"></div>
+                                            <div style="font-size:11px;color:var(--text-muted)" x-text="p.owner || p.business_unit || ''"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td style="color:var(--text-muted);font-size:13px" x-text="p.project_type === 'investment' ? 'Инвестиционный' : 'Операционный'"></td>
+                                <td x-text="p.project_type === 'investment' ? investmentAmount(p) : ((p.value_score_data?.total || '—') + ' / 50')"></td>
+                                <td><span class="status-pill" :class="statusClass(p)" x-text="statusLabel(p)"></span></td>
+                                <td style="color: var(--text-muted);" x-text="formatDate(p.created_at)"></td>
+                            </tr>
+                        </template>
                     </tbody>
                 </table>
             </div>
         </main>
     </div>
 
+    <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
     <script>
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('active');
         }
 
-        // Закрытие бокового меню при клике на контент (для мобильных)
         document.querySelector('.main-content').addEventListener('click', () => {
             if (window.innerWidth <= 992) {
                 document.getElementById('sidebar').classList.remove('active');
             }
         });
+
+        function dashboardApp() {
+            return {
+                stats: { total: 0, by_status: {}, by_type: {}, total_npv: 0, avg_irr: null, high_risk_count: 0 },
+                projects: [],
+                loading: true,
+
+                async init() {
+                    try {
+                        const [statsRes, projRes] = await Promise.all([
+                            fetch('/api/v1/stats/'),
+                            fetch('/api/v1/projects/'),
+                        ]);
+                        if (statsRes.ok) this.stats = await statsRes.json();
+                        if (projRes.ok) this.projects = await projRes.json();
+                    } catch(e) {
+                        console.error('Ошибка загрузки данных:', e);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                get activeCount() {
+                    const s = this.stats.by_status || {};
+                    return (s.approved || 0) + (s.pending_approval || 0);
+                },
+
+                get totalNpvFormatted() {
+                    const n = this.stats.total_npv || 0;
+                    if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1) + ' млн ₽';
+                    if (Math.abs(n) >= 1e3) return Math.round(n / 1e3) + ' тыс ₽';
+                    return Math.round(n) + ' ₽';
+                },
+
+                get recentProjects() {
+                    return this.projects.slice(0, 5);
+                },
+
+                statusLabel(p) {
+                    const risks = p.risks_data || {};
+                    const ai = risks.ai_assessment || {};
+                    if (ai.risk_level === 'высокий' || risks.overall_risk === 'высокий') return 'В зоне риска';
+                    const map = { draft: 'Черновик', pending_approval: 'На согласовании', approved: 'Активен', rejected: 'Отклонён' };
+                    return map[p.status] || p.status;
+                },
+
+                statusClass(p) {
+                    const risks = p.risks_data || {};
+                    const ai = risks.ai_assessment || {};
+                    if (ai.risk_level === 'высокий' || risks.overall_risk === 'высокий') return 'st-risk';
+                    if (p.status === 'approved') return 'st-completed';
+                    return 'st-draft';
+                },
+
+                investmentAmount(p) {
+                    const fm = p.financial_model || {};
+                    const inv = Math.abs(fm.initialInvestment || 0);
+                    if (inv >= 1e6) return (inv / 1e6).toFixed(1) + ' млн ₽';
+                    if (inv >= 1e3) return Math.round(inv / 1e3) + ' тыс ₽';
+                    return inv ? inv + ' ₽' : '—';
+                },
+
+                formatDate(iso) {
+                    if (!iso) return '—';
+                    return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+                },
+
+                openProject(id) {
+                    window.location.href = '/project?id=' + id;
+                },
+            };
+        }
     </script>
 </body>
 </html>
