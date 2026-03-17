@@ -236,7 +236,7 @@
                 <a href="/" class="nav-link active"><i class="fas fa-th-large"></i> Главный экран</a>
                 <a href="/project-list" class="nav-link"><i class="fas fa-project-diagram"></i> Проекты</a>
                 <a href="/export" class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
-                <a href="#" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
+                <a href="/settings" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
             </nav>
 
             <a href="#" class="nav-link" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
@@ -249,8 +249,10 @@
                 </div>
 
                 <div class="header-right">
-                    <div class="ai-status">
-                        <span class="dot"></span> AI Активен
+                    <div class="ai-status" @click="!aiActive && (window.location.href='/settings')"
+                         :style="!aiActive ? 'cursor:pointer;opacity:.8' : ''">
+                        <span class="dot" :style="aiActive ? '' : 'background:#FF9500;box-shadow:0 0 10px #FF9500'"></span>
+                        <span x-text="aiActive ? 'GPT-4.1 активен' : 'AI не настроен → Настройки'"></span>
                     </div>
                     <button class="btn btn-outline" onclick="window.location.href='/export'">Экспорт отчёта</button>
                     <button class="btn btn-primary" onclick="window.location.href='/new'">Создать проект</button>
@@ -346,15 +348,21 @@
                 stats: { total: 0, by_status: {}, by_type: {}, total_npv: 0, avg_irr: null, high_risk_count: 0 },
                 projects: [],
                 loading: true,
+                aiActive: false,
 
                 async init() {
                     try {
-                        const [statsRes, projRes] = await Promise.all([
+                        const [statsRes, projRes, settingsRes] = await Promise.all([
                             fetch('/api/v1/stats/'),
                             fetch('/api/v1/projects/'),
+                            fetch('/api/v1/settings/'),
                         ]);
                         if (statsRes.ok) this.stats = await statsRes.json();
                         if (projRes.ok) this.projects = await projRes.json();
+                        if (settingsRes.ok) {
+                            const s = await settingsRes.json();
+                            this.aiActive = s.openai_api_key_set;
+                        }
                     } catch(e) {
                         console.error('Ошибка загрузки данных:', e);
                     } finally {

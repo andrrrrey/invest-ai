@@ -1,7 +1,8 @@
 """
-AI service — wraps the OpenAI API (GPT-4o) for project-level features:
+AI service — wraps the OpenAI API (GPT-4.1) for project-level features:
   - generate_description: formulate project description from key fields
   - generate_risks: produce risks & assumptions analysis
+  - generate_risk_score: AI risk scoring for operational projects
   - analyze_project: detect anomalies, compare with portfolio median
 """
 
@@ -9,8 +10,10 @@ import json
 from typing import Optional
 from openai import OpenAI
 
-from ..config import settings
+from .. import settings_store
 
+
+AI_MODEL = "gpt-4.1"
 
 SYSTEM_PROMPT = (
     "Ты — Ксения, AI-ассистент инвестиционного процессора. "
@@ -21,17 +24,20 @@ SYSTEM_PROMPT = (
 
 
 def _client() -> OpenAI:
-    if not settings.OPENAI_API_KEY:
-        raise ValueError("OPENAI_API_KEY is not configured")
-    return OpenAI(api_key=settings.OPENAI_API_KEY)
+    key = settings_store.get_openai_key()
+    if not key:
+        raise ValueError(
+            "OpenAI API ключ не настроен. Откройте Настройки и введите ключ."
+        )
+    return OpenAI(api_key=key)
 
 
 def _chat(prompt: str, max_tokens: int = 700) -> str:
     response = _client().chat.completions.create(
-        model="gpt-4o",
+        model=AI_MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user",   "content": prompt},
+            {"role": "user", "content": prompt},
         ],
         max_tokens=max_tokens,
         temperature=0.4,

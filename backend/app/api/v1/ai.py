@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Any
 from ...services import ai_service
-from ...config import settings
+from ... import settings_store
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -30,10 +30,10 @@ class AnalyzeRequest(BaseModel):
 
 
 def _check_api_key():
-    if not settings.OPENAI_API_KEY:
+    if not settings_store.get_openai_key():
         raise HTTPException(
             status_code=503,
-            detail="OPENAI_API_KEY не настроен. Добавьте его в файл .env",
+            detail="OpenAI API ключ не настроен. Перейдите в Настройки и введите ключ.",
         )
 
 
