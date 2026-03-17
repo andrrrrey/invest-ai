@@ -270,13 +270,13 @@
             <a href="#" class="nav-link" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
         </aside>
 
-        <main class="main-content">
+        <main class="main-content" x-data="projectListApp()" x-init="init()">
             <header class="header-row">
                 <div>
                     <h1 style="font-size: 26px; font-weight: 800;">Портфель проектов</h1>
-                    <p style="color: var(--text-muted); font-size: 14px;">24 активных проекта в управлении</p>
+                    <p style="color: var(--text-muted); font-size: 14px;" x-text="loading ? 'Загрузка...' : (filtered.length + ' проект' + (filtered.length === 1 ? '' : filtered.length < 5 ? 'а' : 'ов') + ' в портфеле')"></p>
                 </div>
-                <button style="padding: 12px 24px; border-radius: 14px; border: none; background: var(--accent-purple); color: white; font-weight: 700; cursor: pointer;">
+                <button style="padding: 12px 24px; border-radius: 14px; border: none; background: var(--accent-purple); color: white; font-weight: 700; cursor: pointer;" onclick="window.location.href='/new'">
                     <i class="fas fa-plus"></i> Новый проект
                 </button>
             </header>
@@ -284,127 +284,197 @@
             <section class="filters-container">
                 <div class="filters-grid">
                     <div class="filter-group">
-                        <label>Стадия</label>
-                        <select>
-                            <option>Все стадии</option>
-                            <option>Инициация</option>
-                            <option>Планирование</option>
-                            <option>Реализация</option>
-                            <option>Завершение</option>
+                        <label>Тип</label>
+                        <select x-model="filterType">
+                            <option value="">Все типы</option>
+                            <option value="investment">Инвестиционный</option>
+                            <option value="operational">Операционный</option>
                         </select>
                     </div>
                     <div class="filter-group">
-                        <label>ROI (%)</label>
-                        <input type="text" placeholder="Мин. %">
-                    </div>
-                    <div class="filter-group">
                         <label>Статус</label>
-                        <select>
-                            <option>Любой</option>
-                            <option>В графике</option>
-                            <option>Отставание</option>
-                            <option>Критично</option>
+                        <select x-model="filterStatus">
+                            <option value="">Любой</option>
+                            <option value="draft">Черновик</option>
+                            <option value="pending_approval">На согласовании</option>
+                            <option value="approved">Утверждён</option>
+                            <option value="rejected">Отклонён</option>
                         </select>
                     </div>
                     <div class="filter-group">
                         <label>Уровень риска</label>
-                        <select>
-                            <option>Все</option>
-                            <option>Низкий</option>
-                            <option>Средний</option>
-                            <option>Высокий</option>
+                        <select x-model="filterRisk">
+                            <option value="">Все</option>
+                            <option value="низкий">Низкий</option>
+                            <option value="средний">Средний / умеренный</option>
+                            <option value="высокий">Высокий</option>
                         </select>
                     </div>
                     <div class="filter-group">
-                        <label>Ответственный</label>
-                        <select>
-                            <option>Все сотрудники</option>
-                            <option>А. Волков</option>
-                            <option>М. Джонсон</option>
-                        </select>
+                        <label>Поиск</label>
+                        <input type="text" placeholder="Название / владелец..." x-model="search">
                     </div>
                 </div>
             </section>
 
             <div class="table-container">
-                <table class="projects-table">
+                <template x-if="loading">
+                    <p style="padding:30px;color:var(--text-muted);text-align:center">Загрузка проектов...</p>
+                </template>
+                <template x-if="!loading && filtered.length === 0">
+                    <p style="padding:30px;color:var(--text-muted);text-align:center">Проектов не найдено. <a href="/new" style="color:var(--accent-purple)">Создать первый →</a></p>
+                </template>
+                <table class="projects-table" x-show="!loading && filtered.length > 0">
                     <thead>
                         <tr>
-                            <th>Название проекта <i class="fas fa-sort"></i></th>
-                            <th>Инвестиции <i class="fas fa-sort-down"></i></th>
-                            <th>ROI / IRR</th>
-                            <th>Окупаемость</th>
-                            <th>Отклонение</th>
+                            <th>Название проекта</th>
+                            <th>Тип</th>
+                            <th>Инвестиции / Score</th>
+                            <th>IRR / Зона</th>
+                            <th>DPP / Маршрут</th>
+                            <th>Риск</th>
                             <th>Статус</th>
-                            <th>Безубыточность</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td>
-                                <div style="font-weight: 700;">Солнечная Энергия 2.0</div>
-                                <div style="font-size: 11px; color: var(--text-muted);">А. Волков</div>
-                            </td>
-                            <td class="investment-val">12 000 000 ₽</td>
-                            <td class="roi-val">18.5%</td>
-                            <td>29 мес.</td>
-                            <td class="deviation-neg">+5% (CAPEX)</td>
-                            <td>
-                                <span class="status-pill status-delay">
-                                    <i class="fas fa-clock"></i> Отставание
-                                </span>
-                            </td>
-                            <td>Окт 2026</td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <div style="font-weight: 700;">Ветрогенерация "Норд"</div>
-                                <div style="font-size: 11px; color: var(--text-muted);">Е. Смирнова</div>
-                            </td>
-                            <td class="investment-val">45 200 000 ₽</td>
-                            <td class="roi-val">22.1%</td>
-                            <td>42 мес.</td>
-                            <td class="deviation-pos">-2% (Срок)</td>
-                            <td>
-                                <span class="status-pill status-ok">
-                                    <i class="fas fa-check-circle"></i> В графике
-                                </span>
-                            </td>
-                            <td>Май 2027</td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <div style="font-weight: 700;">Биодизель Логистик</div>
-                                <div style="font-size: 11px; color: var(--text-muted);">Д. Кац</div>
-                            </td>
-                            <td class="investment-val">8 400 000 ₽</td>
-                            <td class="roi-val">14.2%</td>
-                            <td>18 мес.</td>
-                            <td class="deviation-neg">+12% (Риск)</td>
-                            <td>
-                                <span class="status-pill status-risk">
-                                    <i class="fas fa-exclamation-circle"></i> Риск
-                                </span>
-                            </td>
-                            <td>Янв 2026</td>
-                        </tr>
+                        <template x-for="p in filtered" :key="p.id">
+                            <tr @click="window.location.href='/project?id='+p.id" style="cursor:pointer">
+                                <td>
+                                    <div style="font-weight:700" x-text="p.name || '(без названия)'"></div>
+                                    <div style="font-size:11px;color:var(--text-muted)" x-text="p.owner || p.business_unit || '—'"></div>
+                                </td>
+                                <td style="font-size:13px;color:var(--text-muted)" x-text="p.project_type === 'investment' ? 'Инвестиц.' : 'Операцион.'"></td>
+                                <td class="investment-val" x-text="p.project_type === 'investment' ? investmentAmount(p) : ((p.value_score_data?.total ?? '—') + ' / 50')"></td>
+                                <td class="roi-val" x-text="p.project_type === 'investment' ? irrLabel(p) : bandLabel(p)"></td>
+                                <td x-text="p.project_type === 'investment' ? dppLabel(p) : routeLabel(p)"></td>
+                                <td>
+                                    <span class="status-pill" :class="riskClass(p)" x-text="riskLabel(p)"></span>
+                                </td>
+                                <td>
+                                    <span class="status-pill" :class="statusClass(p)" x-text="statusLabel(p)"></span>
+                                </td>
+                            </tr>
+                        </template>
                     </tbody>
                 </table>
             </div>
         </main>
     </div>
 
+    <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
     <script>
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('active');
         }
 
-        // Закрытие при клике по контенту на мобилках
         document.querySelector('.main-content').addEventListener('click', () => {
             if (window.innerWidth <= 1100) {
                 document.getElementById('sidebar').classList.remove('active');
             }
         });
+
+        function projectListApp() {
+            return {
+                projects: [],
+                loading: true,
+                filterType: '',
+                filterStatus: '',
+                filterRisk: '',
+                search: '',
+
+                async init() {
+                    try {
+                        const res = await fetch('/api/v1/projects/');
+                        if (res.ok) this.projects = await res.json();
+                    } catch(e) {
+                        console.error('Ошибка загрузки:', e);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                get filtered() {
+                    return this.projects.filter(p => {
+                        if (this.filterType && p.project_type !== this.filterType) return false;
+                        if (this.filterStatus && p.status !== this.filterStatus) return false;
+                        if (this.filterRisk) {
+                            const rl = this._riskLevel(p);
+                            if (this.filterRisk === 'средний' && rl !== 'средний' && rl !== 'умеренный') return false;
+                            if (this.filterRisk !== 'средний' && rl !== this.filterRisk) return false;
+                        }
+                        if (this.search) {
+                            const q = this.search.toLowerCase();
+                            const name = (p.name || '').toLowerCase();
+                            const owner = (p.owner || '').toLowerCase();
+                            if (!name.includes(q) && !owner.includes(q)) return false;
+                        }
+                        return true;
+                    });
+                },
+
+                _riskLevel(p) {
+                    const risks = p.risks_data || {};
+                    return (risks.ai_assessment?.risk_level || risks.overall_risk || '').toLowerCase();
+                },
+
+                investmentAmount(p) {
+                    const fm = p.financial_model || {};
+                    const inv = Math.abs(fm.initialInvestment || 0);
+                    if (inv >= 1e6) return (inv / 1e6).toFixed(1) + ' млн ₽';
+                    if (inv >= 1e3) return Math.round(inv / 1e3) + ' тыс ₽';
+                    return inv ? inv + ' ₽' : '—';
+                },
+
+                irrLabel(p) {
+                    const irr = p.metrics?.irr;
+                    return irr != null ? irr.toFixed(1) + '%' : '—';
+                },
+
+                bandLabel(p) {
+                    const band = p.value_score_data?.band;
+                    if (!band) return '—';
+                    const map = { 'Зелёная': '🟢 Зелёная', 'Жёлтая': '🟡 Жёлтая', 'Красная': '🔴 Красная' };
+                    return map[band] || band;
+                },
+
+                dppLabel(p) {
+                    const dpp = p.metrics?.dpp;
+                    return dpp != null ? dpp.toFixed(1) + ' лет' : '—';
+                },
+
+                routeLabel(p) {
+                    const route = p.decision_route || p.risks_data?.recommended_route;
+                    const map = { fast_track: 'Fast Track', efficiency_play: 'Efficiency Play', backlog_stop: 'Backlog/Stop', manual_review: 'Ручной разбор' };
+                    return route ? (map[route] || route) : '—';
+                },
+
+                riskLabel(p) {
+                    const rl = this._riskLevel(p);
+                    if (!rl) return '—';
+                    return rl.charAt(0).toUpperCase() + rl.slice(1);
+                },
+
+                riskClass(p) {
+                    const rl = this._riskLevel(p);
+                    if (rl === 'высокий') return 'status-delay';
+                    if (rl === 'средний' || rl === 'умеренный') return 'status-risk';
+                    if (rl === 'низкий') return 'status-ok';
+                    return '';
+                },
+
+                statusLabel(p) {
+                    const map = { draft: 'Черновик', pending_approval: 'На согл.', approved: 'Утверждён', rejected: 'Отклонён' };
+                    return map[p.status] || p.status;
+                },
+
+                statusClass(p) {
+                    if (p.status === 'approved') return 'status-ok';
+                    if (p.status === 'rejected') return 'status-delay';
+                    if (p.status === 'pending_approval') return 'status-risk';
+                    return '';
+                },
+            };
+        }
     </script>
 </body>
 </html>
