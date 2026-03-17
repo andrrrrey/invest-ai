@@ -120,6 +120,11 @@
         input:focus, select:focus, textarea:focus { border-color: var(--accent); }
         textarea { min-height: 100px; resize: vertical; }
         input[readonly] { background: #F7F7FB; color: var(--muted); }
+        .field-error input, .field-error select, .field-error textarea {
+            border-color: var(--danger) !important;
+            background: #FFF8F8;
+        }
+        .field-error-msg { font-size: 11px; color: var(--danger); margin-top: 3px; font-weight: 600; }
 
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
@@ -283,7 +288,7 @@
             <a href="/"              class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
             <a href="/project-list" class="nav-link active"><i class="fas fa-project-diagram"></i> Проекты</a>
             <a href="/export"       class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
-            <a href="#"                 class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
+            <a href="/settings"         class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
         </nav>
         <a href="#" class="nav-link" style="margin-top:auto;color:#EB5757">
             <i class="fas fa-sign-out-alt"></i> Выйти
@@ -309,7 +314,7 @@
         <div class="ai-banner">
             <i class="fas fa-wand-magic-sparkles" style="font-size:22px;margin-top:2px"></i>
             <div>
-                <strong style="display:block;margin-bottom:3px">Ксения, AI-ассистент (GPT-4o)</strong>
+                <strong style="display:block;margin-bottom:3px">Ксения, AI-ассистент (GPT-4.1)</strong>
                 <p style="font-size:13px;line-height:1.45">
                     Заполняйте шаги по очереди. Все расчёты обновляются мгновенно — не нужно нажимать «Рассчитать».
                 </p>
@@ -387,7 +392,7 @@
                     <div>
                         <button class="btn btn-primary" @click="aiDescription()" :disabled="aiLoad.desc">
                             <i class="fas" :class="aiLoad.desc ? 'fa-spinner spin' : 'fa-wand-magic-sparkles'"></i>
-                            <span x-text="aiLoad.desc ? 'Генерируем...' : 'Сформулировать с GPT-4o'"></span>
+                            <span x-text="aiLoad.desc ? 'Генерируем...' : 'Сформулировать с GPT-4.1'"></span>
                         </button>
                     </div>
                 </div>
@@ -1347,7 +1352,7 @@
                     <div>
                         <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 4 из 5 · AI Risk Score</span>
                         <h2 style="font-size:20px;font-weight:700;margin-top:4px">AI-скоринг рисков</h2>
-                        <p class="hint" style="margin-top:3px">GPT-4o анализирует заявку и Value Score, возвращает оценку рисков и рекомендацию по маршруту.</p>
+                        <p class="hint" style="margin-top:3px">GPT-4.1 анализирует заявку и Value Score, возвращает оценку рисков и рекомендацию по маршруту.</p>
                     </div>
 
                     <!-- Value Score recap -->
@@ -1368,7 +1373,7 @@
                     <template x-if="!riskScoreData && !aiLoad.riskScore">
                         <div style="text-align:center;padding:30px;color:var(--muted)">
                             <i class="fas fa-shield-halved" style="font-size:32px;margin-bottom:12px;display:block;color:var(--accent)"></i>
-                            <p style="margin-bottom:16px">GPT-4o проанализирует заявку и оценит риски по 4 категориям.</p>
+                            <p style="margin-bottom:16px">GPT-4.1 проанализирует заявку и оценит риски по 4 категориям.</p>
                             <button class="btn btn-primary" @click="aiRiskScore()">
                                 <i class="fas fa-wand-magic-sparkles"></i> Запустить AI Risk Score
                             </button>
@@ -1378,7 +1383,7 @@
                     <template x-if="aiLoad.riskScore">
                         <div style="text-align:center;padding:30px;color:var(--muted)">
                             <i class="fas fa-spinner spin" style="font-size:32px;margin-bottom:12px;display:block;color:var(--accent)"></i>
-                            <p>GPT-4o анализирует заявку...</p>
+                            <p>GPT-4.1 анализирует заявку...</p>
                         </div>
                     </template>
 
@@ -1476,7 +1481,7 @@
                     <div>
                         <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 4 из 5</span>
                         <h2 style="font-size:20px;font-weight:700;margin-top:4px">Риски и допущения</h2>
-                        <p class="hint" style="margin-top:3px">Раздел формируется GPT-4o на основе вашей финансовой модели.</p>
+                        <p class="hint" style="margin-top:3px">Раздел формируется GPT-4.1 на основе вашей финансовой модели.</p>
                     </div>
 
             <!-- Metrics recap -->
@@ -1504,7 +1509,7 @@
                     <i class="fas fa-wand-magic-sparkles"
                        style="font-size:32px;margin-bottom:12px;display:block;color:var(--accent)"></i>
                     <p style="margin-bottom:16px">
-                        GPT-4o проанализирует финансовую модель и сформулирует риски и допущения.
+                        GPT-4.1 проанализирует финансовую модель и сформулирует риски и допущения.
                     </p>
                     <button class="btn btn-primary" @click="aiRisks()">
                         <i class="fas fa-wand-magic-sparkles"></i> Сформировать риски и допущения
@@ -1516,7 +1521,7 @@
                 <div style="text-align:center;padding:30px;color:var(--muted)">
                     <i class="fas fa-spinner spin"
                        style="font-size:32px;margin-bottom:12px;display:block;color:var(--accent)"></i>
-                    <p>GPT-4o анализирует модель...</p>
+                    <p>GPT-4.1 анализирует модель...</p>
                 </div>
             </template>
 
@@ -1552,7 +1557,7 @@
                     </template>
                     <div>
                         <button class="btn btn-primary" @click="aiRisks()">
-                            <i class="fas fa-wand-magic-sparkles"></i> Обновить через GPT-4o
+                            <i class="fas fa-wand-magic-sparkles"></i> Обновить через GPT-4.1
                         </button>
                     </div>
                 </div>
@@ -2030,8 +2035,42 @@ function wizardApp() {
         // ── Navigation ─────────────────────────────────────────────────────
         goTo(n) {
             if (n < 1 || n > 5) return;
+            // Validate before moving forward
+            if (n > this.step) {
+                const err = this._validateStep(this.step);
+                if (err) { this._toast(err, 'error'); return; }
+            }
             this.step = n;
             this.$nextTick(() => document.querySelector('.main-content')?.scrollTo({top:0,behavior:'smooth'}));
+        },
+
+        // ── Step validation ────────────────────────────────────────────────
+        _validateStep(s) {
+            const f = this.form;
+            if (s === 1) {
+                if (!f.projectType) return 'Выберите тип проекта';
+            }
+            if (s === 2) {
+                if (!f.name || !f.name.trim()) return 'Введите название проекта (инициативы)';
+                if (f.projectType === 'operational') {
+                    if (!f.op_category) return 'Выберите категорию';
+                    if (!f.op_mvz_main) return 'Выберите МВЗ (Главный круг)';
+                    if (!f.op_investment_type) return 'Выберите тип инвестиции';
+                    if (!f.op_requested_resource || !f.op_requested_resource.trim()) return 'Опишите запрашиваемый ресурс';
+                    if (!f.op_investment_thesis || !f.op_investment_thesis.trim()) return 'Введите инвестиционный тезис';
+                    if (!f.op_value_drivers || f.op_value_drivers.length === 0) return 'Выберите хотя бы один драйвер роста стоимости компании';
+                    if (!f.op_metrics) return 'Выберите ключевую метрику';
+                    if (!f.op_baseline || !f.op_baseline.trim()) return 'Введите Baseline';
+                    if (!f.op_target || !f.op_target.trim()) return 'Введите Target';
+                    if (!f.op_stop_loss || !f.op_stop_loss.trim()) return 'Введите Stop-loss критерии';
+                }
+            }
+            if (s === 3) {
+                if (f.projectType === 'operational' && !f.vs_total) {
+                    return 'Рассчитайте Value Score перед переходом к следующему шагу';
+                }
+            }
+            return null; // valid
         },
 
         // ── Value drivers toggle (max 2) ────────────────────────────────

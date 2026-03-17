@@ -264,7 +264,7 @@
                 <a href="/" class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
                 <a href="/project-list" class="nav-link active"><i class="fas fa-project-diagram"></i> Проекты</a>
                 <a href="/export" class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
-                <a href="#" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
+                <a href="/settings" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
             </nav>
 
             <a href="#" class="nav-link" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
@@ -334,6 +334,7 @@
                             <th>DPP / Маршрут</th>
                             <th>Риск</th>
                             <th>Статус</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -352,6 +353,16 @@
                                 </td>
                                 <td>
                                     <span class="status-pill" :class="statusClass(p)" x-text="statusLabel(p)"></span>
+                                </td>
+                                <td @click.stop="">
+                                    <button
+                                        style="background:none;border:none;cursor:pointer;color:#ccc;padding:4px 8px;border-radius:8px;transition:.15s;"
+                                        onmouseover="this.style.color='#FF3B30';this.style.background='#FFE5E3'"
+                                        onmouseout="this.style.color='#ccc';this.style.background='none'"
+                                        @click.stop="deleteProject(p.id, p.name)"
+                                        title="Удалить проект">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
                                 </td>
                             </tr>
                         </template>
@@ -472,6 +483,17 @@
                     if (p.status === 'rejected') return 'status-delay';
                     if (p.status === 'pending_approval') return 'status-risk';
                     return '';
+                },
+
+                async deleteProject(id, name) {
+                    if (!confirm(`Удалить проект «${name || 'без названия'}»? Это действие нельзя отменить.`)) return;
+                    try {
+                        const res = await fetch(`/api/v1/projects/${id}`, { method: 'DELETE' });
+                        if (!res.ok && res.status !== 204) throw new Error('Ошибка удаления');
+                        this.projects = this.projects.filter(p => p.id !== id);
+                    } catch(e) {
+                        alert('Ошибка удаления: ' + e.message);
+                    }
                 },
             };
         }

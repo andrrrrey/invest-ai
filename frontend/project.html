@@ -243,7 +243,7 @@
                 <a href="/" class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
                 <a href="/project-list" class="nav-link active"><i class="fas fa-project-diagram"></i> Проекты</a>
                 <a href="/export" class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
-                <a href="#" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
+                <a href="/settings" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
             </nav>
 
             <a href="#" class="nav-link" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
@@ -274,9 +274,18 @@
                             </p>
                             <h1 style="font-size:26px;font-weight:800" x-text="project.name || '(без названия)'"></h1>
                         </div>
-                        <div class="project-badge" :style="badgeStyle">
-                            <i :class="badgeIcon"></i>
-                            <span x-text="statusLabel"></span>
+                        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                            <div class="project-badge" :style="badgeStyle">
+                                <i :class="badgeIcon"></i>
+                                <span x-text="statusLabel"></span>
+                            </div>
+                            <button
+                                style="background:#FFE5E3;border:1.5px solid #FFCCC8;color:#FF3B30;border-radius:12px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.2s;"
+                                onmouseover="this.style.background='#FF3B30';this.style.color='white'"
+                                onmouseout="this.style.background='#FFE5E3';this.style.color='#FF3B30'"
+                                @click="deleteProject()">
+                                <i class="fas fa-trash"></i> Удалить
+                            </button>
                         </div>
                     </header>
 
@@ -751,6 +760,21 @@
                         this.statusMsgType = 'err';
                     }
                     setTimeout(() => { this.statusMsg = ''; }, 3000);
+                },
+
+                async deleteProject() {
+                    if (!this.project) return;
+                    if (!confirm(`Удалить проект «${this.project.name || 'без названия'}»? Это действие нельзя отменить.`)) return;
+                    try {
+                        const res = await fetch('/api/v1/projects/' + this.project.id, { method: 'DELETE' });
+                        if (res.ok || res.status === 204) {
+                            window.location.href = '/project-list';
+                        } else {
+                            alert('Ошибка удаления проекта');
+                        }
+                    } catch(e) {
+                        alert('Ошибка соединения: ' + e.message);
+                    }
                 },
             };
         }
