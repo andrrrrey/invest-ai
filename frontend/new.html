@@ -301,7 +301,7 @@
         <!-- Header -->
         <header class="top-header">
             <div>
-                <h1>Создание инвестиционного запроса</h1>
+                <h1 x-text="projectId ? 'Редактирование черновика' : 'Создание инвестиционного запроса'">Создание инвестиционного запроса</h1>
                 <p>Шаг <span x-text="step"></span> из 5 · Метрики пересчитываются в реальном времени</p>
             </div>
             <button class="btn btn-outline" @click="saveDraft()" :disabled="saving">
@@ -1913,9 +1913,48 @@ function wizardApp() {
         },
 
         // ── Lifecycle ──────────────────────────────────────────────────────
-        init() {
+        async init() {
+            const id = new URLSearchParams(location.search).get('id');
+            if (id) await this.loadProject(id);
             this.recalc();
             this.$watch('form', () => this.recalc(), { deep: true });
+        },
+
+        async loadProject(id) {
+            try {
+                const res = await fetch('/api/v1/projects/' + id);
+                if (!res.ok) throw new Error('Проект не найден');
+                const p = await res.json();
+                if (p.status !== 'draft') {
+                    this._toast('Редактирование доступно только для черновиков', 'error');
+                    return;
+                }
+                this.projectId = p.id;
+                // financial_model contains all form fields (stored as { ...this.form })
+                if (p.financial_model && typeof p.financial_model === 'object') {
+                    Object.assign(this.form, p.financial_model);
+                }
+                // Override with top-level fields (authoritative source for display fields)
+                if (p.project_type) this.form.projectType = p.project_type;
+                if (p.name) this.form.name = p.name;
+                if (p.business_unit) this.form.businessUnit = p.business_unit;
+                if (p.description) this.form.description = p.description;
+                if (p.owner) this.form.owner = p.owner;
+                if (p.stage) this.form.stage = p.stage;
+                if (p.start_date) this.form.startDate = p.start_date;
+                if (p.platform) this.form.platform = p.platform;
+                // Load risks
+                if (p.risks_data) {
+                    if (p.project_type === 'operational') {
+                        this.riskScoreData = p.risks_data;
+                    } else {
+                        this.risksData = p.risks_data;
+                    }
+                }
+                this._toast('Черновик загружен для редактирования', 'success');
+            } catch(e) {
+                this._toast('Ошибка загрузки проекта: ' + e.message, 'error');
+            }
         },
 
         // ── Calculations ───────────────────────────────────────────────────
