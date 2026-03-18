@@ -580,10 +580,16 @@
                                 </div>
                                 <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px">
                                     <template x-if="project.status === 'draft'">
-                                        <button @click="changeStatus('pending_approval')"
-                                            style="padding:14px;border-radius:14px;border:none;background:var(--accent-purple);color:white;font-weight:700;cursor:pointer">
-                                            Отправить на согласование
-                                        </button>
+                                        <div style="display:flex;flex-direction:column;gap:10px">
+                                            <button @click="window.location.href='/new?id=' + project.id"
+                                                style="padding:14px;border-radius:14px;border:1.5px solid var(--accent-purple);background:white;color:var(--accent-purple);font-weight:700;cursor:pointer;font-size:13px">
+                                                <i class="fas fa-pen" style="margin-right:6px"></i>Редактировать черновик
+                                            </button>
+                                            <button @click="changeStatus('pending_approval')"
+                                                style="padding:14px;border-radius:14px;border:none;background:var(--accent-purple);color:white;font-weight:700;cursor:pointer">
+                                                Отправить на согласование
+                                            </button>
+                                        </div>
                                     </template>
                                     <template x-if="project.status === 'pending_approval'">
                                         <div style="display:flex;gap:10px">
