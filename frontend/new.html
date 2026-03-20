@@ -235,9 +235,34 @@
             font-size: 14px; font-weight: 700; cursor: pointer;
             color: var(--muted); transition: .15s;
             display: flex; align-items: center; justify-content: center;
+            position: relative;
         }
         .score-btn:hover { border-color: var(--accent); color: var(--accent); }
         .score-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .score-btn .score-tooltip {
+            display: none; position: absolute; bottom: calc(100% + 6px); left: 50%;
+            transform: translateX(-50%); background: #1C1C1E; color: white;
+            font-size: 11px; font-weight: 500; padding: 4px 8px; border-radius: 6px;
+            white-space: nowrap; pointer-events: none; z-index: 100;
+        }
+        .score-btn .score-tooltip::after {
+            content: ''; position: absolute; top: 100%; left: 50%;
+            transform: translateX(-50%); border: 4px solid transparent;
+            border-top-color: #1C1C1E;
+        }
+        .score-btn:hover .score-tooltip { display: block; }
+        .risk-scale-help .risk-scale-tooltip {
+            display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
+            transform: translateX(-50%); background: #1C1C1E; color: white;
+            font-size: 12px; font-weight: 400; padding: 10px 14px; border-radius: 10px;
+            white-space: nowrap; pointer-events: none; z-index: 200; line-height: 1.7;
+        }
+        .risk-scale-help .risk-scale-tooltip::after {
+            content: ''; position: absolute; top: 100%; left: 50%;
+            transform: translateX(-50%); border: 5px solid transparent;
+            border-top-color: #1C1C1E;
+        }
+        .risk-scale-help:hover .risk-scale-tooltip { display: block; }
 
         /* Cash flow table colors */
         .cf-pos  { color: var(--success); }
@@ -378,10 +403,12 @@
                         <div class="field">
                             <label>Направление / бизнес-юнит</label>
                             <select x-model="form.businessUnit">
-                                <option>WealthTech</option>
-                                <option>Розничный банкинг</option>
-                                <option>Корпоративный бизнес</option>
-                                <option>Data Platform</option>
+                                <option value="">— Выберите бизнес-юнит —</option>
+                                <option value="LegalTech B2B">LegalTech B2B — Продукты для юридических департаментов компаний</option>
+                                <option value="LegalTech B2C">LegalTech B2C — Продукты для частных лиц (документы, консультации)</option>
+                                <option value="DocEngine">DocEngine — Конструкторы документов и шаблоны</option>
+                                <option value="Compliance Platform">Compliance Platform — Продукты для регуляторной отчётности и compliance</option>
+                                <option value="Data Platform">Data Platform — Общие данные, аналитика, ML-модели</option>
                             </select>
                         </div>
                     </div>
@@ -508,25 +535,51 @@
                     <div class="subsection">
                         <h3>Драйверы роста стоимости компании</h3>
                         <div class="grid-2">
-                            <div class="field">
+                            <div class="field" x-data="{ driversOpen: false }">
                                 <label>Драйверы роста стоимости компании <span style="color:var(--danger)">*</span></label>
-                                <select multiple x-model="form.op_value_drivers"
-                                    style="min-height:200px;padding:4px">
-                                    <option value="Прибыльность">Прибыльность</option>
-                                    <option value="Новые рынки">Новые рынки</option>
-                                    <option value="Денежный поток">Денежный поток</option>
-                                    <option value="Рентабельность">Рентабельность</option>
-                                    <option value="Количество клиентов">Количество клиентов</option>
-                                    <option value="Удержание клиентов">Удержание клиентов</option>
-                                    <option value="Ценность клиента (LTV — Lifetime Value)">Ценность клиента (LTV — Lifetime Value)</option>
-                                    <option value="Удовлетворенность и лояльность (NPS)">Удовлетворенность и лояльность (NPS)</option>
-                                    <option value="Качество (Quality)">Качество (Quality)</option>
-                                    <option value="Скорость (Time-to-Market)">Скорость (Time-to-Market)</option>
-                                    <option value="Таланты и компетенции">Таланты и компетенции</option>
-                                    <option value="Защита от сбоев и штрафов">Защита от сбоев и штрафов</option>
-                                    <option value="Прочее">Прочее (можно добавить от руки)</option>
-                                </select>
-                                <p class="hint">Удерживайте Ctrl (или Cmd на Mac) для выбора нескольких вариантов</p>
+                                <!-- Trigger button -->
+                                <div @click="driversOpen = !driversOpen"
+                                    style="padding:10px 14px;border:1.5px solid #EBEBF2;border-radius:10px;cursor:pointer;background:white;display:flex;justify-content:space-between;align-items:center;min-height:44px">
+                                    <span style="font-size:13px;color:#444" x-text="form.op_value_drivers.filter(d=>d!=='__other__').join(', ') || 'Выберите драйверы...'"></span>
+                                    <i class="fas" :class="driversOpen ? 'fa-chevron-up' : 'fa-chevron-down'" style="color:#8E8E93;font-size:11px"></i>
+                                </div>
+                                <!-- Dropdown with checkboxes -->
+                                <div x-show="driversOpen" @click.outside="driversOpen=false"
+                                    style="border:1.5px solid #EBEBF2;border-radius:10px;background:white;margin-top:4px;padding:6px 0;max-height:280px;overflow-y:auto;box-shadow:0 4px 20px rgba(0,0,0,.08)">
+                                    <template x-for="opt in [
+                                        'Прибыльность','Новые рынки','Денежный поток','Рентабельность',
+                                        'Количество клиентов','Удержание клиентов','Ценность клиента (LTV — Lifetime Value)',
+                                        'Удовлетворенность и лояльность (NPS)','Качество (Quality)',
+                                        'Скорость (Time-to-Market)','Таланты и компетенции','Защита от сбоев и штрафов'
+                                    ]" :key="opt">
+                                        <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;font-size:13px;color:#444"
+                                            onmouseover="this.style.background='#F8F7F3'" onmouseout="this.style.background='transparent'">
+                                            <input type="checkbox" :value="opt"
+                                                :checked="form.op_value_drivers.includes(opt)"
+                                                @change="form.op_value_drivers.includes(opt) ? form.op_value_drivers = form.op_value_drivers.filter(d=>d!==opt) : form.op_value_drivers.push(opt)"
+                                                style="width:15px;height:15px;accent-color:#5E5CE6">
+                                            <span x-text="opt"></span>
+                                        </label>
+                                    </template>
+                                    <!-- Other option -->
+                                    <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;font-size:13px;color:#5E5CE6;font-weight:600;border-top:1px solid #F2F2F7;margin-top:4px"
+                                        onmouseover="this.style.background='#F8F7F3'" onmouseout="this.style.background='transparent'">
+                                        <input type="checkbox" value="__other__"
+                                            :checked="form.op_value_drivers.includes('__other__')"
+                                            @change="form.op_value_drivers.includes('__other__') ? form.op_value_drivers = form.op_value_drivers.filter(d=>d!=='__other__') : form.op_value_drivers.push('__other__')"
+                                            style="width:15px;height:15px;accent-color:#5E5CE6">
+                                        <span>Прочее (свой вариант)</span>
+                                    </label>
+                                </div>
+                                <!-- Custom "Other" text input -->
+                                <template x-if="form.op_value_drivers.includes('__other__')">
+                                    <div style="margin-top:8px">
+                                        <input type="text" x-model="form.op_value_drivers_other"
+                                            placeholder="Введите свой вариант драйвера роста..."
+                                            style="width:100%;padding:10px 12px;border:1.5px solid #5E5CE6;border-radius:10px;font-size:13px;outline:none">
+                                    </div>
+                                </template>
+                                <p class="hint" style="margin-top:6px">Нажмите на поле, чтобы выбрать несколько вариантов</p>
                             </div>
                             <div class="field">
                                 <label>Ключевая метрика <span style="color:var(--danger)">*</span></label>
@@ -1401,7 +1454,19 @@
 
                             <!-- Risk scores by type -->
                             <div class="subsection">
-                                <h3>Риски по категориям (1-5)</h3>
+                                <h3>Риски по категориям (1-5)
+                                    <span style="position:relative;display:inline-block;margin-left:8px;vertical-align:middle" class="risk-scale-help">
+                                        <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#E5E5EA;color:#8E8E93;font-size:11px;font-weight:700;cursor:default">?</span>
+                                        <span class="risk-scale-tooltip">
+                                            <strong>Шкала оценки риска:</strong><br>
+                                            1 — Низкий риск<br>
+                                            2 — Незначительный риск<br>
+                                            3 — Средний риск<br>
+                                            4 — Высокий риск<br>
+                                            5 — Критический риск
+                                        </span>
+                                    </span>
+                                </h3>
                                 <div class="metric-grid">
                                     <div class="metric-card">
                                         <div class="k">Риск исполнения</div>
@@ -1855,6 +1920,7 @@ function wizardApp() {
             op_requested_resource: '',
             op_investment_thesis: '',
             op_value_drivers: [],
+            op_value_drivers_other: '',
             op_metrics: '',
             op_baseline: '', op_target: '',
             op_economics: '',

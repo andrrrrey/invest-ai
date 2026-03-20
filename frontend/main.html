@@ -286,8 +286,12 @@
                 </div>
             </section>
 
-            <div class="section-title">
+            <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
                 <h2>Последние проекты</h2>
+                <button x-show="!loading && projects.length > 5" @click="showAllProjects = !showAllProjects"
+                    style="padding:8px 16px;border-radius:10px;border:1.5px solid #C7C9FF;background:white;color:#5E5CE6;font-size:13px;font-weight:600;cursor:pointer"
+                    x-text="showAllProjects ? 'Свернуть' : 'Показать все (' + projects.length + ')'">
+                </button>
             </div>
 
             <div class="table-responsive">
@@ -382,8 +386,10 @@
                     return Math.round(n) + ' ₽';
                 },
 
+                showAllProjects: false,
+
                 get recentProjects() {
-                    return this.projects.slice(0, 5);
+                    return this.showAllProjects ? this.projects : this.projects.slice(0, 5);
                 },
 
                 statusLabel(p) {
