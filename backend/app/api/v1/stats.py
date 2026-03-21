@@ -30,9 +30,9 @@ def get_stats(db: Session = Depends(get_db)):
         pt = p.project_type or "investment"
         by_type[pt] = by_type.get(pt, 0) + 1
 
-        # Financial metrics (investment projects only)
+        # Financial metrics — exclude rejected projects from NPV/IRR totals
         metrics = p.metrics or {}
-        if metrics:
+        if metrics and st != "rejected":
             npv = metrics.get("npv", 0) or 0
             total_npv += npv
             irr = metrics.get("irr")

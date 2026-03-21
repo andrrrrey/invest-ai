@@ -136,9 +136,18 @@ def generate_risk_score(application: dict) -> dict:
         '"risk_reasons": ["причина 1", "причина 2", "причина 3"],'
         '"controls": ["контроль 1", "контроль 2"],'
         '"stage_gate_recommendations": ["критерий 1", "критерий 2"],'
-        '"recommended_route": "fast_track|efficiency_play|backlog_stop|manual_review",'
+        '"recommended_route": "fast_track|efficiency_play|backlog_stop",'
         '"manual_review_required": true|false,'
-        '"commentary": "2-3 предложения с ключевым выводом"}'
+        '"commentary": "2-3 предложения с ключевым выводом"}\n\n'
+        "ВАЖНЫЕ ПРАВИЛА ДЛЯ manual_review_required:\n"
+        "- Устанавливай manual_review_required: TRUE только для ПОГРАНИЧНЫХ или СЛОЖНЫХ случаев: "
+        "умеренный риск, неоднозначные метрики, нетипичная ситуация, требующая экспертного суждения.\n"
+        "- Устанавливай manual_review_required: FALSE для ОЧЕВИДНО НЕПОДХОДЯЩИХ проектов: "
+        "все risk_scores >= 4, очень низкий Value Score (< 15), отсутствие экономики, "
+        "явная нежизнеспособность. Такие проекты получают recommended_route: 'backlog_stop' автоматически.\n"
+        "- Устанавливай manual_review_required: FALSE и для ЯВНО ХОРОШИХ проектов (fast_track/efficiency_play).\n"
+        "- recommended_route должен быть одним из: fast_track, efficiency_play, backlog_stop "
+        "(НЕ используй 'manual_review' в качестве маршрута)."
     )
     text = _strip_fences(_chat(prompt, max_tokens=1000))
     try:

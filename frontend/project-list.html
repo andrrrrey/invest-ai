@@ -165,11 +165,14 @@
             border-radius: var(--radius-md);
             padding: 20px 0;
             box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .projects-table {
             width: 100%;
             border-collapse: collapse;
+            min-width: 780px;
         }
 
         .projects-table th {
@@ -192,6 +195,21 @@
             border-bottom: 1px solid #F2F2F7;
             color: var(--text-main);
             transition: all 0.3s ease;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .projects-table td:first-child {
+            max-width: 220px;
+        }
+
+        .projects-table td .cell-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 180px;
         }
 
         .projects-table tr {
@@ -341,8 +359,8 @@
                         <template x-for="p in filtered" :key="p.id">
                             <tr @click="window.location.href='/project?id='+p.id" style="cursor:pointer">
                                 <td>
-                                    <div style="font-weight:700" x-text="p.name || '(без названия)'"></div>
-                                    <div style="font-size:11px;color:var(--text-muted)" x-text="p.owner || p.business_unit || '—'"></div>
+                                    <div class="cell-name" style="font-weight:700" x-text="p.name || '(без названия)'"></div>
+                                    <div class="cell-name" style="font-size:11px;color:var(--text-muted)" x-text="p.owner || p.business_unit || '—'"></div>
                                 </td>
                                 <td style="font-size:13px;color:var(--text-muted)" x-text="p.project_type === 'investment' ? 'Инвестиц.' : 'Операцион.'"></td>
                                 <td class="investment-val" x-text="p.project_type === 'investment' ? investmentAmount(p) : ((p.value_score_data?.total ?? '—') + ' / 50')"></td>

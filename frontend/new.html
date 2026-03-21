@@ -847,7 +847,15 @@
                     <div class="field"><label>Дата старта</label>
                         <input type="date" x-model="form.startDate"></div>
                     <div class="field"><label>Платформа (опционально)</label>
-                        <input type="text" x-model="form.platform" placeholder="Web / Mobile / Data Platform"></div>
+                        <select x-model="form.platform" @change="form.platform !== 'Иное' && (form.platformCustom = '')">
+                            <option value="">— не выбрано —</option>
+                            <option value="CaseOne">CaseOne</option>
+                            <option value="CaseBook">CaseBook</option>
+                            <option value="CaseLook">CaseLook</option>
+                            <option value="Иное">Иное</option>
+                        </select>
+                        <input type="text" x-show="form.platform === 'Иное'" x-model="form.platformCustom"
+                               placeholder="Укажите платформу" style="margin-top:8px"></div>
                 </div>
             </div>
 
@@ -1911,7 +1919,7 @@ function wizardApp() {
             name: '', businessUnit: 'WealthTech', description: '',
 
             // Step 3 general
-            owner: '', stage: 'Идея', startDate: '', platform: '',
+            owner: '', stage: 'Идея', startDate: '', platform: '', platformCustom: '',
 
             // ── 1.2 Операционные затраты: 1-page fields ──────────────────
             op_category: '',
@@ -2008,7 +2016,15 @@ function wizardApp() {
                 if (p.owner) this.form.owner = p.owner;
                 if (p.stage) this.form.stage = p.stage;
                 if (p.start_date) this.form.startDate = p.start_date;
-                if (p.platform) this.form.platform = p.platform;
+                if (p.platform) {
+                    const predefined = ['CaseOne', 'CaseBook', 'CaseLook', 'Иное'];
+                    if (predefined.includes(p.platform)) {
+                        this.form.platform = p.platform;
+                    } else {
+                        this.form.platform = 'Иное';
+                        this.form.platformCustom = p.platform;
+                    }
+                }
                 // Load risks
                 if (p.risks_data) {
                     if (p.project_type === 'operational') {
@@ -2274,7 +2290,7 @@ function wizardApp() {
                 name: this.form.name, business_unit: this.form.businessUnit,
                 description: this.form.description, owner: this.form.owner,
                 stage: this.form.stage, start_date: this.form.startDate,
-                platform: this.form.platform,
+                platform: this.form.platform === 'Иное' ? (this.form.platformCustom || 'Иное') : this.form.platform,
                 financial_model: { ...this.form },
                 risks_data: this.form.projectType === 'operational' ? this.riskScoreData : this.risksData,
                 value_score_data: valueScoreData,
