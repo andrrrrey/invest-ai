@@ -583,6 +583,13 @@
                             </div>
                             <div class="field">
                                 <label>Ключевая метрика <span style="color:var(--danger)">*</span></label>
+                                <div style="background:#F0EFFF;border-radius:10px;padding:12px 14px;margin-bottom:10px;font-size:12px;color:#3A38A0;line-height:1.6">
+                                    <strong>Как метрика используется в расчётах операционного проекта:</strong><br>
+                                    Для операционных инвестиций нет классического NPV/IRR — вместо них система строит <em>Value Score</em> (скоринг ценности, 0–50 баллов). Выбранная метрика влияет на оценку по двум критериям:<br>
+                                    • <strong>ROI Predictability (вес ×1)</strong> — насколько легко спрогнозировать отдачу: чётко измеримые метрики (NRR, LTV/CAC, ROI) дают высокий балл; трудно измеримые — низкий.<br>
+                                    • <strong>Unit-экономика (вес ×2)</strong> — как метрика связана с юнит-показателями: если метрика напрямую улучшает LTV, CAC или маржу — балл выше.<br>
+                                    В блоке <em>Baseline → Target</em> укажите текущее и целевое значение метрики: это позволяет AI оценить реалистичность цели и рассчитать потенциальный экономический эффект в комментарии.
+                                </div>
                                 <select x-model="form.op_metrics">
                                     <option value="">— Выберите метрику —</option>
                                     <option value="TTV">1. Time to Value (TTV) — скорость первого результата</option>
@@ -598,7 +605,16 @@
                                     <option value="New Logo/MRR">11. New Logo / MRR</option>
                                     <option value="TTM">12. Time to Market (TTM)</option>
                                     <option value="CAC">13. САС</option>
+                                    <option value="__custom__">14. Другая метрика (ввести вручную)...</option>
                                 </select>
+                                <template x-if="form.op_metrics === '__custom__'">
+                                    <div style="margin-top:8px">
+                                        <input type="text" x-model="form.op_metrics_custom"
+                                            placeholder="Введите название метрики..."
+                                            style="width:100%;padding:10px 12px;border:1.5px solid #5E5CE6;border-radius:10px;font-size:13px;outline:none">
+                                        <p class="hint" style="margin-top:4px">Введите название метрики, по которой будет отслеживаться результат инвестиции</p>
+                                    </div>
+                                </template>
                             </div>
                         </div>
                     </div>
@@ -718,7 +734,7 @@
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
                                 <div style="flex:1;min-width:200px">
                                     <p style="font-size:13px;font-weight:700">3. Прогнозируемость ROI (вес ×1) Совместима ли эта трата с целью 20% чистой маржи?</p>
-                                    <p class="hint" style="margin-top:3px">Для маркетинга: LTV/CAC &gt; 3.0. LTV — сколько прибыли принесет клиент, CAC — сколько стоит его привлечь.<br>Для найма: Revenue per Employee &gt; 5,5 млн руб./год. Покажите, как новый сотрудник увеличит выручку на человека.<br>Для найма: Опирайтесь на отраслевой бенчмарк (например, количество клиентов на поддержку). Как найм повысит эффективность команды?<br>Для инфраструктуры: COGS &lt; 12% от выручки. На сколько процентов снизятся прямые расходы после покупки?<br>Extra Time: Оцените экономию времени в человеко-часах в месяц или сокращение цикла (time-to-market, скорость реакции, время простоя)</p>
+                                    <p class="hint" style="margin-top:3px">Для маркетинга: LTV/CAC &gt; 3.0. LTV — сколько прибыли принесет клиент, CAC — сколько стоит его привлечь.<br>Для найма: Revenue per Employee &gt; 5,5 млн руб./год. Покажите, как новый сотрудник увеличит выручку на человека.<br>Для найма: Опирайтесь на отраслевой бенчмарк (например, количество клиентов на поддержку). Как найм повысит эффективность команды?<br>Для инфраструктуры: COGS &lt; 12% от выручки. На сколько процентов снизятся прямые расходы после покупки?<br><strong>Extra Time (применимо к любому типу проекта):</strong> Метрика измеряет денежную ценность сэкономленного или высвобожденного времени. Она работает независимо от того, что именно вы финансируете:<br>• <em>Найм</em> — новый сотрудник берёт на себя рутину: укажите, сколько часов в месяц освободится у текущей команды и переведите их в рубли (часы × средняя ставка).<br>• <em>Вывод нового продукта</em> — автоматизация или новый инструмент сокращает цикл разработки/тестирования: укажите, на сколько дней/часов ускоряется time-to-market и какова стоимость одного дня задержки для бизнеса.<br>• <em>Маркетинг</em> — кампания сокращает время принятия решения клиентом (sales cycle): укажите, на сколько дней короче цикл и сколько дополнительных сделок закроется за тот же период.<br>• <em>Инфраструктура / оборудование</em> — снижение downtime или ускорение операций: укажите часы простоя в месяц до и после, умножьте на стоимость потерянного часа работы.<br>• <em>Юридические и профессиональные сервисы</em> — продукт или инструмент автоматизирует рутинные jobs специалистов. Пример: подготовка и отправка искового заявления занимала 10 часов, после внедрения — 30 минут. Экономия = 9,5 ч × ставка юриста. Если в месяц таких задач 20 — это 190 высвобождённых часов, которые юристы тратят на billable-работу или снижают потребность в найме.<br>Формула для любого случая: <strong>Экономия ₽/мес = (время до − время после) × кол-во повторений × ставка специалиста</strong>. Чем выше эта цифра относительно запрашиваемых инвестиций — тем выше прогнозируемость ROI.</p>
                                 </div>
                                 <div style="display:flex;gap:6px">
                                     <template x-for="n in [1,2,3,4,5]" :key="n">
@@ -1699,7 +1715,7 @@
                             <p><strong>МВЗ:</strong> <span x-text="[form.op_mvz_main, form.op_mvz_sub1, form.op_mvz_sub2].filter(Boolean).join(' / ') || '—'"></span></p>
                             <p><strong>Тип:</strong> <span x-text="form.op_investment_type||'—'"></span></p>
                             <p><strong>Value Drivers:</strong> <span x-text="form.op_value_drivers.join(', ')||'—'"></span></p>
-                            <p><strong>Метрика:</strong> <span x-text="form.op_metrics||'—'"></span></p>
+                            <p><strong>Метрика:</strong> <span x-text="(form.op_metrics === '__custom__' ? (form.op_metrics_custom || '—') : form.op_metrics) || '—'"></span></p>
                             <p style="margin-top:8px"><strong>Тезис:</strong></p>
                             <p x-text="form.op_investment_thesis ? form.op_investment_thesis.slice(0,200) + (form.op_investment_thesis.length>200?'…':'') : '—'"></p>
                             <p style="margin-top:8px"><strong>Stop-loss:</strong></p>
@@ -1984,6 +2000,7 @@ function wizardApp() {
             op_value_drivers: [],
             op_value_drivers_other: '',
             op_metrics: '',
+            op_metrics_custom: '',
             op_baseline: '', op_target: '',
             op_economics: '',
             op_stop_loss: '',
@@ -2307,6 +2324,7 @@ function wizardApp() {
                     if (!f.op_investment_thesis || !f.op_investment_thesis.trim()) return 'Введите инвестиционный тезис';
                     if (!f.op_value_drivers || f.op_value_drivers.length === 0) return 'Выберите хотя бы один драйвер роста стоимости компании';
                     if (!f.op_metrics) return 'Выберите ключевую метрику';
+                    if (f.op_metrics === '__custom__' && !f.op_metrics_custom.trim()) return 'Введите название метрики вручную';
                     if (!f.op_baseline || !f.op_baseline.trim()) return 'Введите Baseline';
                     if (!f.op_target || !f.op_target.trim()) return 'Введите Target';
                     if (!f.op_stop_loss || !f.op_stop_loss.trim()) return 'Введите Stop-loss критерии';
@@ -2514,7 +2532,7 @@ function wizardApp() {
                     op_requested_resource: this.form.op_requested_resource,
                     op_investment_thesis: this.form.op_investment_thesis,
                     op_value_drivers: this.form.op_value_drivers,
-                    op_metrics: this.form.op_metrics,
+                    op_metrics: this.form.op_metrics === '__custom__' ? (this.form.op_metrics_custom.trim() || 'Другая метрика') : this.form.op_metrics,
                     op_baseline: this.form.op_baseline,
                     op_target: this.form.op_target,
                     op_economics: this.form.op_economics,

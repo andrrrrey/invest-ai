@@ -640,6 +640,40 @@
                                                 <span x-text="aiAnalysis.comparison"></span>
                                             </div>
                                         </template>
+                                        <!-- Operational: metrics analysis block -->
+                                        <template x-if="project.project_type === 'operational' && aiAnalysis.metrics_analysis">
+                                            <div style="margin-top:16px;border:1px solid #E0DFFF;border-radius:12px;padding:14px;background:#F8F7FF">
+                                                <p style="font-size:12px;font-weight:700;color:#5E5CE6;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">
+                                                    <i class="fas fa-chart-bar" style="margin-right:6px"></i>Анализ метрики
+                                                </p>
+                                                <table style="width:100%;border-collapse:collapse;font-size:13px">
+                                                    <tr style="border-bottom:1px solid #EBEBF2">
+                                                        <td style="padding:7px 0;color:#8E8E93;width:45%">Метрика</td>
+                                                        <td style="padding:7px 0;font-weight:600;color:#1C1C1E" x-text="aiAnalysis.metrics_analysis.metric_name || '—'"></td>
+                                                    </tr>
+                                                    <tr style="border-bottom:1px solid #EBEBF2">
+                                                        <td style="padding:7px 0;color:#8E8E93">Baseline</td>
+                                                        <td style="padding:7px 0;color:#444" x-text="aiAnalysis.metrics_analysis.baseline_assessment || '—'"></td>
+                                                    </tr>
+                                                    <tr style="border-bottom:1px solid #EBEBF2">
+                                                        <td style="padding:7px 0;color:#8E8E93">Реалистичность цели</td>
+                                                        <td style="padding:7px 0">
+                                                            <span style="padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700"
+                                                                :style="aiAnalysis.metrics_analysis.target_feasibility === 'высокая' ? 'background:#DDF0E1;color:#2D9B63' : aiAnalysis.metrics_analysis.target_feasibility === 'низкая' ? 'background:#FFE5E5;color:#EB5757' : 'background:#FFF4E5;color:#FF9500'"
+                                                                x-text="aiAnalysis.metrics_analysis.target_feasibility || '—'"></span>
+                                                        </td>
+                                                    </tr>
+                                                    <tr style="border-bottom:1px solid #EBEBF2">
+                                                        <td style="padding:7px 0;color:#8E8E93;vertical-align:top">Комментарий AI</td>
+                                                        <td style="padding:7px 0;color:#444;line-height:1.5" x-text="aiAnalysis.metrics_analysis.target_feasibility_comment || '—'"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="padding:7px 0;color:#8E8E93;vertical-align:top">Рекомендации по отслеживанию</td>
+                                                        <td style="padding:7px 0;color:#444;line-height:1.5" x-text="aiAnalysis.metrics_analysis.recommended_tracking || '—'"></td>
+                                                    </tr>
+                                                </table>
+                                            </div>
+                                        </template>
                                     </div>
                                 </template>
                                 <!-- Operational: AI risk score -->

@@ -167,15 +167,60 @@ def generate_risk_score(application: dict) -> dict:
 
 def analyze_project(project: dict, metrics: dict) -> dict:
     """Analyze anomalies and give AI commentary for project detail page."""
-    prompt = (
-        f"Проект «{project.get('name', '?')}» (статус: {project.get('status', '?')}).\n"
-        f"NPV: {metrics.get('npv', 0):,.0f} ₽, IRR: {metrics.get('irr', 'н/д')}%, "
-        f"LTV/CAC: {metrics.get('ltvCac', 0)}, DPP: {metrics.get('dpp', 'н/д')} лет.\n\n"
-        "Верни JSON (только JSON, без Markdown):\n"
-        '{"comment": "1-2 предложения", "anomalies": ["аномалия если есть"], "comparison": "сравнение с похожими"}'
-    )
-    text = _strip_fences(_chat(prompt, max_tokens=400))
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        return {"comment": text, "anomalies": [], "comparison": ""}
+    project_type = project.get("project_type", "investment")
+
+    if project_type == "operational":
+        fm = project.get("financial_model") or {}
+        vs = project.get("value_score_data") or {}
+        op_metric = fm.get("op_metrics") or project.get("op_metrics", "—")
+        op_baseline = fm.get("op_baseline") or project.get("op_baseline", "—")
+        op_target = fm.get("op_target") or project.get("op_target", "—")
+        op_economics = fm.get("op_economics") or project.get("op_economics", "—")
+        prompt = (
+            f"Ты — AI-аналитик инвестиционного процессора. Проанализируй операционный проект.\n\n"
+            f"Инициатива: «{project.get('name', '?')}» (статус: {project.get('status', '?')})\n"
+            f"Категория: {fm.get('op_category') or project.get('op_category', '—')}\n"
+            f"Тип инвестиции: {fm.get('op_investment_type') or project.get('op_investment_type', '—')}\n"
+            f"Ключевая метрика: {op_metric}\n"
+            f"Baseline: {op_baseline}\n"
+            f"Target: {op_target}\n"
+            f"Экономика/Payback: {op_economics}\n\n"
+            f"Value Score: {vs.get('total', '—')} / 50 (зона: {vs.get('band', '—')})\n"
+            f"  - Влияние на EV (×3): {vs.get('ev_impact', '—')}\n"
+            f"  - Срочность (×2): {vs.get('urgency', '—')}\n"
+            f"  - Прогнозируемость ROI (×1): {vs.get('roi_predictability', '—')}\n"
+            f"  - Масштабируемость (×2): {vs.get('scalability', '—')}\n"
+            f"  - Unit-экономика (×2): {vs.get('unit_economics', '—')}\n\n"
+            "Проанализируй реалистичность метрики и целевых показателей. "
+            "Выяви аномалии: слишком амбициозный Target, противоречие между метрикой и экономикой, "
+            "несоответствие Value Score и заявленного эффекта.\n\n"
+            "Верни строго JSON (только JSON, без Markdown):\n"
+            '{"comment": "1-2 предложения общего вывода",'
+            '"anomalies": ["аномалия или риск 1", "аномалия 2"],'
+            '"comparison": "краткое сравнение с отраслевыми бенчмарками по данной метрике",'
+            '"metrics_analysis": {'
+            '"metric_name": "название метрики",'
+            '"baseline_assessment": "оценка стартовой точки",'
+            '"target_feasibility": "реалистичность цели: низкая|средняя|высокая",'
+            '"target_feasibility_comment": "почему реалистично или нет",'
+            '"recommended_tracking": "как отслеживать: ежемесячно/еженедельно и что именно"'
+            "}}"
+        )
+        text = _strip_fences(_chat(prompt, max_tokens=700))
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            return {"comment": text, "anomalies": [], "comparison": "", "metrics_analysis": None}
+    else:
+        prompt = (
+            f"Проект «{project.get('name', '?')}» (статус: {project.get('status', '?')}).\n"
+            f"NPV: {metrics.get('npv', 0):,.0f} ₽, IRR: {metrics.get('irr', 'н/д')}%, "
+            f"LTV/CAC: {metrics.get('ltvCac', 0)}, DPP: {metrics.get('dpp', 'н/д')} лет.\n\n"
+            "Верни JSON (только JSON, без Markdown):\n"
+            '{"comment": "1-2 предложения", "anomalies": ["аномалия если есть"], "comparison": "сравнение с похожими"}'
+        )
+        text = _strip_fences(_chat(prompt, max_tokens=400))
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            return {"comment": text, "anomalies": [], "comparison": ""}
