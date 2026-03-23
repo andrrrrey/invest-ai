@@ -273,28 +273,30 @@
     <div class="app-window">
         <aside class="sidebar" id="sidebar">
             <div class="profile-section">
-                <img src="https://ui-avatars.com/api/?name=Марк+Джонсон&background=333&color=fff" alt="Аватар" class="avatar">
+                <div style="width:90px;height:90px;border-radius:50%;border:3px solid white;margin:0 auto 15px;background:#5E5CE6;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:white" id="sidebar-avatar"></div>
                 <p>С возвращением,</p>
-                <h4>Марк Джонсон</h4>
+                <h4 id="sidebar-name">—</h4>
+                <div style="display:inline-block;background:rgba(94,92,230,0.3);color:#A8A6FF;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700;margin-top:6px" id="sidebar-role"></div>
             </div>
 
             <nav class="nav-menu">
                 <a href="/" class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
                 <a href="/project-list" class="nav-link active"><i class="fas fa-project-diagram"></i> Проекты</a>
                 <a href="/export" class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
-                <a href="/settings" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
+                <a href="/settings" class="nav-link" id="nav-settings"><i class="fas fa-cog"></i> Настройки</a>
+                <a href="/users" class="nav-link" id="nav-users" style="display:none"><i class="fas fa-users"></i> Пользователи</a>
             </nav>
 
-            <a href="#" class="nav-link" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
+            <a href="#" class="nav-link" id="sidebar-logout" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
         </aside>
 
-        <main class="main-content" x-data="projectListApp()" x-init="init()">
+        <main class="main-content" x-data="projectListApp()" x-init="init()" x-cloak>
             <header class="header-row">
                 <div>
                     <h1 style="font-size: 26px; font-weight: 800;">Портфель проектов</h1>
                     <p style="color: var(--text-muted); font-size: 14px;" x-text="loading ? 'Загрузка...' : (filtered.length + ' проект' + (filtered.length === 1 ? '' : filtered.length < 5 ? 'а' : 'ов') + ' в портфеле')"></p>
                 </div>
-                <button style="padding: 12px 24px; border-radius: 14px; border: none; background: var(--accent-purple); color: white; font-weight: 700; cursor: pointer;" onclick="window.location.href='/new'">
+                <button x-show="canCreate" style="padding: 12px 24px; border-radius: 14px; border: none; background: var(--accent-purple); color: white; font-weight: 700; cursor: pointer;" onclick="window.location.href='/new'">
                     <i class="fas fa-plus"></i> Новый проект
                 </button>
             </header>
@@ -372,7 +374,7 @@
                                 <td>
                                     <span class="status-pill" :class="statusClass(p)" x-text="statusLabel(p)"></span>
                                 </td>
-                                <td @click.stop="">
+                                <td @click.stop="" x-show="canDelete">
                                     <button
                                         style="background:none;border:none;cursor:pointer;color:#ccc;padding:4px 8px;border-radius:8px;transition:.15s;"
                                         onmouseover="this.style.color='#FF3B30';this.style.background='#FFE5E3'"
@@ -390,20 +392,30 @@
         </main>
     </div>
 
+    <script src="/js/auth.js"></script>
     <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
     <script>
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('active');
         }
 
-        document.querySelector('.main-content').addEventListener('click', () => {
-            if (window.innerWidth <= 1100) {
-                document.getElementById('sidebar').classList.remove('active');
+        document.addEventListener('DOMContentLoaded', function() {
+            patchSidebar();
+            const av = document.getElementById('sidebar-avatar');
+            if (av) av.textContent = (getUserName() || '?').charAt(0).toUpperCase();
+            if (getUserRole() === 'cfo') {
+                const nu = document.getElementById('nav-users');
+                if (nu) nu.style.display = '';
+            }
+            if (getUserRole() !== 'cfo') {
+                const ns = document.getElementById('nav-settings');
+                if (ns) ns.style.display = 'none';
             }
         });
 
         function projectListApp() {
             return {
+                ...authMixin(),
                 projects: [],
                 loading: true,
                 filterType: '',
@@ -412,11 +424,12 @@
                 search: '',
 
                 async init() {
+                    if (!redirectIfNotLoggedIn()) return;
                     try {
-                        const res = await fetch('/api/v1/projects/');
+                        const res = await authFetch('/api/v1/projects/');
                         if (res.ok) this.projects = await res.json();
                     } catch(e) {
-                        console.error('Ошибка загрузки:', e);
+                        if (e.message !== 'Unauthorized') console.error('Ошибка загрузки:', e);
                     } finally {
                         this.loading = false;
                     }
@@ -506,11 +519,11 @@
                 async deleteProject(id, name) {
                     if (!confirm(`Удалить проект «${name || 'без названия'}»? Это действие нельзя отменить.`)) return;
                     try {
-                        const res = await fetch(`/api/v1/projects/${id}`, { method: 'DELETE' });
+                        const res = await authFetch(`/api/v1/projects/${id}`, { method: 'DELETE' });
                         if (!res.ok && res.status !== 204) throw new Error('Ошибка удаления');
                         this.projects = this.projects.filter(p => p.id !== id);
                     } catch(e) {
-                        alert('Ошибка удаления: ' + e.message);
+                        if (e.message !== 'Unauthorized') alert('Ошибка удаления: ' + e.message);
                     }
                 },
             };

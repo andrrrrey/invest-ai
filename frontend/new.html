@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Создание проекта | Инвестиционный процессор</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="/js/auth.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
-    <script src="js/finance.js"></script>
+    <script src="/js/finance.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
@@ -305,17 +306,19 @@
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
         <div class="profile-section">
-            <img src="https://ui-avatars.com/api/?name=Марк+Джонсон&background=333&color=fff" alt="Аватар">
+            <div style="width:90px;height:90px;border-radius:50%;border:3px solid white;margin:0 auto 15px;background:#5E5CE6;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:white" id="sidebar-avatar"></div>
             <p>С возвращением,</p>
-            <h4>Марк Джонсон</h4>
+            <h4 id="sidebar-name">—</h4>
+            <div style="display:inline-block;background:rgba(94,92,230,0.3);color:#A8A6FF;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700;margin-top:6px" id="sidebar-role"></div>
         </div>
         <nav class="nav-menu">
             <a href="/"              class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
             <a href="/project-list" class="nav-link active"><i class="fas fa-project-diagram"></i> Проекты</a>
             <a href="/export"       class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
-            <a href="/settings"         class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
+            <a href="/settings"     class="nav-link" id="nav-settings"><i class="fas fa-cog"></i> Настройки</a>
+            <a href="/users"        class="nav-link" id="nav-users" style="display:none"><i class="fas fa-users"></i> Пользователи</a>
         </nav>
-        <a href="#" class="nav-link" style="margin-top:auto;color:#EB5757">
+        <a href="#" class="nav-link" id="sidebar-logout" style="margin-top:auto;color:#EB5757">
             <i class="fas fa-sign-out-alt"></i> Выйти
         </a>
     </aside>
@@ -2061,6 +2064,24 @@ function wizardApp() {
 
         // ── Lifecycle ──────────────────────────────────────────────────────
         async init() {
+            if (!redirectIfNotLoggedIn()) return;
+            // CEO cannot create projects
+            if (getUserRole() === 'ceo') {
+                window.location.href = '/';
+                return;
+            }
+            // Patch sidebar
+            patchSidebar();
+            const av = document.getElementById('sidebar-avatar');
+            if (av) av.textContent = (getUserName() || '?').charAt(0).toUpperCase();
+            if (getUserRole() === 'cfo') {
+                const nu = document.getElementById('nav-users');
+                if (nu) nu.style.display = '';
+            }
+            if (getUserRole() !== 'cfo') {
+                const ns = document.getElementById('nav-settings');
+                if (ns) ns.style.display = 'none';
+            }
             const id = new URLSearchParams(location.search).get('id');
             if (id) await this.loadProject(id);
             this.recalc();
@@ -2069,7 +2090,7 @@ function wizardApp() {
 
         async loadProject(id) {
             try {
-                const res = await fetch('/api/v1/projects/' + id);
+                const res = await authFetch('/api/v1/projects/' + id);
                 if (!res.ok) throw new Error('Проект не найден');
                 const p = await res.json();
                 if (p.status !== 'draft') {
@@ -2448,8 +2469,8 @@ function wizardApp() {
             try {
                 const url = this.projectId ? `/api/v1/projects/${this.projectId}` : '/api/v1/projects/';
                 const method = this.projectId ? 'PUT' : 'POST';
-                const res = await fetch(url, {
-                    method, headers: {'Content-Type':'application/json'},
+                const res = await authFetch(url, {
+                    method,
                     body: JSON.stringify(this._payload()),
                 });
                 if (!res.ok) throw new Error(await res.text());
@@ -2466,8 +2487,8 @@ function wizardApp() {
             try {
                 await this.saveDraft();
                 if (!this.projectId) throw new Error('Проект не сохранён');
-                const res = await fetch(`/api/v1/projects/${this.projectId}/status`, {
-                    method: 'PATCH', headers: {'Content-Type':'application/json'},
+                const res = await authFetch(`/api/v1/projects/${this.projectId}/status`, {
+                    method: 'PATCH',
                     body: JSON.stringify({ status: 'pending_approval' }),
                 });
                 if (!res.ok) throw new Error(await res.text());
@@ -2483,8 +2504,8 @@ function wizardApp() {
             if (!this.form.name) { this._toast('Введите название проекта', 'error'); return; }
             this.aiLoad.desc = true;
             try {
-                const res = await fetch('/api/v1/ai/generate-description', {
-                    method: 'POST', headers: {'Content-Type':'application/json'},
+                const res = await authFetch('/api/v1/ai/generate-description', {
+                    method: 'POST',
                     body: JSON.stringify({
                         project_name: this.form.name,
                         business_unit: this.form.businessUnit,
@@ -2503,8 +2524,8 @@ function wizardApp() {
         async aiRisks() {
             this.aiLoad.risks = true;
             try {
-                const res = await fetch('/api/v1/ai/generate-risks', {
-                    method: 'POST', headers: {'Content-Type':'application/json'},
+                const res = await authFetch('/api/v1/ai/generate-risks', {
+                    method: 'POST',
                     body: JSON.stringify({
                         project_name: this.form.name || '(без названия)',
                         metrics: this.metrics,
@@ -2548,8 +2569,8 @@ function wizardApp() {
                         band: this.form.vs_band,
                     },
                 };
-                const res = await fetch('/api/v1/ai/generate-risk-score', {
-                    method: 'POST', headers: {'Content-Type':'application/json'},
+                const res = await authFetch('/api/v1/ai/generate-risk-score', {
+                    method: 'POST',
                     body: JSON.stringify({ application }),
                 });
                 if (!res.ok) throw new Error((await res.json()).detail);

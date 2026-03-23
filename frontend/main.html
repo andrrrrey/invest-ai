@@ -227,35 +227,37 @@
     <div class="app-window">
         <aside class="sidebar" id="sidebar">
             <div class="profile-section">
-                <img src="https://ui-avatars.com/api/?name=Марк+Джонсон&background=333&color=fff" alt="Аватар" class="avatar">
+                <div style="width:90px;height:90px;border-radius:50%;border:3px solid white;margin:0 auto 15px;background:#5E5CE6;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:white" id="sidebar-avatar"></div>
                 <p>С возвращением,</p>
-                <h4>Марк Джонсон</h4>
+                <h4 id="sidebar-name">—</h4>
+                <div style="display:inline-block;background:rgba(94,92,230,0.3);color:#A8A6FF;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700;margin-top:6px" id="sidebar-role"></div>
             </div>
 
             <nav class="nav-menu">
                 <a href="/" class="nav-link active"><i class="fas fa-th-large"></i> Главный экран</a>
                 <a href="/project-list" class="nav-link"><i class="fas fa-project-diagram"></i> Проекты</a>
                 <a href="/export" class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
-                <a href="/settings" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
+                <a href="/settings" class="nav-link" id="nav-settings"><i class="fas fa-cog"></i> Настройки</a>
+                <a href="/users" class="nav-link" id="nav-users" style="display:none"><i class="fas fa-users"></i> Пользователи</a>
             </nav>
 
-            <a href="#" class="nav-link" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
+            <a href="#" class="nav-link" id="sidebar-logout" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
         </aside>
 
-        <main class="main-content" x-data="dashboardApp()" x-init="init()">
+        <main class="main-content" x-data="dashboardApp()" x-init="init()" x-cloak>
             <header class="top-header">
                 <div class="header-left">
                     <h1>Главный экран</h1>
                 </div>
 
                 <div class="header-right">
-                    <div class="ai-status" @click="!aiActive && (window.location.href='/settings')"
-                         :style="!aiActive ? 'cursor:pointer;opacity:.8' : ''">
+                    <div class="ai-status" @click="isCfo && (window.location.href='/settings')"
+                         :style="isCfo ? 'cursor:pointer' : ''">
                         <span class="dot" :style="aiActive ? '' : 'background:#FF9500;box-shadow:0 0 10px #FF9500'"></span>
-                        <span x-text="aiActive ? 'GPT-4.1 активен' : 'AI не настроен → Настройки'"></span>
+                        <span x-text="aiActive ? 'GPT-4.1 активен' : 'AI не настроен'"></span>
                     </div>
                     <button class="btn btn-outline" onclick="window.location.href='/export'">Экспорт отчёта</button>
-                    <button class="btn btn-primary" onclick="window.location.href='/new'">Создать проект</button>
+                    <button x-show="canCreate" class="btn btn-primary" onclick="window.location.href='/new'">Создать проект</button>
                 </div>
             </header>
 
@@ -335,13 +337,30 @@
         </main>
     </div>
 
+    <script src="/js/auth.js"></script>
     <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
     <script>
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('active');
         }
 
-        document.querySelector('.main-content').addEventListener('click', () => {
+        document.addEventListener('DOMContentLoaded', function() {
+            patchSidebar();
+            const av = document.getElementById('sidebar-avatar');
+            if (av) av.textContent = (getUserName() || '?').charAt(0).toUpperCase();
+            // Show users link for CFO
+            if (getUserRole() === 'cfo') {
+                const nu = document.getElementById('nav-users');
+                if (nu) nu.style.display = '';
+            }
+            // Hide settings link for non-CFO
+            if (getUserRole() !== 'cfo') {
+                const ns = document.getElementById('nav-settings');
+                if (ns) ns.style.display = 'none';
+            }
+        });
+
+        document.querySelector('.main-content') && document.querySelector('.main-content').addEventListener('click', () => {
             if (window.innerWidth <= 992) {
                 document.getElementById('sidebar').classList.remove('active');
             }
@@ -349,26 +368,34 @@
 
         function dashboardApp() {
             return {
+                ...authMixin(),
                 stats: { total: 0, by_status: {}, by_type: {}, total_npv: 0, avg_irr: null, high_risk_count: 0 },
                 projects: [],
                 loading: true,
                 aiActive: false,
 
                 async init() {
+                    if (!redirectIfNotLoggedIn()) return;
                     try {
-                        const [statsRes, projRes, settingsRes] = await Promise.all([
-                            fetch('/api/v1/stats/'),
-                            fetch('/api/v1/projects/'),
-                            fetch('/api/v1/settings/'),
+                        const [statsRes, projRes] = await Promise.all([
+                            authFetch('/api/v1/stats/'),
+                            authFetch('/api/v1/projects/'),
                         ]);
                         if (statsRes.ok) this.stats = await statsRes.json();
                         if (projRes.ok) this.projects = await projRes.json();
-                        if (settingsRes.ok) {
-                            const s = await settingsRes.json();
-                            this.aiActive = s.openai_api_key_set;
+
+                        // Check AI status — only CFO can access settings, so we try quietly
+                        if (this.isCfo) {
+                            const settingsRes = await authFetch('/api/v1/settings/').catch(() => null);
+                            if (settingsRes && settingsRes.ok) {
+                                const s = await settingsRes.json();
+                                this.aiActive = s.openai_api_key_set;
+                            }
+                        } else {
+                            this.aiActive = false;
                         }
                     } catch(e) {
-                        console.error('Ошибка загрузки данных:', e);
+                        if (e.message !== 'Unauthorized') console.error('Ошибка загрузки данных:', e);
                     } finally {
                         this.loading = false;
                     }
@@ -426,6 +453,14 @@
                 },
             };
         }
+
+        // Defer main-content click listener until after Alpine mounts
+        document.addEventListener('alpine:init', () => {
+            const mc = document.querySelector('.main-content');
+            if (mc) mc.addEventListener('click', () => {
+                if (window.innerWidth <= 992) document.getElementById('sidebar').classList.remove('active');
+            });
+        });
     </script>
 </body>
 </html>

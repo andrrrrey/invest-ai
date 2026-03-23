@@ -234,22 +234,24 @@
     <div class="app-window">
         <aside class="sidebar" id="sidebar">
             <div class="profile-section">
-                <img src="https://ui-avatars.com/api/?name=Марк+Джонсон&background=333&color=fff" alt="Аватар" class="avatar">
+                <div style="width:90px;height:90px;border-radius:50%;border:3px solid white;margin:0 auto 15px;background:#5E5CE6;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:white" id="sidebar-avatar"></div>
                 <p>С возвращением,</p>
-                <h4>Марк Джонсон</h4>
+                <h4 id="sidebar-name">—</h4>
+                <div style="display:inline-block;background:rgba(94,92,230,0.3);color:#A8A6FF;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700;margin-top:6px" id="sidebar-role"></div>
             </div>
 
             <nav class="nav-menu">
                 <a href="/" class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
                 <a href="/project-list" class="nav-link active"><i class="fas fa-project-diagram"></i> Проекты</a>
                 <a href="/export" class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
-                <a href="/settings" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
+                <a href="/settings" class="nav-link" id="nav-settings"><i class="fas fa-cog"></i> Настройки</a>
+                <a href="/users" class="nav-link" id="nav-users" style="display:none"><i class="fas fa-users"></i> Пользователи</a>
             </nav>
 
-            <a href="#" class="nav-link" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
+            <a href="#" class="nav-link" id="sidebar-logout" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
         </aside>
 
-        <main class="main-content" x-data="projectDetailApp()" x-init="init()">
+        <main class="main-content" x-data="projectDetailApp()" x-init="init()" x-cloak>
 
             <!-- Loading state -->
             <template x-if="loading">
@@ -286,7 +288,7 @@
                                 @click="showExtraTimeModal = true">
                                 <i class="fas fa-clock"></i> Extra Time
                             </button>
-                            <button
+                            <button x-show="canDelete"
                                 style="background:#FFE5E3;border:1.5px solid #FFCCC8;color:#FF3B30;border-radius:12px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.2s;"
                                 onmouseover="this.style.background='#FF3B30';this.style.color='white'"
                                 onmouseout="this.style.background='#FFE5E3';this.style.color='#FF3B30'"
@@ -747,7 +749,7 @@
                                             </button>
                                         </div>
                                     </template>
-                                    <template x-if="project.status === 'pending_approval'">
+                                    <template x-if="project.status === 'pending_approval' && canApprove">
                                         <div style="display:flex;gap:10px">
                                             <button @click="changeStatus('approved')"
                                                 style="flex:1;padding:14px;border-radius:14px;border:none;background:#34C759;color:white;font-weight:700;cursor:pointer">
@@ -759,7 +761,7 @@
                                             </button>
                                         </div>
                                     </template>
-                                    <template x-if="project.status === 'rejected'">
+                                    <template x-if="project.status === 'rejected' && (canApprove || project.user_id === authUserId)">
                                         <button @click="changeStatus('draft')"
                                             style="padding:14px;border-radius:14px;border:1px solid #E5E5E5;background:white;font-weight:700;cursor:pointer">
                                             Вернуть в черновик
@@ -793,20 +795,30 @@
         </main>
     </div>
 
+    <script src="/js/auth.js"></script>
     <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
     <script>
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('active');
         }
 
-        document.querySelector('.main-content').addEventListener('click', () => {
-            if (window.innerWidth <= 992) {
-                document.getElementById('sidebar').classList.remove('active');
+        document.addEventListener('DOMContentLoaded', function() {
+            patchSidebar();
+            const av = document.getElementById('sidebar-avatar');
+            if (av) av.textContent = (getUserName() || '?').charAt(0).toUpperCase();
+            if (getUserRole() === 'cfo') {
+                const nu = document.getElementById('nav-users');
+                if (nu) nu.style.display = '';
+            }
+            if (getUserRole() !== 'cfo') {
+                const ns = document.getElementById('nav-settings');
+                if (ns) ns.style.display = 'none';
             }
         });
 
         function projectDetailApp() {
             return {
+                ...authMixin(),
                 project: null,
                 loading: true,
                 aiAnalysis: null,
@@ -827,13 +839,14 @@
                 },
 
                 async init() {
+                    if (!redirectIfNotLoggedIn()) return;
                     const id = new URLSearchParams(location.search).get('id');
                     if (!id) { this.loading = false; return; }
                     try {
-                        const res = await fetch('/api/v1/projects/' + id);
+                        const res = await authFetch('/api/v1/projects/' + id);
                         if (res.ok) this.project = await res.json();
                     } catch(e) {
-                        console.error(e);
+                        if (e.message !== 'Unauthorized') console.error(e);
                     } finally {
                         this.loading = false;
                     }
@@ -900,9 +913,8 @@
                     if (!this.project) return;
                     this.aiLoading = true;
                     try {
-                        const res = await fetch('/api/v1/ai/analyze', {
+                        const res = await authFetch('/api/v1/ai/analyze', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ project: this.project, metrics: this.metrics }),
                         });
                         if (res.ok) this.aiAnalysis = await res.json();
@@ -916,9 +928,8 @@
 
                 async changeStatus(newStatus) {
                     try {
-                        const res = await fetch('/api/v1/projects/' + this.project.id + '/status', {
+                        const res = await authFetch('/api/v1/projects/' + this.project.id + '/status', {
                             method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ status: newStatus }),
                         });
                         if (res.ok) {
@@ -926,12 +937,15 @@
                             this.statusMsg = 'Статус обновлён';
                             this.statusMsgType = 'ok';
                         } else {
-                            this.statusMsg = 'Ошибка обновления статуса';
+                            const err = await res.json().catch(() => ({}));
+                            this.statusMsg = err.detail || 'Ошибка обновления статуса';
                             this.statusMsgType = 'err';
                         }
                     } catch(e) {
-                        this.statusMsg = 'Ошибка соединения';
-                        this.statusMsgType = 'err';
+                        if (e.message !== 'Unauthorized') {
+                            this.statusMsg = 'Ошибка соединения';
+                            this.statusMsgType = 'err';
+                        }
                     }
                     setTimeout(() => { this.statusMsg = ''; }, 3000);
                 },
@@ -940,7 +954,7 @@
                     if (!this.project) return;
                     if (!confirm(`Удалить проект «${this.project.name || 'без названия'}»? Это действие нельзя отменить.`)) return;
                     try {
-                        const res = await fetch('/api/v1/projects/' + this.project.id, { method: 'DELETE' });
+                        const res = await authFetch('/api/v1/projects/' + this.project.id, { method: 'DELETE' });
                         if (res.ok || res.status === 204) {
                             window.location.href = '/project-list';
                         } else {
