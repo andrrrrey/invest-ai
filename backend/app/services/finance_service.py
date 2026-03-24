@@ -227,8 +227,9 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
     all_churn = [churn_table[y][q] for y in range(ny) for q in range(4)]
     avg_churn = float(np.mean(all_churn)) if all_churn else 0.0
 
-    # ── 1.2.11  Lifetime ─────────────────────────────────────────────────────
-    lifetime_years = (-1.0 / avg_churn / 4) if avg_churn != 0 else 0.0
+    # ── 1.2.11  Lifetime = 1 / |avgChurn| / 4  (always positive)
+    #           avg_churn is negative (e.g. -0.10 = 10% churn); if zero, use project horizon as fallback
+    lifetime_years = (1.0 / abs(avg_churn) / 4) if avg_churn != 0 else float(ny)
 
     # ── 1.2.12  LTV = ARPU × lifetimeYears × grossMargin ───────────────────
     # grossMargin = 1 - COGS% - Support%

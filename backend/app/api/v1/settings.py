@@ -12,6 +12,7 @@ AI_MODEL = "gpt-4.1"
 
 class SettingsUpdate(BaseModel):
     openai_api_key: Optional[str] = None
+    investment_budget: Optional[float] = None
 
 
 @router.get("/")
@@ -26,6 +27,7 @@ def get_settings(_=Depends(require_cfo)) -> dict:
         "openai_api_key_set": bool(key),
         "openai_api_key_masked": masked,
         "ai_model": AI_MODEL,
+        "investment_budget": settings_store.get_investment_budget(),
     }
 
 
@@ -34,6 +36,8 @@ def update_settings(body: SettingsUpdate, _=Depends(require_cfo)) -> dict:
     """Save new settings. CFO only."""
     if body.openai_api_key is not None:
         settings_store.set_openai_key(body.openai_api_key)
+    if body.investment_budget is not None:
+        settings_store.set_investment_budget(body.investment_budget)
     return {"success": True}
 
 

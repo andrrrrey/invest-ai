@@ -40,5 +40,15 @@ def set_openai_key(key: str) -> None:
     _save(data)
 
 
+def get_investment_budget() -> float | None:
+    return _load().get("investment_budget") or None
+
+
+def set_investment_budget(budget: float) -> None:
+    data = _load()
+    data["investment_budget"] = budget
+    _save(data)
+
+
 def get_all() -> dict:
     return _load()

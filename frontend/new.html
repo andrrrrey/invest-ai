@@ -790,6 +790,67 @@
                         </div>
                     </div>
 
+                    <!-- Экстра тайм (опционально, без веса) -->
+                    <div class="subsection">
+                        <h3>Экстра тайм <span style="font-size:11px;font-weight:400;color:var(--muted)">(опционально — без веса, передаётся как фактура в AI Risk Score)</span></h3>
+
+                        <!-- Экстра тайм: Продукт -->
+                        <div style="border:1px solid #EBEBF2;border-radius:12px;padding:14px;background:#FAFAFA;margin-bottom:10px">
+                            <p style="font-size:13px;font-weight:700;margin-bottom:8px">Экстра тайм — Продукт</p>
+                            <p class="hint" style="margin-bottom:10px">Формула: экстра тайм = сэкономленное время × число задач × активные пользователи</p>
+                            <div class="grid-3">
+                                <div class="field">
+                                    <label>Сэкономленное время (ч/задача)</label>
+                                    <input type="number" x-model.number="form.et_product_saved_time" min="0" step="0.1" placeholder="0">
+                                </div>
+                                <div class="field">
+                                    <label>Число задач в месяц</label>
+                                    <input type="number" x-model.number="form.et_product_num_tasks" min="0" step="1" placeholder="0">
+                                </div>
+                                <div class="field">
+                                    <label>Активные пользователи</label>
+                                    <input type="number" x-model.number="form.et_product_active_users" min="0" step="1" placeholder="0">
+                                </div>
+                            </div>
+                            <template x-if="form.et_product_saved_time > 0 && form.et_product_num_tasks > 0 && form.et_product_active_users > 0">
+                                <p style="margin-top:8px;font-size:13px;font-weight:600;color:var(--accent)">
+                                    Результат: <span x-text="new Intl.NumberFormat('ru-RU').format(Math.round(form.et_product_saved_time * form.et_product_num_tasks * form.et_product_active_users))"></span> ч/мес
+                                </p>
+                            </template>
+                        </div>
+
+                        <!-- Экстра тайм: Операционка -->
+                        <div style="border:1px solid #EBEBF2;border-radius:12px;padding:14px;background:#FAFAFA">
+                            <p style="font-size:13px;font-weight:700;margin-bottom:8px">Экстра тайм — Операционные затраты</p>
+                            <p class="hint" style="margin-bottom:10px">Формула: экономия = (время до − время после) × кол-во повторений в месяц × ставка специалиста (₽/ч)</p>
+                            <div class="grid-2">
+                                <div class="field">
+                                    <label>Время до (ч/задача)</label>
+                                    <input type="number" x-model.number="form.et_ops_time_before" min="0" step="0.1" placeholder="0">
+                                </div>
+                                <div class="field">
+                                    <label>Время после (ч/задача)</label>
+                                    <input type="number" x-model.number="form.et_ops_time_after" min="0" step="0.1" placeholder="0">
+                                </div>
+                                <div class="field">
+                                    <label>Кол-во повторений в месяц</label>
+                                    <input type="number" x-model.number="form.et_ops_repetitions" min="0" step="1" placeholder="0">
+                                </div>
+                                <div class="field">
+                                    <label>Ставка специалиста (₽/ч)</label>
+                                    <input type="number" x-model.number="form.et_ops_rate" min="0" step="100" placeholder="0">
+                                </div>
+                            </div>
+                            <template x-if="form.et_ops_time_before > 0 && form.et_ops_repetitions > 0 && form.et_ops_rate > 0">
+                                <p style="margin-top:8px;font-size:13px;font-weight:600;color:var(--accent)">
+                                    Экономия:
+                                    <span x-text="Finance.fmtShort(Math.round((form.et_ops_time_before - (form.et_ops_time_after||0)) * form.et_ops_repetitions * form.et_ops_rate))"></span> /мес
+                                    (<span x-text="new Intl.NumberFormat('ru-RU').format(Math.round((form.et_ops_time_before - (form.et_ops_time_after||0)) * form.et_ops_repetitions))"></span> ч/мес)
+                                </p>
+                            </template>
+                        </div>
+                    </div>
+
                     <!-- Результат Value Score -->
                     <template x-if="form.vs_total !== null">
                         <div class="subsection" :style="'border-color:' + vsBandColor() + ';background:' + vsBandBg()">
@@ -1325,16 +1386,28 @@
                     <div class="field"><label>Начальные инвестиции / CAPEX (₽)</label>
                         <input type="number" x-model.number="form.initialInvestment" placeholder="-1200000">
                     </div>
-                    <div class="field"><label>NWC — чистый оборотный капитал (₽)</label>
-                        <input type="number" x-model.number="form.nwc" placeholder="0">
+                    <div class="field">
+                        <label>NWC — чистый оборотный капитал (₽)
+                            <span style="font-size:11px;font-weight:400;color:var(--muted)"> — рассчитывается автоматически</span>
+                        </label>
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <input type="text" readonly x-show="!form.nwcManual"
+                                :value="Finance.fmtShort(metrics.nwcCalc)"
+                                style="background:#F7F7FB;color:var(--muted)">
+                            <input type="number" x-show="form.nwcManual" x-model.number="form.nwc" placeholder="0">
+                            <button @click="form.nwcManual = !form.nwcManual; if(!form.nwcManual) form.nwc = ''"
+                                style="white-space:nowrap;padding:8px 12px;border-radius:10px;border:1.5px solid #EBEBF2;background:white;font-size:12px;font-weight:600;cursor:pointer;color:var(--accent)"
+                                x-text="form.nwcManual ? 'Авто' : 'Изменить'"></button>
+                        </div>
+                        <p class="hint" style="margin-top:4px" x-show="form.nwcManual">Ручное значение. Нажмите «Авто» для возврата к расчётному.</p>
                     </div>
                     <div class="field"><label>Итого год 0 (NCF₀)</label>
                         <input type="text" readonly
-                            :value="Finance.fmtShort(+form.initialInvestment + +form.nwc)">
+                            :value="Finance.fmtShort(+form.initialInvestment + (form.nwcManual && form.nwc !== '' ? +form.nwc : metrics.nwcCalc))">
                     </div>
                 </div>
                 <p class="hint">
-                    Расчётный NWC (сумма отрицательных операционных лет):
+                    Расчётный NWC = сумма отрицательных операционных денежных потоков до первого положительного года:
                     <strong x-text="Finance.fmtShort(metrics.nwcCalc)"></strong>
                 </p>
             </div>
@@ -1488,39 +1561,31 @@
 
                             <!-- Risk scores by type -->
                             <div class="subsection">
-                                <h3>Риски по категориям (1-5)
-                                    <span style="position:relative;display:inline-block;margin-left:8px;vertical-align:middle" class="risk-scale-help">
-                                        <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#E5E5EA;color:#8E8E93;font-size:11px;font-weight:700;cursor:default">?</span>
-                                        <span class="risk-scale-tooltip">
-                                            <strong>Шкала оценки риска:</strong><br>
-                                            1 — Низкий риск<br>
-                                            2 — Незначительный риск<br>
-                                            3 — Средний риск<br>
-                                            4 — Высокий риск<br>
-                                            5 — Критический риск
-                                        </span>
-                                    </span>
-                                </h3>
+                                <h3>Риски по категориям (1-5)</h3>
                                 <div class="metric-grid">
                                     <div class="metric-card">
                                         <div class="k">Риск исполнения</div>
                                         <div class="v" :class="(riskScoreData.risk_scores?.execution_risk||0)>=4?'neg':(riskScoreData.risk_scores?.execution_risk||0)<=2?'pos':'acc'"
                                              x-text="riskScoreData.risk_scores?.execution_risk || '—'"></div>
+                                        <div style="font-size:11px;color:var(--muted);margin-top:2px" x-text="riskLabel(riskScoreData.risk_scores?.execution_risk)"></div>
                                     </div>
                                     <div class="metric-card">
                                         <div class="k">Рыночный риск</div>
                                         <div class="v" :class="(riskScoreData.risk_scores?.market_risk||0)>=4?'neg':(riskScoreData.risk_scores?.market_risk||0)<=2?'pos':'acc'"
                                              x-text="riskScoreData.risk_scores?.market_risk || '—'"></div>
+                                        <div style="font-size:11px;color:var(--muted);margin-top:2px" x-text="riskLabel(riskScoreData.risk_scores?.market_risk)"></div>
                                     </div>
                                     <div class="metric-card">
                                         <div class="k">Финансовый риск</div>
                                         <div class="v" :class="(riskScoreData.risk_scores?.financial_risk||0)>=4?'neg':(riskScoreData.risk_scores?.financial_risk||0)<=2?'pos':'acc'"
                                              x-text="riskScoreData.risk_scores?.financial_risk || '—'"></div>
+                                        <div style="font-size:11px;color:var(--muted);margin-top:2px" x-text="riskLabel(riskScoreData.risk_scores?.financial_risk)"></div>
                                     </div>
                                     <div class="metric-card">
                                         <div class="k">Стратегический риск</div>
                                         <div class="v" :class="(riskScoreData.risk_scores?.strategic_risk||0)>=4?'neg':(riskScoreData.risk_scores?.strategic_risk||0)<=2?'pos':'acc'"
                                              x-text="riskScoreData.risk_scores?.strategic_risk || '—'"></div>
+                                        <div style="font-size:11px;color:var(--muted);margin-top:2px" x-text="riskLabel(riskScoreData.risk_scores?.strategic_risk)"></div>
                                     </div>
                                 </div>
                             </div>
@@ -1717,7 +1782,7 @@
                             <p><strong>Категория:</strong> <span x-text="form.op_category||'—'"></span></p>
                             <p><strong>МВЗ:</strong> <span x-text="[form.op_mvz_main, form.op_mvz_sub1, form.op_mvz_sub2].filter(Boolean).join(' / ') || '—'"></span></p>
                             <p><strong>Тип:</strong> <span x-text="form.op_investment_type||'—'"></span></p>
-                            <p><strong>Value Drivers:</strong> <span x-text="form.op_value_drivers.join(', ')||'—'"></span></p>
+                            <p><strong>Value Drivers:</strong> <span x-text="form.op_value_drivers.map(d => d === '__other__' ? (form.op_value_drivers_other || 'other') : d).join(', ') || '—'"></span></p>
                             <p><strong>Метрика:</strong> <span x-text="(form.op_metrics === '__custom__' ? (form.op_metrics_custom || '—') : form.op_metrics) || '—'"></span></p>
                             <p style="margin-top:8px"><strong>Тезис:</strong></p>
                             <p x-text="form.op_investment_thesis ? form.op_investment_thesis.slice(0,200) + (form.op_investment_thesis.length>200?'…':'') : '—'"></p>
@@ -1739,18 +1804,25 @@
                                 <p style="margin-top:8px;font-size:12px" :style="'color:' + vsBandColor();font-weight:700" x-text="vsBandLabel()"></p>
                             </article>
                             <template x-if="riskScoreData">
-                                <article class="summary-card ai">
+                                <article class="summary-card ai" x-data="{ riskExpanded: false }">
                                     <h4>Risk Score:
                                         <span class="risk-badge" :class="'risk-' + riskScoreData.overall_risk"
                                               x-text="riskScoreData.overall_risk"></span>
                                     </h4>
                                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;font-size:12px">
-                                        <span>Исполнение:</span><strong x-text="riskScoreData.risk_scores?.execution_risk||'—'"></strong>
-                                        <span>Рынок:</span><strong x-text="riskScoreData.risk_scores?.market_risk||'—'"></strong>
-                                        <span>Финансы:</span><strong x-text="riskScoreData.risk_scores?.financial_risk||'—'"></strong>
-                                        <span>Стратегия:</span><strong x-text="riskScoreData.risk_scores?.strategic_risk||'—'"></strong>
+                                        <span>Исполнение:</span><strong x-text="(riskScoreData.risk_scores?.execution_risk||'—') + ' — ' + riskLabel(riskScoreData.risk_scores?.execution_risk)"></strong>
+                                        <span>Рынок:</span><strong x-text="(riskScoreData.risk_scores?.market_risk||'—') + ' — ' + riskLabel(riskScoreData.risk_scores?.market_risk)"></strong>
+                                        <span>Финансы:</span><strong x-text="(riskScoreData.risk_scores?.financial_risk||'—') + ' — ' + riskLabel(riskScoreData.risk_scores?.financial_risk)"></strong>
+                                        <span>Стратегия:</span><strong x-text="(riskScoreData.risk_scores?.strategic_risk||'—') + ' — ' + riskLabel(riskScoreData.risk_scores?.strategic_risk)"></strong>
                                     </div>
-                                    <p style="margin-top:8px;font-size:12px" x-text="riskScoreData.commentary?.slice(0,120)+'…'"></p>
+                                    <div style="margin-top:8px;font-size:12px">
+                                        <p x-text="riskExpanded ? riskScoreData.commentary : (riskScoreData.commentary?.slice(0,120) + (riskScoreData.commentary?.length > 120 ? '…' : ''))"></p>
+                                        <template x-if="riskScoreData.commentary?.length > 120">
+                                            <button @click="riskExpanded = !riskExpanded"
+                                                style="margin-top:4px;background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:0;font-weight:600"
+                                                x-text="riskExpanded ? 'Свернуть ▲' : 'Читать далее ▼'"></button>
+                                        </template>
+                                    </div>
                                 </article>
                             </template>
                             <template x-if="!riskScoreData">
@@ -2023,6 +2095,15 @@ function wizardApp() {
             vs_total: null,
             vs_band: null,
 
+            // ── Экстра тайм ───────────────────────────────────────────────
+            et_product_saved_time: null,
+            et_product_num_tasks: null,
+            et_product_active_users: null,
+            et_ops_time_before: null,
+            et_ops_time_after: null,
+            et_ops_repetitions: null,
+            et_ops_rate: null,
+
             // Revenue model
             revenueModel: 'subscription',
             granularity: 'quarter',
@@ -2058,8 +2139,8 @@ function wizardApp() {
             // Discount
             keyRate: 10, riskPremium: 3,
 
-            // Zero period
-            initialInvestment: -1200000, nwc: 0,
+            // Zero period (NWC is auto-calculated; nwcManual=true enables override)
+            initialInvestment: -1200000, nwc: '', nwcManual: false,
         },
 
         // ── Lifecycle ──────────────────────────────────────────────────────
@@ -2100,7 +2181,18 @@ function wizardApp() {
                 this.projectId = p.id;
                 // financial_model contains all form fields (stored as { ...this.form })
                 if (p.financial_model && typeof p.financial_model === 'object') {
+                    // Save MVZ values before assign to restore them after Alpine re-renders
+                    const mvzMain = p.financial_model.op_mvz_main || '';
+                    const mvzSub1 = p.financial_model.op_mvz_sub1 || '';
+                    const mvzSub2 = p.financial_model.op_mvz_sub2 || '';
                     Object.assign(this.form, p.financial_model);
+                    // Restore MVZ cascade after DOM updates (prevents cascade @change from clearing values)
+                    await this.$nextTick();
+                    this.form.op_mvz_main = mvzMain;
+                    await this.$nextTick();
+                    this.form.op_mvz_sub1 = mvzSub1;
+                    await this.$nextTick();
+                    this.form.op_mvz_sub2 = mvzSub2;
                 }
                 // Override with top-level fields (authoritative source for display fields)
                 if (p.project_type) this.form.projectType = p.project_type;
@@ -2383,6 +2475,12 @@ function wizardApp() {
             this._toast('Value Score: ' + total + '/50 — ' + this.vsBandLabel(), 'success');
         },
 
+        // ── Risk scale label ────────────────────────────────────────────
+        riskLabel(score) {
+            const labels = { 1: 'Низкий', 2: 'Незначительный', 3: 'Средний', 4: 'Высокий', 5: 'Критический' };
+            return labels[score] || '';
+        },
+
         // ── Value Score display helpers ─────────────────────────────────
         vsBandColor() {
             const b = this.form.vs_band;
@@ -2567,6 +2665,22 @@ function wizardApp() {
                         unit_economics: this.form.vs_unit_economics,
                         total: this.form.vs_total,
                         band: this.form.vs_band,
+                    },
+                    extra_time: {
+                        product: (this.form.et_product_saved_time && this.form.et_product_num_tasks && this.form.et_product_active_users) ? {
+                            saved_time_h: this.form.et_product_saved_time,
+                            num_tasks: this.form.et_product_num_tasks,
+                            active_users: this.form.et_product_active_users,
+                            result_h_per_month: Math.round(this.form.et_product_saved_time * this.form.et_product_num_tasks * this.form.et_product_active_users),
+                        } : null,
+                        ops: (this.form.et_ops_time_before && this.form.et_ops_repetitions && this.form.et_ops_rate) ? {
+                            time_before_h: this.form.et_ops_time_before,
+                            time_after_h: this.form.et_ops_time_after || 0,
+                            repetitions_per_month: this.form.et_ops_repetitions,
+                            specialist_rate_rub: this.form.et_ops_rate,
+                            savings_rub_per_month: Math.round((this.form.et_ops_time_before - (this.form.et_ops_time_after || 0)) * this.form.et_ops_repetitions * this.form.et_ops_rate),
+                            savings_h_per_month: Math.round((this.form.et_ops_time_before - (this.form.et_ops_time_after || 0)) * this.form.et_ops_repetitions),
+                        } : null,
                     },
                 };
                 const res = await authFetch('/api/v1/ai/generate-risk-score', {

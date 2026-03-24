@@ -282,9 +282,9 @@
                     <div class="value" x-text="loading ? '...' : (stats.high_risk_count + ' проек' + (stats.high_risk_count === 1 ? 'т' : stats.high_risk_count < 5 ? 'та' : 'тов'))"></div>
                 </div>
                 <div class="kpi-card card-5">
-                    <div class="label">Черновики / Отклонены</div>
-                    <div class="value" x-text="loading ? '...' : ((stats.by_status?.draft || 0) + ' / ' + (stats.by_status?.rejected || 0))"></div>
-                    <p style="font-size: 11px; opacity: 0.9;">Требуют внимания</p>
+                    <div class="label">Всего доступно для инвестиций</div>
+                    <div class="value" x-text="loading ? '...' : (stats.available_for_investment != null ? availableFormatted : 'Не задан')"></div>
+                    <p style="font-size: 11px; opacity: 0.9;" x-text="stats.investment_budget != null ? ('Бюджет: ' + budgetFormatted) : 'Задайте бюджет в настройках'"></p>
                 </div>
             </section>
 
@@ -411,6 +411,21 @@
                     if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1) + ' млн ₽';
                     if (Math.abs(n) >= 1e3) return Math.round(n / 1e3) + ' тыс ₽';
                     return Math.round(n) + ' ₽';
+                },
+
+                _fmtBudget(n) {
+                    if (n == null) return '—';
+                    if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1) + ' млн ₽';
+                    if (Math.abs(n) >= 1e3) return Math.round(n / 1e3) + ' тыс ₽';
+                    return Math.round(n) + ' ₽';
+                },
+
+                get availableFormatted() {
+                    return this._fmtBudget(this.stats.available_for_investment);
+                },
+
+                get budgetFormatted() {
+                    return this._fmtBudget(this.stats.investment_budget);
                 },
 
                 showAllProjects: false,

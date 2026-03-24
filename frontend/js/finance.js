@@ -153,19 +153,27 @@ const Finance = {
       Object.values(annualCostsByCat).reduce((s, a) => s + a[y], 0)
     );
 
-    // 1.1.9  Net cash flow (year 0 = initialInvestment + nwc)
-    const zeroPeriod  = (+form.initialInvestment || 0) + (+form.nwc || 0);
-    const netCashFlow = [zeroPeriod, ...Array.from({ length: ny }, (_, y) =>
+    // 1.1.9  Operating cash flows per year (year 1..N, independent of year 0)
+    const operatingCF = Array.from({ length: ny }, (_, y) =>
       annualRevenue[y] + totalCosts[y]
-    )];
+    );
 
-    // 1.1.10  Calculated NWC (sum of consecutive negative operating years from year 1
-    //         until the first year where revenue - costs >= 0)
+    // 1.1.10  Calculated NWC = sum of consecutive negative operating years from year 1
+    //         until the first year where operating CF >= 0
     let nwcCalc = 0;
-    for (let i = 1; i < netCashFlow.length; i++) {
-      if (netCashFlow[i] < 0) nwcCalc += netCashFlow[i];
+    for (let i = 0; i < operatingCF.length; i++) {
+      if (operatingCF[i] < 0) nwcCalc += operatingCF[i];
       else break;
     }
+
+    // Effective NWC: use manual override if explicitly provided, otherwise use auto-calculated
+    const effectiveNwc = (form.nwcManual === true && form.nwc !== '' && form.nwc !== null && form.nwc !== undefined)
+      ? (+form.nwc || 0)
+      : nwcCalc;
+
+    // Net cash flow array: year 0 = CAPEX + effective NWC
+    const zeroPeriod  = (+form.initialInvestment || 0) + effectiveNwc;
+    const netCashFlow = [zeroPeriod, ...operatingCF];
 
     // 1.2.1  Discount factors (annual)
     const discountRate = ((+form.keyRate || 0) + (+form.riskPremium || 0)) / 100;
@@ -228,8 +236,9 @@ const Finance = {
     const allChurn  = churnTable.flat();
     const avgChurn  = allChurn.reduce((a, b) => a + b, 0) / (allChurn.length || 1);
 
-    // 1.2.11  Lifetime = -1 / avgChurn / 4
-    const lifetimeYears = avgChurn !== 0 ? -1 / avgChurn / 4 : 0;
+    // 1.2.11  Lifetime = 1 / |avgChurn| / 4  (quarters to years, always positive)
+    //         avgChurn is negative (e.g. -0.10 = 10% churn), so we take absolute value
+    const lifetimeYears = avgChurn !== 0 ? 1 / Math.abs(avgChurn) / 4 : ny; // fallback to project horizon if no churn
 
     // 1.2.12  LTV = ARPU × lifetimeYears × grossMargin
     let grossMargin = 1;

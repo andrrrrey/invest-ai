@@ -275,6 +275,27 @@
                 </template>
             </div>
 
+            <!-- Investment Budget card -->
+            <div class="settings-card">
+                <h2><i class="fas fa-piggy-bank"></i> Инвестиционный бюджет</h2>
+                <p class="desc">
+                    Укажите общую сумму средств, доступных для инвестирования. На дашборде будет отображаться остаток после вычета согласованных проектов.
+                </p>
+                <div class="field">
+                    <label>Всего доступно для инвестиций (₽)</label>
+                    <input type="number" x-model.number="investmentBudget" min="0" step="100000" placeholder="Например: 50000000">
+                    <template x-if="investmentBudget">
+                        <p class="hint" style="margin-top:4px">
+                            = <span x-text="investmentBudget >= 1e6 ? (investmentBudget/1e6).toFixed(1) + ' млн ₽' : investmentBudget >= 1e3 ? Math.round(investmentBudget/1e3) + ' тыс ₽' : investmentBudget + ' ₽'"></span>
+                        </p>
+                    </template>
+                </div>
+                <button class="btn btn-primary" @click="saveBudget()" :disabled="savingBudget" style="margin-top:8px">
+                    <i class="fas" :class="savingBudget ? 'fa-spinner spin' : 'fa-save'"></i>
+                    <span x-text="savingBudget ? 'Сохраняем...' : 'Сохранить бюджет'"></span>
+                </button>
+            </div>
+
             <!-- AI Model info -->
             <div class="settings-card">
                 <h2><i class="fas fa-microchip"></i> Используемая модель</h2>
@@ -367,6 +388,8 @@
             apiKey: '',
             showKey: false,
             testResult: null,
+            investmentBudget: '',
+            savingBudget: false,
 
             async init() {
                 if (!redirectIfNotLoggedIn()) return;
@@ -381,11 +404,30 @@
                         const data = await res.json();
                         this.apiKeySet = data.openai_api_key_set;
                         this.maskedKey = data.openai_api_key_masked;
+                        this.investmentBudget = data.investment_budget != null ? data.investment_budget : '';
                     }
                 } catch(e) {
                     if (e.message !== 'Unauthorized') console.error(e);
                 } finally {
                     this.loading = false;
+                }
+            },
+
+            async saveBudget() {
+                const val = parseFloat(this.investmentBudget);
+                if (isNaN(val) || val < 0) { this._toast('Введите корректную сумму', 'error'); return; }
+                this.savingBudget = true;
+                try {
+                    const res = await authFetch('/api/v1/settings/', {
+                        method: 'POST',
+                        body: JSON.stringify({ investment_budget: val }),
+                    });
+                    if (!res.ok) throw new Error(await res.text());
+                    this._toast('Инвестиционный бюджет сохранён', 'success');
+                } catch(e) {
+                    this._toast('Ошибка: ' + e.message, 'error');
+                } finally {
+                    this.savingBudget = false;
                 }
             },
 
