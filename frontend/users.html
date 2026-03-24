@@ -175,7 +175,7 @@
             <nav class="nav-menu">
                 <a href="/" class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
                 <a href="/project-list" class="nav-link"><i class="fas fa-project-diagram"></i> Проекты</a>
-                <a href="/export" class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
+                <a href="/export" class="nav-link" id="nav-export"><i class="fas fa-chart-bar"></i> Отчетность</a>
                 <a href="/settings" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
                 <a href="/users" class="nav-link active"><i class="fas fa-users"></i> Пользователи</a>
             </nav>
@@ -317,6 +317,10 @@
             patchSidebar();
             const av = document.getElementById('sidebar-avatar');
             if (av) av.textContent = (getUserName() || '?').charAt(0).toUpperCase();
+            if (getUserRole() === 'owner') {
+                const ne = document.getElementById('nav-export');
+                if (ne) ne.style.display = 'none';
+            }
         });
 
         function usersApp() {

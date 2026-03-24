@@ -243,7 +243,7 @@
             <nav class="nav-menu">
                 <a href="/" class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
                 <a href="/project-list" class="nav-link active"><i class="fas fa-project-diagram"></i> Проекты</a>
-                <a href="/export" class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
+                <a href="/export" class="nav-link" id="nav-export"><i class="fas fa-chart-bar"></i> Отчетность</a>
                 <a href="/settings" class="nav-link" id="nav-settings"><i class="fas fa-cog"></i> Настройки</a>
                 <a href="/users" class="nav-link" id="nav-users" style="display:none"><i class="fas fa-users"></i> Пользователи</a>
             </nav>
@@ -813,6 +813,10 @@
             if (getUserRole() !== 'cfo') {
                 const ns = document.getElementById('nav-settings');
                 if (ns) ns.style.display = 'none';
+            }
+            if (getUserRole() === 'owner') {
+                const ne = document.getElementById('nav-export');
+                if (ne) ne.style.display = 'none';
             }
         });
 
