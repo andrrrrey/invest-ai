@@ -5,6 +5,7 @@ from ...database import get_db
 from ...models.project import Project
 from ...models.user import User
 from ...auth import get_current_user
+from ... import settings_store
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
@@ -55,6 +56,19 @@ def get_stats(
 
     avg_irr = round(sum(irr_values) / len(irr_values), 2) if irr_values else None
 
+    # Investment budget and approved amount
+    investment_budget = settings_store.get_investment_budget()
+    approved_investment = 0.0
+    for p in projects:
+        if p.status == "approved":
+            fm = p.financial_model or {}
+            try:
+                capex = abs(float(fm.get("initialInvestment") or 0))
+                approved_investment += capex
+            except (TypeError, ValueError):
+                pass
+    available_for_investment = (investment_budget - approved_investment) if investment_budget is not None else None
+
     return {
         "total": len(projects),
         "by_status": by_status,
@@ -62,4 +76,7 @@ def get_stats(
         "total_npv": round(total_npv, 2),
         "avg_irr": avg_irr,
         "high_risk_count": high_risk_count,
+        "investment_budget": investment_budget,
+        "approved_investment": round(approved_investment, 2),
+        "available_for_investment": round(available_for_investment, 2) if available_for_investment is not None else None,
     }

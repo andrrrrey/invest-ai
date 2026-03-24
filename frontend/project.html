@@ -538,7 +538,7 @@
                                     <template x-if="fm.op_value_drivers?.length">
                                         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px">
                                             <template x-for="d in fm.op_value_drivers" :key="d">
-                                                <span style="background:#F0EFFF;color:var(--accent-purple);padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600" x-text="d"></span>
+                                                <span style="background:#F0EFFF;color:var(--accent-purple);padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600" x-text="d === '__other__' ? (fm.op_value_drivers_other || 'other') : d"></span>
                                             </template>
                                         </div>
                                     </template>
