@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     SEED_CFO_EMAIL: str = "cfo@example.com"
     SEED_CFO_PASSWORD: str = "changeme123"
     SEED_CFO_NAME: str = "CFO"
+    # SMTP email settings for sending registration passwords
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM: str = "noreply@invest-ai.local"
 
     class Config:
         env_file = ".env"

@@ -50,5 +50,16 @@ def set_investment_budget(budget: float) -> None:
     _save(data)
 
 
+def get_registration_domain() -> str | None:
+    """Return the allowed email domain for self-registration."""
+    return _load().get("registration_domain") or None
+
+
+def set_registration_domain(domain: str) -> None:
+    data = _load()
+    data["registration_domain"] = domain.strip().lstrip("@").lower()
+    _save(data)
+
+
 def get_all() -> dict:
     return _load()

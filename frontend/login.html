@@ -133,6 +133,21 @@
         }
 
         .error-msg.visible { display: block; }
+
+        .register-link {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #8E8E93;
+        }
+
+        .register-link a {
+            color: #5E5CE6;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .register-link a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -166,6 +181,10 @@
 
             <div class="error-msg" id="errorMsg"></div>
         </form>
+
+        <div class="register-link">
+            Нет аккаунта? <a href="/register.html">Зарегистрироваться</a>
+        </div>
     </div>
 
     <script src="/js/auth.js"></script>
