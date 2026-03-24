@@ -293,6 +293,7 @@
 
                 async init() {
                     if (!redirectIfNotLoggedIn()) return;
+                    if (getUserRole() === 'owner') { window.location.href = '/'; return; }
                     try {
                         const res = await authFetch('/api/v1/projects/');
                         if (res.ok) this.projects = await res.json();

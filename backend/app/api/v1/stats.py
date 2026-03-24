@@ -79,4 +79,5 @@ def get_stats(
         "investment_budget": investment_budget,
         "approved_investment": round(approved_investment, 2),
         "available_for_investment": round(available_for_investment, 2) if available_for_investment is not None else None,
+        "ai_active": bool(settings_store.get_openai_key()),
     }

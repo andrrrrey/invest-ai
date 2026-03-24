@@ -256,7 +256,7 @@
                         <span class="dot" :style="aiActive ? '' : 'background:#FF9500;box-shadow:0 0 10px #FF9500'"></span>
                         <span x-text="aiActive ? 'GPT-4.1 активен' : 'AI не настроен'"></span>
                     </div>
-                    <button class="btn btn-outline" onclick="window.location.href='/export'">Экспорт отчёта</button>
+                    <button x-show="!isOwner" class="btn btn-outline" onclick="window.location.href='/export'">Экспорт отчёта</button>
                     <button x-show="canCreate" class="btn btn-primary" onclick="window.location.href='/new'">Создать проект</button>
                 </div>
             </header>
@@ -381,19 +381,11 @@
                             authFetch('/api/v1/stats/'),
                             authFetch('/api/v1/projects/'),
                         ]);
-                        if (statsRes.ok) this.stats = await statsRes.json();
-                        if (projRes.ok) this.projects = await projRes.json();
-
-                        // Check AI status — only CFO can access settings, so we try quietly
-                        if (this.isCfo) {
-                            const settingsRes = await authFetch('/api/v1/settings/').catch(() => null);
-                            if (settingsRes && settingsRes.ok) {
-                                const s = await settingsRes.json();
-                                this.aiActive = s.openai_api_key_set;
-                            }
-                        } else {
-                            this.aiActive = false;
+                        if (statsRes.ok) {
+                            this.stats = await statsRes.json();
+                            this.aiActive = this.stats.ai_active || false;
                         }
+                        if (projRes.ok) this.projects = await projRes.json();
                     } catch(e) {
                         if (e.message !== 'Unauthorized') console.error('Ошибка загрузки данных:', e);
                     } finally {
