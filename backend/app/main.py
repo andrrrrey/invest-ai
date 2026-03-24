@@ -7,6 +7,8 @@ from .config import settings
 from .database import init_db
 from .api.v1 import projects, finance, ai, stats
 from .api.v1 import settings as settings_router
+from .api.v1 import auth as auth_router
+from .api.v1 import users as users_router
 
 app = FastAPI(
     title="Инвестиционный процессор",
@@ -23,6 +25,8 @@ app.add_middleware(
 )
 
 # API routes
+app.include_router(auth_router.router, prefix="/api/v1")
+app.include_router(users_router.router, prefix="/api/v1")
 app.include_router(projects.router, prefix="/api/v1")
 app.include_router(finance.router, prefix="/api/v1")
 app.include_router(ai.router, prefix="/api/v1")

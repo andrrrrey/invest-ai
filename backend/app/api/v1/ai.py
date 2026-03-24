@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional, Any
 from ...services import ai_service
 from ... import settings_store
+from ...auth import get_current_user
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -38,8 +39,7 @@ def _check_api_key():
 
 
 @router.post("/generate-description")
-def generate_description(req: DescriptionRequest) -> dict:
-    """Generate project description using OpenAI GPT-4o."""
+def generate_description(req: DescriptionRequest, _=Depends(get_current_user)) -> dict:
     _check_api_key()
     text = ai_service.generate_description(
         project_name=req.project_name,
@@ -51,27 +51,23 @@ def generate_description(req: DescriptionRequest) -> dict:
 
 
 @router.post("/generate-risks")
-def generate_risks(req: RisksRequest) -> dict:
-    """Generate risks and assumptions using OpenAI GPT-4o."""
+def generate_risks(req: RisksRequest, _=Depends(get_current_user)) -> dict:
     _check_api_key()
-    result = ai_service.generate_risks(
+    return ai_service.generate_risks(
         project_name=req.project_name,
         metrics=req.metrics,
         financial_model=req.financial_model,
     )
-    return result
 
 
 @router.post("/generate-risk-score")
-def generate_risk_score(req: RiskScoreRequest) -> dict:
-    """Generate AI Risk Score for a type 1.2 operational investment request."""
+def generate_risk_score(req: RiskScoreRequest, _=Depends(get_current_user)) -> dict:
     _check_api_key()
     return ai_service.generate_risk_score(application=req.application)
 
 
 @router.post("/analyze")
-def analyze_project(req: AnalyzeRequest) -> dict:
-    """Analyze project anomalies and generate AI commentary."""
+def analyze_project(req: AnalyzeRequest, _=Depends(get_current_user)) -> dict:
     _check_api_key()
     return ai_service.analyze_project(
         project=req.project,

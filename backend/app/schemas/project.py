@@ -29,6 +29,7 @@ class ProjectUpdate(ProjectBase):
 
 class ProjectRead(ProjectBase):
     id: int
+    user_id: Optional[int] = None
     metrics: Optional[Any] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

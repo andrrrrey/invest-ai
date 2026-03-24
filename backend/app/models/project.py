@@ -1,5 +1,7 @@
-from sqlalchemy import Column, Integer, String, Text, JSON, DateTime
+from sqlalchemy import Column, Integer, String, Text, JSON, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from ..database import Base
 
 
@@ -7,6 +9,10 @@ class Project(Base):
     __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True, index=True)
+
+    # Owner FK (nullable for backward compat with existing rows)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    user = relationship("User", back_populates="projects")
 
     # Step 1
     project_type = Column(String, default="investment")  # investment | operational

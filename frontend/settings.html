@@ -182,17 +182,19 @@
 <div class="app-window">
     <aside class="sidebar" id="sidebar">
         <div class="profile-section">
-            <img src="https://ui-avatars.com/api/?name=Марк+Джонсон&background=333&color=fff" alt="Аватар">
+            <div style="width:90px;height:90px;border-radius:50%;border:3px solid white;margin:0 auto 15px;background:#5E5CE6;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:white" id="sidebar-avatar"></div>
             <p>С возвращением,</p>
-            <h4>Марк Джонсон</h4>
+            <h4 id="sidebar-name">—</h4>
+            <div style="display:inline-block;background:rgba(94,92,230,0.3);color:#A8A6FF;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700;margin-top:6px" id="sidebar-role"></div>
         </div>
         <nav class="nav-menu">
             <a href="/" class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
             <a href="/project-list" class="nav-link"><i class="fas fa-project-diagram"></i> Проекты</a>
             <a href="/export" class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
             <a href="/settings" class="nav-link active"><i class="fas fa-cog"></i> Настройки</a>
+            <a href="/users" class="nav-link" id="nav-users"><i class="fas fa-users"></i> Пользователи</a>
         </nav>
-        <a href="#" class="nav-link" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
+        <a href="#" class="nav-link" id="sidebar-logout" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
     </aside>
 
     <main class="main-content" x-data="settingsApp()" x-init="init()">
@@ -336,11 +338,18 @@
     <span x-text="msg"></span>
 </div>
 
+<script src="/js/auth.js"></script>
 <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
 <script>
     function toggleSidebar() {
         document.getElementById('sidebar').classList.toggle('active');
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        patchSidebar();
+        const av = document.getElementById('sidebar-avatar');
+        if (av) av.textContent = (getUserName() || '?').charAt(0).toUpperCase();
+    });
 
     document.querySelector('.main-content')?.addEventListener('click', () => {
         if (window.innerWidth <= 992) {
@@ -360,15 +369,21 @@
             testResult: null,
 
             async init() {
+                if (!redirectIfNotLoggedIn()) return;
+                // Only CFO can access settings
+                if (getUserRole() !== 'cfo') {
+                    window.location.href = '/';
+                    return;
+                }
                 try {
-                    const res = await fetch('/api/v1/settings/');
+                    const res = await authFetch('/api/v1/settings/');
                     if (res.ok) {
                         const data = await res.json();
                         this.apiKeySet = data.openai_api_key_set;
                         this.maskedKey = data.openai_api_key_masked;
                     }
                 } catch(e) {
-                    console.error(e);
+                    if (e.message !== 'Unauthorized') console.error(e);
                 } finally {
                     this.loading = false;
                 }
@@ -378,9 +393,8 @@
                 if (!this.apiKey.trim()) return;
                 this.saving = true;
                 try {
-                    const res = await fetch('/api/v1/settings/', {
+                    const res = await authFetch('/api/v1/settings/', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ openai_api_key: this.apiKey.trim() }),
                     });
                     if (!res.ok) throw new Error(await res.text());
@@ -400,7 +414,7 @@
                 this.testing = true;
                 this.testResult = null;
                 try {
-                    const res = await fetch('/api/v1/settings/test-connection', { method: 'POST' });
+                    const res = await authFetch('/api/v1/settings/test-connection', { method: 'POST' });
                     const data = await res.json();
                     if (!res.ok) {
                         this.testResult = { success: false, error: data.detail || 'Ошибка соединения' };

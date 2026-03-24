@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 
 from ... import settings_store
+from ...auth import require_cfo
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -14,8 +15,8 @@ class SettingsUpdate(BaseModel):
 
 
 @router.get("/")
-def get_settings() -> dict:
-    """Return current settings (API key is masked)."""
+def get_settings(_=Depends(require_cfo)) -> dict:
+    """Return current settings (API key is masked). CFO only."""
     key = settings_store.get_openai_key()
     masked = None
     if key:
@@ -29,16 +30,16 @@ def get_settings() -> dict:
 
 
 @router.post("/")
-def update_settings(body: SettingsUpdate) -> dict:
-    """Save new settings."""
+def update_settings(body: SettingsUpdate, _=Depends(require_cfo)) -> dict:
+    """Save new settings. CFO only."""
     if body.openai_api_key is not None:
         settings_store.set_openai_key(body.openai_api_key)
     return {"success": True}
 
 
 @router.post("/test-connection")
-def test_connection() -> dict:
-    """Test that the stored API key works."""
+def test_connection(_=Depends(require_cfo)) -> dict:
+    """Test that the stored API key works. CFO only."""
     key = settings_store.get_openai_key()
     if not key:
         raise HTTPException(
@@ -47,7 +48,6 @@ def test_connection() -> dict:
         )
     try:
         from openai import OpenAI
-
         client = OpenAI(api_key=key)
         resp = client.chat.completions.create(
             model=AI_MODEL,
