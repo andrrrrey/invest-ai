@@ -52,15 +52,27 @@ def _seed_admin():
     db = SessionLocal()
     try:
         if db.query(User).count() == 0:
-            admin = User(
-                email=settings.SEED_CEO_EMAIL,
-                full_name=settings.SEED_CEO_NAME,
-                hashed_password=hash_password(settings.SEED_CEO_PASSWORD),
-                role="ceo",
-                is_active=True,
-            )
-            db.add(admin)
+            seed_users = [
+                User(
+                    email=settings.SEED_CEO_EMAIL,
+                    full_name=settings.SEED_CEO_NAME,
+                    hashed_password=hash_password(settings.SEED_CEO_PASSWORD),
+                    role="ceo",
+                    is_active=True,
+                ),
+                User(
+                    email=settings.SEED_CFO_EMAIL,
+                    full_name=settings.SEED_CFO_NAME,
+                    hashed_password=hash_password(settings.SEED_CFO_PASSWORD),
+                    role="cfo",
+                    is_active=True,
+                ),
+            ]
+            for u in seed_users:
+                db.add(u)
             db.commit()
-            print(f"[init_db] Seed CEO created: {settings.SEED_CEO_EMAIL} / {settings.SEED_CEO_PASSWORD}")
+            print(f"[init_db] Seed users created:")
+            print(f"  CEO: {settings.SEED_CEO_EMAIL} / {settings.SEED_CEO_PASSWORD}")
+            print(f"  CFO: {settings.SEED_CFO_EMAIL} / {settings.SEED_CFO_PASSWORD}")
     finally:
         db.close()
