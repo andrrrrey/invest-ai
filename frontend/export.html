@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Отчетность — Инвестиционный процессор</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="/js/auth.js"></script>
+    <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
@@ -159,22 +161,23 @@
     <div class="app-window">
         <aside class="sidebar" id="sidebar">
             <div class="profile-section">
-                <img src="https://ui-avatars.com/api/?name=Марк+Джонсон&background=333&color=fff" alt="Аватар" class="avatar">
+                <div style="width:90px;height:90px;border-radius:50%;border:3px solid white;margin:0 auto 15px;background:#5E5CE6;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:white" id="sidebar-avatar"></div>
                 <p>С возвращением,</p>
-                <h4>Марк Джонсон</h4>
+                <h4 id="sidebar-name">—</h4>
+                <div style="display:inline-block;background:rgba(94,92,230,0.3);color:#A8A6FF;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700;margin-top:6px" id="sidebar-role"></div>
             </div>
 
             <nav class="nav-menu">
                 <a href="/" class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
                 <a href="/project-list" class="nav-link"><i class="fas fa-project-diagram"></i> Проекты</a>
                 <a href="/export" class="nav-link active"><i class="fas fa-chart-bar"></i> Отчетность</a>
-                <a href="/settings" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
+                <a href="/settings" class="nav-link" id="nav-settings"><i class="fas fa-cog"></i> Настройки</a>
             </nav>
 
-            <a href="#" class="nav-link" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
+            <a href="#" class="nav-link" id="sidebar-logout" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
         </aside>
 
-        <main class="main-content">
+        <main class="main-content" x-data="exportApp()" x-init="init()">
             <header class="top-header">
                 <div class="header-left">
                     <h1>Отчетность</h1>
@@ -183,14 +186,14 @@
 
             <div class="report-section-label">Форматы экспорта</div>
             <div class="export-grid">
-                <div class="export-card selected">
+                <div class="export-card" :class="{ selected: format === 'pdf' }" @click="format = 'pdf'">
                     <div class="export-icon pdf-icon"><i class="fas fa-file-pdf"></i></div>
                     <div class="export-info">
                         <h3>PDF</h3>
                         <p>Управленческий отчёт</p>
                     </div>
                 </div>
-                <div class="export-card">
+                <div class="export-card" :class="{ selected: format === 'excel' }" @click="format = 'excel'">
                     <div class="export-icon excel-icon"><i class="fas fa-file-excel"></i></div>
                     <div class="export-info">
                         <h3>Excel</h3>
@@ -204,18 +207,24 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>Выбор проектов</label>
-                        <select class="input-field">
-                            <option>Все активные проекты</option>
-                            <option>Солнечная Энергия</option>
-                            <option>AI Аналитика</option>
+                        <select class="input-field" x-model="selectedProjectId">
+                            <option value="">Все проекты</option>
+                            <template x-for="p in projects" :key="p.id">
+                                <option :value="p.id" x-text="p.name"></option>
+                            </template>
                         </select>
                     </div>
                     <div class="form-group">
                         <label>Выбор периода</label>
-                        <select class="input-field">
-                            <option>Текущий месяц</option>
-                            <option>Квартал</option>
-                            <option>Год</option>
+                        <select class="input-field" x-model="periodLabel">
+                            <option value="Весь период">Весь период</option>
+                            <option value="Текущий месяц">Текущий месяц</option>
+                            <option value="Q1 2026">Q1 2026</option>
+                            <option value="Q2 2026">Q2 2026</option>
+                            <option value="Q3 2026">Q3 2026</option>
+                            <option value="Q4 2026">Q4 2026</option>
+                            <option value="2026 год">2026 год</option>
+                            <option value="2025 год">2025 год</option>
                         </select>
                     </div>
                 </div>
@@ -223,21 +232,29 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>Уровень детализации</label>
-                        <select class="input-field">
-                            <option>Summary (Кратко)</option>
-                            <option>Full (Полный отчет)</option>
+                        <select class="input-field" x-model="detailLevel">
+                            <option value="summary">Summary (Кратко)</option>
+                            <option value="full">Full (Полный отчет)</option>
                         </select>
                     </div>
                     <div class="form-group" style="justify-content: center;">
                         <label class="checkbox-group">
-                            <input type="checkbox" checked>
+                            <input type="checkbox" x-model="includeAi">
                             <span>Включить AI-комментарии</span>
                         </label>
                     </div>
                 </div>
 
-                <button class="btn btn-primary" style="width: 100%; padding: 16px; margin-top: 20px;">
-                    <i class="fas fa-download" style="margin-right: 10px;"></i> Сформировать отчет
+                <div x-show="error" style="background:#FFE5E5;color:#EB5757;padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:13px" x-text="error"></div>
+
+                <button class="btn btn-primary" style="width: 100%; padding: 16px; margin-top: 20px;"
+                        @click="generate()" :disabled="loading">
+                    <template x-if="!loading">
+                        <span><i class="fas fa-download" style="margin-right: 10px;"></i> Сформировать отчет</span>
+                    </template>
+                    <template x-if="loading">
+                        <span><i class="fas fa-spinner fa-spin" style="margin-right: 10px;"></i> Формирование...</span>
+                    </template>
                 </button>
             </div>
         </main>
@@ -248,21 +265,80 @@
             document.getElementById('sidebar').classList.toggle('active');
         }
 
-        // Закрытие бокового меню при клике на контент (для мобильных)
-        document.querySelector('.main-content').addEventListener('click', () => {
-            if (window.innerWidth <= 992) {
-                document.getElementById('sidebar').classList.remove('active');
+        document.addEventListener('DOMContentLoaded', function () {
+            patchSidebar();
+            const av = document.getElementById('sidebar-avatar');
+            if (av) av.textContent = (getUserName() || '?').charAt(0).toUpperCase();
+            if (getUserRole() !== 'cfo') {
+                const ns = document.getElementById('nav-settings');
+                if (ns) ns.style.display = 'none';
             }
-        });
-
-        // Простой переключатель выбора формата
-        const cards = document.querySelectorAll('.export-card');
-        cards.forEach(card => {
-            card.addEventListener('click', () => {
-                cards.forEach(c => c.classList.remove('selected'));
-                card.classList.add('selected');
+            // Close sidebar on main content click (mobile)
+            const mc = document.querySelector('.main-content');
+            if (mc) mc.addEventListener('click', () => {
+                if (window.innerWidth <= 992) document.getElementById('sidebar').classList.remove('active');
             });
         });
+
+        function exportApp() {
+            return {
+                format: 'pdf',
+                selectedProjectId: '',
+                periodLabel: 'Весь период',
+                detailLevel: 'summary',
+                includeAi: true,
+                projects: [],
+                loading: false,
+                error: null,
+
+                async init() {
+                    if (!redirectIfNotLoggedIn()) return;
+                    try {
+                        const res = await authFetch('/api/v1/projects/');
+                        if (res.ok) this.projects = await res.json();
+                    } catch (e) {
+                        if (e.message !== 'Unauthorized') console.error('Ошибка загрузки проектов:', e);
+                    }
+                },
+
+                async generate() {
+                    this.loading = true;
+                    this.error = null;
+                    try {
+                        const body = {
+                            format: this.format,
+                            project_ids: this.selectedProjectId ? [parseInt(this.selectedProjectId)] : null,
+                            period_label: this.periodLabel,
+                            detail_level: this.detailLevel,
+                            include_ai: this.includeAi,
+                        };
+                        const res = await authFetch('/api/v1/export/', {
+                            method: 'POST',
+                            body: JSON.stringify(body),
+                        });
+                        if (!res.ok) {
+                            let msg = 'Ошибка формирования отчёта';
+                            try { const e = await res.json(); msg = e.detail || msg; } catch {}
+                            this.error = msg;
+                            return;
+                        }
+                        const blob = await res.blob();
+                        const url  = URL.createObjectURL(blob);
+                        const a    = document.createElement('a');
+                        a.href     = url;
+                        a.download = this.format === 'pdf' ? 'report.pdf' : 'report.xlsx';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    } catch (e) {
+                        if (e.message !== 'Unauthorized') this.error = 'Ошибка соединения с сервером';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+            };
+        }
     </script>
 </body>
 </html>

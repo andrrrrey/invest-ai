@@ -165,6 +165,45 @@ def generate_risk_score(application: dict) -> dict:
         }
 
 
+def generate_portfolio_commentary(projects: list, stats: dict) -> str:
+    """
+    Generate a 3-4 sentence executive summary of the entire portfolio.
+    Called only when include_ai=True in an export request.
+    """
+    approved_count  = stats.get("by_status", {}).get("approved", 0)
+    pending_count   = stats.get("by_status", {}).get("pending_approval", 0)
+    high_risk_count = stats.get("high_risk_count", 0)
+    total_npv       = stats.get("total_npv", 0)
+    avg_irr         = stats.get("avg_irr", "н/д")
+    budget          = stats.get("investment_budget")
+    approved_inv    = stats.get("approved_investment", 0)
+
+    project_lines = "\n".join(
+        f"  • {p.get('name', '—')} | статус: {p.get('status', '?')} "
+        f"| NPV: {(p.get('metrics') or {}).get('npv', 'н/д')} ₽ "
+        f"| IRR: {(p.get('metrics') or {}).get('irr', 'н/д')}%"
+        for p in projects[:20]
+    )
+
+    budget_line = (
+        f"Инвестиционный бюджет: {budget:,.0f} ₽, использовано: {approved_inv:,.0f} ₽."
+        if budget else "Инвестиционный бюджет не задан."
+    )
+
+    prompt = (
+        f"Ты — CFO-ассистент. Напиши краткое исполнительное резюме портфеля "
+        f"(3-4 предложения) для управленческого отчёта.\n\n"
+        f"Итого проектов: {stats.get('total', 0)}, "
+        f"одобрено: {approved_count}, на рассмотрении: {pending_count}, "
+        f"высокорисковых: {high_risk_count}.\n"
+        f"Суммарный NPV: {total_npv:,.0f} ₽, средний IRR: {avg_irr}%.\n"
+        f"{budget_line}\n\n"
+        f"Проекты:\n{project_lines}\n\n"
+        "Сформулируй ключевые выводы и рекомендации для руководства."
+    )
+    return _chat(prompt, max_tokens=400)
+
+
 def analyze_project(project: dict, metrics: dict) -> dict:
     """Analyze anomalies and give AI commentary for project detail page."""
     project_type = project.get("project_type", "investment")

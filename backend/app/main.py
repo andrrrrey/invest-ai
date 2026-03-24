@@ -9,6 +9,7 @@ from .api.v1 import projects, finance, ai, stats
 from .api.v1 import settings as settings_router
 from .api.v1 import auth as auth_router
 from .api.v1 import users as users_router
+from .api.v1 import export as export_router
 
 app = FastAPI(
     title="Инвестиционный процессор",
@@ -32,6 +33,7 @@ app.include_router(finance.router, prefix="/api/v1")
 app.include_router(ai.router, prefix="/api/v1")
 app.include_router(stats.router, prefix="/api/v1")
 app.include_router(settings_router.router, prefix="/api/v1")
+app.include_router(export_router.router, prefix="/api/v1")
 
 
 @app.on_event("startup")
