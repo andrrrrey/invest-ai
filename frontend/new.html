@@ -2181,12 +2181,21 @@ function wizardApp() {
                 this.projectId = p.id;
                 // financial_model contains all form fields (stored as { ...this.form })
                 if (p.financial_model && typeof p.financial_model === 'object') {
-                    // Save MVZ values before assign to restore them after Alpine re-renders
+                    // Extract MVZ values before Object.assign so we can set them
+                    // sequentially after each $nextTick — this ensures the cascading
+                    // <select> options (rendered via x-for) are in the DOM before we
+                    // try to select a value in them.
                     const mvzMain = p.financial_model.op_mvz_main || '';
                     const mvzSub1 = p.financial_model.op_mvz_sub1 || '';
                     const mvzSub2 = p.financial_model.op_mvz_sub2 || '';
-                    Object.assign(this.form, p.financial_model);
-                    // Restore MVZ cascade after DOM updates (prevents cascade @change from clearing values)
+                    // Assign everything EXCEPT the MVZ fields so the cascade starts clean
+                    const fmWithoutMvz = { ...p.financial_model };
+                    delete fmWithoutMvz.op_mvz_main;
+                    delete fmWithoutMvz.op_mvz_sub1;
+                    delete fmWithoutMvz.op_mvz_sub2;
+                    Object.assign(this.form, fmWithoutMvz);
+                    // Now set MVZ step-by-step: each nextTick lets Alpine render
+                    // the dependent x-for options before the next value is applied.
                     await this.$nextTick();
                     this.form.op_mvz_main = mvzMain;
                     await this.$nextTick();
@@ -2358,7 +2367,10 @@ function wizardApp() {
             if (this.form.granularity === 'month' && col.monthIndex !== undefined) {
                 return (this.form.usersMonthly[yi] || [])[col.monthIndex] || 0;
             }
-            return this.getDisplayVal('users', yi, col.quarters);
+            // For multi-quarter columns (half/year views) return the SUM so the
+            // displayed value matches what the user entered (see setUserDisplayVal).
+            const row = this.form.users[yi] || [];
+            return col.quarters.reduce((s, q) => s + (row[q] || 0), 0);
         },
 
         setUserDisplayVal(yi, col, val) {
@@ -2370,7 +2382,17 @@ function wizardApp() {
                 this.form.usersMonthly = m;
                 return;
             }
-            this.setDisplayVal('users', yi, col.quarters, val);
+            // Distribute the entered annual/half-year total evenly across the
+            // covered quarters so that calculations use per-quarter values.
+            // E.g. entering 1292 in the "year" view stores 323 per quarter,
+            // giving annual revenue = 323 × price × 4 = 1292 × price.
+            const total = parseFloat(val) || 0;
+            const perQ = col.quarters.length > 1
+                ? Math.round(total / col.quarters.length)
+                : total;
+            const m = this.form.users.map(r => [...r]);
+            col.quarters.forEach(q => { m[yi][q] = perQ; });
+            this.form.users = m;
         },
 
         // Apply monthly indexation to users
