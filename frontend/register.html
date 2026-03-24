@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Регистрация | Инвестиционный процессор</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+
+        body {
+            background: #E5E5E5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 28px;
+            padding: 48px 40px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.1);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 36px;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: #5E5CE6;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+        }
+
+        .logo-text h2 { font-size: 16px; font-weight: 700; color: #1C1C1E; }
+        .logo-text p  { font-size: 12px; color: #8E8E93; }
+
+        h1 { font-size: 24px; font-weight: 800; color: #1C1C1E; margin-bottom: 6px; }
+        .subtitle { font-size: 14px; color: #8E8E93; margin-bottom: 32px; line-height: 1.5; }
+
+        .field { margin-bottom: 18px; }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1C1C1E;
+            margin-bottom: 8px;
+        }
+
+        input {
+            width: 100%;
+            padding: 13px 16px;
+            border: 1.5px solid #E5E5E5;
+            border-radius: 14px;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: 0.2s;
+            color: #1C1C1E;
+        }
+
+        input:focus {
+            border-color: #5E5CE6;
+            box-shadow: 0 0 0 3px rgba(94, 92, 230, 0.1);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 15px;
+            background: #5E5CE6;
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-submit:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        .msg {
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 16px;
+            display: none;
+        }
+
+        .msg.visible { display: block; }
+        .msg.error   { background: #FFE5E5; color: #FF3B30; }
+        .msg.success { background: #DDF0E1; color: #2D9B63; }
+
+        .login-link {
+            text-align: center;
+            margin-top: 24px;
+            font-size: 13px;
+            color: #8E8E93;
+        }
+
+        .login-link a {
+            color: #5E5CE6;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .login-link a:hover { text-decoration: underline; }
+
+        .success-state { display: none; text-align: center; }
+        .success-state .icon {
+            width: 64px; height: 64px;
+            background: #DDF0E1; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 28px; color: #2D9B63;
+        }
+        .success-state h2 { font-size: 20px; font-weight: 800; color: #1C1C1E; margin-bottom: 10px; }
+        .success-state p { font-size: 14px; color: #8E8E93; line-height: 1.6; margin-bottom: 24px; }
+        .success-state a {
+            display: inline-block;
+            background: #5E5CE6; color: white;
+            padding: 13px 32px; border-radius: 14px;
+            font-size: 14px; font-weight: 700; text-decoration: none;
+            transition: 0.2s;
+        }
+        .success-state a:hover { opacity: 0.9; transform: translateY(-1px); }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div class="logo">
+            <div class="logo-icon"><i class="fas fa-chart-line"></i></div>
+            <div class="logo-text">
+                <h2>Инвестиционный процессор</h2>
+                <p>Платформа управления проектами</p>
+            </div>
+        </div>
+
+        <!-- Registration form -->
+        <div id="formState">
+            <h1>Регистрация</h1>
+            <p class="subtitle">Введите ваши данные. Пароль будет отправлен на указанный email.</p>
+
+            <form id="registerForm">
+                <div class="field">
+                    <label for="fullName">Полное имя</label>
+                    <input type="text" id="fullName" placeholder="Иван Иванов" required autocomplete="name">
+                </div>
+                <div class="field">
+                    <label for="email">Корпоративный Email</label>
+                    <input type="email" id="email" placeholder="ivan@company.com" required autocomplete="email">
+                </div>
+
+                <button type="submit" class="btn-submit" id="submitBtn">
+                    <i class="fas fa-user-plus"></i>
+                    <span id="btnText">Зарегистрироваться</span>
+                </button>
+
+                <div class="msg error" id="errorMsg"></div>
+            </form>
+
+            <div class="login-link">
+                Уже есть аккаунт? <a href="/login.html">Войти</a>
+            </div>
+        </div>
+
+        <!-- Success state -->
+        <div class="success-state" id="successState">
+            <div class="icon"><i class="fas fa-envelope-circle-check"></i></div>
+            <h2>Письмо отправлено!</h2>
+            <p id="successMsg">Пароль для входа отправлен на ваш email. Проверьте почту и войдите в систему.</p>
+            <a href="/login.html">Перейти ко входу</a>
+        </div>
+    </div>
+
+    <script src="/js/auth.js"></script>
+    <script>
+        // Already logged in → redirect
+        if (isLoggedIn()) {
+            window.location.href = '/';
+        }
+
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const fullName = document.getElementById('fullName').value.trim();
+            const email    = document.getElementById('email').value.trim();
+            const btn      = document.getElementById('submitBtn');
+            const btnText  = document.getElementById('btnText');
+            const errorMsg = document.getElementById('errorMsg');
+
+            btn.disabled = true;
+            btnText.textContent = 'Регистрируем...';
+            errorMsg.classList.remove('visible');
+
+            try {
+                const res = await fetch('/api/v1/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, full_name: fullName }),
+                });
+
+                if (res.ok) {
+                    document.getElementById('formState').style.display = 'none';
+                    document.getElementById('successState').style.display = 'block';
+                    document.getElementById('successMsg').textContent =
+                        `Пароль для входа отправлен на ${email}. Проверьте почту и войдите в систему.`;
+                } else {
+                    const err = await res.json();
+                    errorMsg.textContent = err.detail || 'Ошибка регистрации';
+                    errorMsg.classList.add('visible');
+                }
+            } catch (err) {
+                errorMsg.textContent = 'Ошибка соединения с сервером';
+                errorMsg.classList.add('visible');
+            } finally {
+                btn.disabled = false;
+                btnText.textContent = 'Зарегистрироваться';
+            }
+        });
+    </script>
+</body>
+</html>

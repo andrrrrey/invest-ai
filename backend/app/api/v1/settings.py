@@ -13,6 +13,7 @@ AI_MODEL = "gpt-4.1"
 class SettingsUpdate(BaseModel):
     openai_api_key: Optional[str] = None
     investment_budget: Optional[float] = None
+    registration_domain: Optional[str] = None
 
 
 @router.get("/")
@@ -28,6 +29,7 @@ def get_settings(_=Depends(require_cfo)) -> dict:
         "openai_api_key_masked": masked,
         "ai_model": AI_MODEL,
         "investment_budget": settings_store.get_investment_budget(),
+        "registration_domain": settings_store.get_registration_domain(),
     }
 
 
@@ -38,6 +40,9 @@ def update_settings(body: SettingsUpdate, _=Depends(require_cfo)) -> dict:
         settings_store.set_openai_key(body.openai_api_key)
     if body.investment_budget is not None:
         settings_store.set_investment_budget(body.investment_budget)
+    if body.registration_domain is not None:
+        domain = body.registration_domain.strip().lstrip("@").lower()
+        settings_store.set_registration_domain(domain)
     return {"success": True}
 
 
