@@ -15,10 +15,11 @@ const ROLE_LABELS = {
     owner: 'Заявитель',
 };
 
-function getToken()    { return localStorage.getItem('invest_token'); }
-function getUserId()   { return parseInt(localStorage.getItem('invest_user_id') || '0', 10); }
-function getUserRole() { return localStorage.getItem('invest_role') || ''; }
-function getUserName() { return localStorage.getItem('invest_name') || ''; }
+function getToken()      { return localStorage.getItem('invest_token'); }
+function getUserId()     { return parseInt(localStorage.getItem('invest_user_id') || '0', 10); }
+function getUserRole()   { return localStorage.getItem('invest_role') || ''; }
+function getUserName()   { return localStorage.getItem('invest_name') || ''; }
+function getUserAvatar() { return localStorage.getItem('invest_avatar') || ''; }
 
 function isLoggedIn() { return !!getToken(); }
 
@@ -28,6 +29,13 @@ function saveAuth(data) {
     localStorage.setItem('invest_user_id', data.user_id);
     localStorage.setItem('invest_role',    data.role);
     localStorage.setItem('invest_name',    data.full_name);
+    if (data.avatar_url !== undefined) {
+        if (data.avatar_url) {
+            localStorage.setItem('invest_avatar', data.avatar_url);
+        } else {
+            localStorage.removeItem('invest_avatar');
+        }
+    }
 }
 
 /** Clear all auth data and redirect to login. */
@@ -36,6 +44,7 @@ function logout() {
     localStorage.removeItem('invest_user_id');
     localStorage.removeItem('invest_role');
     localStorage.removeItem('invest_name');
+    localStorage.removeItem('invest_avatar');
     window.location.href = '/login';
 }
 
@@ -111,8 +120,19 @@ function patchSidebar() {
     const nameEl = document.getElementById('sidebar-name');
     const roleEl = document.getElementById('sidebar-role');
     const logoutEl = document.getElementById('sidebar-logout');
+    const avatarEl = document.getElementById('sidebar-avatar');
 
     if (nameEl) nameEl.textContent = getUserName() || 'Пользователь';
     if (roleEl) roleEl.textContent = ROLE_LABELS[getUserRole()] || getUserRole();
     if (logoutEl) logoutEl.addEventListener('click', (e) => { e.preventDefault(); logout(); });
+
+    // Show avatar image or fallback to first letter
+    if (avatarEl) {
+        const avatarUrl = getUserAvatar();
+        if (avatarUrl) {
+            avatarEl.innerHTML = `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.parentElement.innerHTML='${(getUserName() || '?').charAt(0).toUpperCase()}'">`;
+        } else {
+            avatarEl.textContent = (getUserName() || '?').charAt(0).toUpperCase();
+        }
+    }
 }

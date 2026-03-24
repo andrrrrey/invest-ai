@@ -15,6 +15,7 @@ class User(Base):
     # role: 'ceo' | 'cfo' | 'manager' | 'owner'
     role = Column(String, nullable=False, default="owner")
     is_active = Column(Boolean, default=True, nullable=False)
+    avatar_url = Column(String, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

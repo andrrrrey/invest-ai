@@ -33,6 +33,7 @@ def init_db():
             "ALTER TABLE projects ADD COLUMN value_score_data JSON",
             "ALTER TABLE projects ADD COLUMN decision_route VARCHAR",
             "ALTER TABLE projects ADD COLUMN user_id INTEGER REFERENCES users(id)",
+            "ALTER TABLE users ADD COLUMN avatar_url VARCHAR",
         ]:
             try:
                 conn.execute(text(col_def))

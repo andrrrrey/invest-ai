@@ -36,10 +36,21 @@ class UserRead(BaseModel):
     full_name: str
     role: str
     is_active: bool
+    avatar_url: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+
+class UserProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
 
 
 class Token(BaseModel):

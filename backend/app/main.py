@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
+AVATARS_DIR = os.environ.get("AVATARS_DIR", "/data/avatars")
+
 from .config import settings
 from .database import init_db
 from .api.v1 import projects, finance, ai, stats
@@ -45,6 +47,10 @@ def on_startup():
 def health():
     return {"status": "ok", "version": "1.0.0"}
 
+
+# Serve avatar uploads
+os.makedirs(AVATARS_DIR, exist_ok=True)
+app.mount("/avatars", StaticFiles(directory=AVATARS_DIR), name="avatars")
 
 # Serve frontend static files in production
 frontend_dir = os.path.join(os.path.dirname(__file__), "..", "..", "frontend")
