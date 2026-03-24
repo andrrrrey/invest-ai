@@ -178,6 +178,7 @@
                 <a href="/export" class="nav-link" id="nav-export"><i class="fas fa-chart-bar"></i> Отчетность</a>
                 <a href="/settings" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
                 <a href="/users" class="nav-link active"><i class="fas fa-users"></i> Пользователи</a>
+                <a href="/profile" class="nav-link"><i class="fas fa-user-circle"></i> Мой профиль</a>
             </nav>
 
             <a href="#" class="nav-link" id="sidebar-logout" style="margin-top: auto; color: #EB5757;">
@@ -312,11 +313,8 @@
             document.getElementById('sidebar').classList.toggle('active');
         }
 
-        // Patch sidebar avatar initials
         document.addEventListener('DOMContentLoaded', function() {
             patchSidebar();
-            const av = document.getElementById('sidebar-avatar');
-            if (av) av.textContent = (getUserName() || '?').charAt(0).toUpperCase();
             if (getUserRole() === 'owner') {
                 const ne = document.getElementById('nav-export');
                 if (ne) ne.style.display = 'none';

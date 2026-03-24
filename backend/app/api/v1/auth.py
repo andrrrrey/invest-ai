@@ -1,8 +1,10 @@
+import os
 import secrets
 import string
+import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -10,9 +12,11 @@ from sqlalchemy.orm import Session
 from ...database import get_db
 from ...models.user import User
 from ...auth import verify_password, hash_password, create_access_token, get_current_user
-from ...schemas.user import Token, UserRead
+from ...schemas.user import Token, UserRead, UserProfileUpdate, ChangePasswordRequest
 from ... import settings_store
 from ...services.email_service import send_registration_email
+
+AVATARS_DIR = os.environ.get("AVATARS_DIR", "/data/avatars")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -119,3 +123,101 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
         )
 
     return {"detail": "Регистрация успешна. Пароль отправлен на ваш email."}
+
+
+@router.put("/me", response_model=UserRead)
+def update_me(
+    body: UserProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update own profile (full_name and/or email)."""
+    if body.email is not None:
+        email = body.email.strip().lower()
+        if "@" not in email:
+            raise HTTPException(status_code=422, detail="Некорректный email.")
+        existing = db.query(User).filter(User.email == email, User.id != current_user.id).first()
+        if existing:
+            raise HTTPException(status_code=409, detail="Email уже используется другим пользователем.")
+        current_user.email = email
+
+    if body.full_name is not None:
+        name = body.full_name.strip()
+        if not name:
+            raise HTTPException(status_code=422, detail="Имя не может быть пустым.")
+        current_user.full_name = name
+
+    current_user.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@router.put("/change-password", status_code=200)
+def change_password(
+    body: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Change own password. Requires current password for verification."""
+    if not verify_password(body.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Неверный текущий пароль.")
+    if len(body.new_password) < 6:
+        raise HTTPException(status_code=422, detail="Новый пароль должен содержать не менее 6 символов.")
+    current_user.hashed_password = hash_password(body.new_password)
+    current_user.updated_at = datetime.utcnow()
+    db.commit()
+    return {"detail": "Пароль успешно изменён."}
+
+
+@router.delete("/me", status_code=200)
+def delete_me(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete own account (soft-delete by deactivating)."""
+    current_user.is_active = False
+    current_user.updated_at = datetime.utcnow()
+    db.commit()
+    return {"detail": "Аккаунт удалён."}
+
+
+@router.post("/avatar", response_model=UserRead)
+async def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Upload and save user avatar. Expects a JPEG/PNG/WebP image."""
+    allowed_types = {"image/jpeg", "image/png", "image/webp"}
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=422, detail="Разрешены только изображения JPEG, PNG, WebP.")
+
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Размер файла не должен превышать 5 МБ.")
+
+    os.makedirs(AVATARS_DIR, exist_ok=True)
+
+    # Delete old avatar file if it exists
+    if current_user.avatar_url:
+        old_filename = current_user.avatar_url.split("/")[-1]
+        old_path = os.path.join(AVATARS_DIR, old_filename)
+        if os.path.exists(old_path):
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass
+
+    ext = "jpg" if file.content_type == "image/jpeg" else file.content_type.split("/")[1]
+    filename = f"{current_user.id}_{uuid.uuid4().hex[:8]}.{ext}"
+    filepath = os.path.join(AVATARS_DIR, filename)
+
+    with open(filepath, "wb") as f:
+        f.write(content)
+
+    current_user.avatar_url = f"/avatars/{filename}"
+    current_user.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(current_user)
+    return current_user

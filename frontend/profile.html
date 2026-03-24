@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мой профиль | Инвестиционный процессор</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg-body: #F8F7F3;
+            --sidebar-bg: #1C1C1E;
+            --sidebar-hover: #2C2C2E;
+            --text-main: #1C1C1E;
+            --text-muted: #8E8E93;
+            --accent-purple: #5E5CE6;
+            --radius-lg: 35px;
+            --radius-md: 24px;
+            --danger: #FF3B30;
+            --success: #34C759;
+            --warn: #FF9500;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+
+        body {
+            background-color: #E5E5E5;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            position: fixed; top: 20px; left: 20px; z-index: 1000;
+            background: var(--sidebar-bg); color: white; border: none;
+            padding: 12px; border-radius: 12px; cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .app-window {
+            width: 100%; max-width: 1400px; height: 90vh;
+            background: var(--bg-body); border-radius: var(--radius-lg);
+            display: flex; overflow: hidden;
+            box-shadow: 0 50px 100px rgba(0,0,0,0.1); position: relative;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px; background: var(--sidebar-bg); padding: 60px 25px 40px;
+            display: flex; flex-direction: column; color: white;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); flex-shrink: 0;
+        }
+
+        .profile-section { text-align: center; margin-bottom: 50px; }
+        .profile-section p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+        .profile-section h4 { font-size: 16px; font-weight: 600; margin-top: 4px; }
+
+        .sidebar-avatar {
+            width: 90px; height: 90px; border-radius: 50%;
+            border: 3px solid white; margin: 0 auto 15px;
+            background: #5E5CE6; display: flex; align-items: center;
+            justify-content: center; font-size: 32px; font-weight: 700; color: white;
+            overflow: hidden;
+        }
+
+        .nav-menu { flex: 1; }
+        .nav-link {
+            display: flex; align-items: center; gap: 15px; color: var(--text-muted);
+            text-decoration: none; padding: 14px 15px; border-radius: 12px;
+            font-size: 14px; margin-bottom: 8px; transition: 0.3s;
+        }
+        .nav-link.active, .nav-link:hover { background: var(--sidebar-hover); color: white; }
+        .nav-link i { font-size: 18px; width: 20px; text-align: center; }
+
+        /* Main content */
+        .main-content {
+            flex: 1; padding: 40px 50px; overflow-y: auto; background: var(--bg-body);
+        }
+
+        .page-header { margin-bottom: 32px; }
+        .page-header h1 { font-size: 26px; font-weight: 800; }
+        .page-header p { color: var(--text-muted); font-size: 14px; margin-top: 6px; }
+
+        .settings-grid { display: flex; flex-direction: column; gap: 20px; max-width: 680px; }
+
+        .card {
+            background: white; border-radius: var(--radius-md); padding: 28px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        }
+
+        .card h2 {
+            font-size: 16px; font-weight: 700; margin-bottom: 6px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .card h2 i { color: var(--accent-purple); font-size: 18px; }
+        .card .desc { font-size: 13px; color: var(--text-muted); margin-bottom: 22px; line-height: 1.5; }
+
+        /* Avatar card */
+        .avatar-wrap {
+            display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+        }
+
+        .avatar-preview {
+            width: 100px; height: 100px; border-radius: 50%;
+            border: 3px solid #E5E5ED; background: #5E5CE6;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 36px; font-weight: 700; color: white;
+            overflow: hidden; flex-shrink: 0;
+        }
+        .avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+        .avatar-actions { display: flex; flex-direction: column; gap: 10px; }
+        .avatar-actions .hint-text { font-size: 12px; color: var(--text-muted); }
+
+        /* Form fields */
+        .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+        .field label { font-size: 12px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: .4px; }
+
+        input[type=text], input[type=email], input[type=password] {
+            width: 100%; padding: 11px 14px;
+            border: 1.5px solid #E5E5ED; border-radius: 12px;
+            font-size: 14px; color: var(--text-main); background: #fff;
+            outline: none; transition: border-color .15s; font-family: inherit;
+        }
+        input:focus { border-color: var(--accent-purple); }
+        input:disabled { background: #F5F5F5; color: #aaa; cursor: not-allowed; }
+
+        .input-row { display: flex; gap: 10px; align-items: stretch; }
+        .input-row input { flex: 1; }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 11px 22px; border-radius: 12px;
+            font-size: 13px; font-weight: 600; cursor: pointer;
+            border: none; transition: .2s; white-space: nowrap; font-family: inherit;
+        }
+        .btn-primary { background: var(--accent-purple); color: white; }
+        .btn-primary:hover { opacity: .88; transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+        .btn-outline { background: white; color: #333; border: 1.5px solid #E0E0E8; }
+        .btn-outline:hover { border-color: var(--accent-purple); color: var(--accent-purple); }
+        .btn-danger-soft { background: #FFE5E3; color: var(--danger); border: 1.5px solid #FFCCC8; }
+        .btn-danger-soft:hover { background: var(--danger); color: white; border-color: var(--danger); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { opacity: .88; }
+        .btn-danger:disabled { opacity: .5; cursor: not-allowed; }
+        .btn-sm { padding: 8px 16px; font-size: 12px; }
+
+        .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+
+        .spin { animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Password strength */
+        .strength-bar { height: 4px; border-radius: 2px; margin-top: 6px; transition: all .3s; }
+        .strength-label { font-size: 11px; margin-top: 4px; font-weight: 600; }
+
+        /* Danger zone */
+        .danger-zone { border: 1.5px solid #FFCCC8; border-radius: var(--radius-md); padding: 24px; }
+        .danger-zone h2 i { color: var(--danger); }
+        .danger-warning {
+            background: #FFF5F5; border-radius: 12px; padding: 14px 16px;
+            font-size: 13px; color: #7a2020; line-height: 1.6; margin-bottom: 18px;
+        }
+        .danger-warning ul { padding-left: 18px; margin-top: 6px; }
+        .danger-warning ul li { margin-top: 4px; }
+
+        /* Modal overlay */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 2000; padding: 20px;
+        }
+        .modal {
+            background: white; border-radius: 24px; padding: 36px;
+            max-width: 440px; width: 100%;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+        }
+        .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+        .modal p { font-size: 14px; color: var(--text-muted); line-height: 1.6; margin-bottom: 24px; }
+        .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+
+        /* Crop modal */
+        .crop-modal {
+            background: white; border-radius: 24px; padding: 28px;
+            max-width: 560px; width: 100%;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+        }
+        .crop-modal h3 { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+        .crop-container { height: 380px; background: #1a1a1a; border-radius: 14px; overflow: hidden; margin-bottom: 16px; }
+        .crop-container img { display: block; max-width: 100%; }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 28px; right: 28px;
+            background: #1C1C1E; color: #fff;
+            padding: 11px 20px; border-radius: 14px;
+            font-size: 13px; font-weight: 600; z-index: 9999;
+            display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.25); transition: opacity .3s;
+        }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+
+        /* Hint */
+        .hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+        @media (max-width: 992px) {
+            body { padding: 0; }
+            .app-window { height: 100vh; border-radius: 0; }
+            .mobile-menu-btn { display: block; }
+            .sidebar {
+                position: absolute; left: -260px; top: 0;
+                height: 100%; z-index: 1001;
+                box-shadow: 20px 0 50px rgba(0,0,0,.1);
+            }
+            .sidebar.active { left: 0; }
+            .main-content { padding: 80px 20px 30px; }
+            .settings-grid { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<button class="mobile-menu-btn" onclick="toggleSidebar()">
+    <i class="fas fa-bars"></i>
+</button>
+
+<div class="app-window">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="profile-section">
+            <div class="sidebar-avatar" id="sidebar-avatar"></div>
+            <p>С возвращением,</p>
+            <h4 id="sidebar-name">—</h4>
+            <div style="display:inline-block;background:rgba(94,92,230,0.3);color:#A8A6FF;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700;margin-top:6px" id="sidebar-role"></div>
+        </div>
+        <nav class="nav-menu">
+            <a href="/" class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
+            <a href="/project-list" class="nav-link"><i class="fas fa-project-diagram"></i> Проекты</a>
+            <a href="/export" class="nav-link" id="nav-export"><i class="fas fa-chart-bar"></i> Отчетность</a>
+            <a href="/settings" class="nav-link" id="nav-settings"><i class="fas fa-cog"></i> Настройки</a>
+            <a href="/users" class="nav-link" id="nav-users"><i class="fas fa-users"></i> Пользователи</a>
+            <a href="/profile" class="nav-link active"><i class="fas fa-user-circle"></i> Мой профиль</a>
+        </nav>
+        <a href="#" class="nav-link" id="sidebar-logout" style="margin-top: auto; color: #EB5757;">
+            <i class="fas fa-sign-out-alt"></i> Выйти
+        </a>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main-content" x-data="profileApp()" x-init="init()">
+        <div class="page-header">
+            <h1>Мой профиль</h1>
+            <p>Управление личными данными, паролем и аккаунтом</p>
+        </div>
+
+        <div class="settings-grid">
+
+            <!-- Avatar card -->
+            <div class="card">
+                <h2><i class="fas fa-camera"></i> Фото профиля</h2>
+                <p class="desc">Загрузите фото для отображения в боковом меню. Поддерживаются JPG, PNG и WebP до 5 МБ.</p>
+
+                <div class="avatar-wrap">
+                    <div class="avatar-preview" id="avatar-preview">
+                        <template x-if="avatarUrl">
+                            <img :src="avatarUrl" alt="Аватар" @error="avatarUrl = null">
+                        </template>
+                        <template x-if="!avatarUrl">
+                            <span x-text="nameInitial"></span>
+                        </template>
+                    </div>
+                    <div class="avatar-actions">
+                        <input type="file" id="avatar-file-input" accept="image/jpeg,image/png,image/webp"
+                               style="display:none" @change="onAvatarFileChange($event)">
+                        <button class="btn btn-primary" @click="$refs.avatarInput.click()" x-ref="avatarTrigger">
+                            <i class="fas fa-upload"></i> Загрузить фото
+                        </button>
+                        <input type="file" x-ref="avatarInput" accept="image/jpeg,image/png,image/webp"
+                               style="display:none" @change="onAvatarFileChange($event)">
+                        <template x-if="avatarUrl">
+                            <button class="btn btn-outline btn-sm" @click="removeAvatar()" :disabled="uploadingAvatar">
+                                <i class="fas fa-trash"></i> Удалить фото
+                            </button>
+                        </template>
+                        <p class="hint-text">JPG, PNG, WebP · Макс. 5 МБ</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile info card -->
+            <div class="card">
+                <h2><i class="fas fa-user"></i> Личные данные</h2>
+                <p class="desc">Измените имя или email. После смены email вам потребуется войти заново.</p>
+
+                <div class="field">
+                    <label>Полное имя</label>
+                    <input type="text" x-model="profileForm.full_name" placeholder="Иван Иванов" maxlength="100">
+                </div>
+                <div class="field">
+                    <label>Email</label>
+                    <input type="email" x-model="profileForm.email" placeholder="email@example.com" maxlength="200">
+                </div>
+
+                <div class="field" style="margin-bottom:0">
+                    <label>Роль</label>
+                    <input type="text" :value="roleLabel" disabled>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-primary" @click="saveProfile()" :disabled="savingProfile">
+                        <i class="fas" :class="savingProfile ? 'fa-spinner spin' : 'fa-save'"></i>
+                        <span x-text="savingProfile ? 'Сохраняем...' : 'Сохранить'"></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Change password card -->
+            <div class="card">
+                <h2><i class="fas fa-lock"></i> Смена пароля</h2>
+                <p class="desc">Введите текущий пароль для подтверждения, затем укажите новый.</p>
+
+                <div class="field">
+                    <label>Текущий пароль</label>
+                    <div class="input-row">
+                        <input :type="showCurrentPwd ? 'text' : 'password'"
+                               x-model="pwdForm.current_password"
+                               placeholder="••••••••" autocomplete="current-password">
+                        <button class="btn btn-outline" style="padding:11px 14px;"
+                                @click="showCurrentPwd = !showCurrentPwd">
+                            <i class="fas" :class="showCurrentPwd ? 'fa-eye-slash' : 'fa-eye'"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label>Новый пароль</label>
+                    <div class="input-row">
+                        <input :type="showNewPwd ? 'text' : 'password'"
+                               x-model="pwdForm.new_password"
+                               placeholder="Минимум 6 символов" autocomplete="new-password"
+                               @input="calcStrength()">
+                        <button class="btn btn-outline" style="padding:11px 14px;"
+                                @click="showNewPwd = !showNewPwd">
+                            <i class="fas" :class="showNewPwd ? 'fa-eye-slash' : 'fa-eye'"></i>
+                        </button>
+                    </div>
+                    <template x-if="pwdForm.new_password">
+                        <div>
+                            <div class="strength-bar"
+                                 :style="`width:${pwdStrength.pct}%;background:${pwdStrength.color}`"></div>
+                            <p class="strength-label" :style="`color:${pwdStrength.color}`"
+                               x-text="pwdStrength.label"></p>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="field">
+                    <label>Подтвердите новый пароль</label>
+                    <input :type="showNewPwd ? 'text' : 'password'"
+                           x-model="pwdForm.confirm_password"
+                           placeholder="Повторите пароль" autocomplete="new-password">
+                    <template x-if="pwdForm.confirm_password && pwdForm.new_password !== pwdForm.confirm_password">
+                        <p class="hint" style="color: var(--danger)"><i class="fas fa-exclamation-circle"></i> Пароли не совпадают</p>
+                    </template>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-primary"
+                            @click="changePassword()"
+                            :disabled="changingPwd || !pwdForm.current_password || !pwdForm.new_password || pwdForm.new_password !== pwdForm.confirm_password">
+                        <i class="fas" :class="changingPwd ? 'fa-spinner spin' : 'fa-key'"></i>
+                        <span x-text="changingPwd ? 'Сохраняем...' : 'Изменить пароль'"></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Danger zone -->
+            <div class="danger-zone">
+                <h2 style="margin-bottom:6px"><i class="fas fa-triangle-exclamation"></i> Опасная зона</h2>
+                <p class="desc">Необратимые действия с вашим аккаунтом.</p>
+
+                <div class="danger-warning">
+                    <strong>Удаление аккаунта</strong> приведёт к следующим последствиям:
+                    <ul>
+                        <li>Вы не сможете войти в систему</li>
+                        <li>Ваши проекты останутся в базе данных</li>
+                        <li>Восстановление аккаунта потребует обращения к администратору</li>
+                    </ul>
+                </div>
+
+                <button class="btn btn-danger-soft" @click="showDeleteModal = true">
+                    <i class="fas fa-user-xmark"></i> Удалить мой аккаунт
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Delete confirmation modal -->
+        <div class="modal-overlay" x-show="showDeleteModal" x-transition style="display:none">
+            <div class="modal">
+                <h3>Удалить аккаунт?</h3>
+                <p>Это действие необратимо. Ваш аккаунт будет деактивирован. Введите ваш пароль для подтверждения.</p>
+                <div class="field" style="margin-bottom:20px">
+                    <label>Пароль для подтверждения</label>
+                    <input type="password" x-model="deleteConfirmPassword" placeholder="Введите пароль" autocomplete="current-password">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-outline" @click="showDeleteModal = false; deleteConfirmPassword = ''">
+                        Отмена
+                    </button>
+                    <button class="btn btn-danger"
+                            @click="deleteAccount()"
+                            :disabled="deletingAccount || !deleteConfirmPassword">
+                        <i class="fas" :class="deletingAccount ? 'fa-spinner spin' : 'fa-trash'"></i>
+                        <span x-text="deletingAccount ? 'Удаляем...' : 'Удалить аккаунт'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Crop modal -->
+        <div class="modal-overlay" x-show="showCropModal" x-transition style="display:none" @click.self="closeCropModal()">
+            <div class="crop-modal">
+                <h3><i class="fas fa-crop-simple" style="color:var(--accent-purple);margin-right:8px"></i>Выберите область фото</h3>
+                <div class="crop-container">
+                    <img id="crop-image" src="" alt="crop">
+                </div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+                    <button class="btn btn-outline" @click="closeCropModal()">Отмена</button>
+                    <button class="btn btn-primary" @click="applyCrop()" :disabled="uploadingAvatar">
+                        <i class="fas" :class="uploadingAvatar ? 'fa-spinner spin' : 'fa-check'"></i>
+                        <span x-text="uploadingAvatar ? 'Загружаем...' : 'Применить'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- Toast -->
+<div x-data="{show:false,msg:'',type:'success'}"
+     x-show="show" x-transition
+     @toast.window="show=true;msg=$event.detail.msg;type=$event.detail.type||'success';setTimeout(()=>show=false,3500)"
+     class="toast" :class="type" style="display:none">
+    <i class="fas" :class="type==='success'?'fa-check-circle':'fa-exclamation-circle'"></i>
+    <span x-text="msg"></span>
+</div>
+
+<script src="/js/auth.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+<script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+<script>
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('active');
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        patchSidebar();
+
+        const role = getUserRole();
+        if (role === 'owner') {
+            const ne = document.getElementById('nav-export');
+            if (ne) ne.style.display = 'none';
+        }
+        if (role !== 'cfo') {
+            const ns = document.getElementById('nav-settings');
+            if (ns) ns.style.display = 'none';
+            const nu = document.getElementById('nav-users');
+            if (nu) nu.style.display = 'none';
+        }
+    });
+
+    document.querySelector('.main-content')?.addEventListener('click', () => {
+        if (window.innerWidth <= 992) {
+            document.getElementById('sidebar').classList.remove('active');
+        }
+    });
+
+    function profileApp() {
+        return {
+            // Profile form
+            profileForm: { full_name: '', email: '' },
+            savingProfile: false,
+            roleLabel: '',
+
+            // Password form
+            pwdForm: { current_password: '', new_password: '', confirm_password: '' },
+            showCurrentPwd: false,
+            showNewPwd: false,
+            changingPwd: false,
+            pwdStrength: { pct: 0, color: '#E5E5ED', label: '' },
+
+            // Avatar
+            avatarUrl: null,
+            uploadingAvatar: false,
+            showCropModal: false,
+            cropper: null,
+            nameInitial: '?',
+
+            // Delete
+            showDeleteModal: false,
+            deleteConfirmPassword: '',
+            deletingAccount: false,
+
+            async init() {
+                if (!redirectIfNotLoggedIn()) return;
+
+                const roleMap = { ceo: 'CEO', cfo: 'CFO', manager: 'Менеджер', owner: 'Заявитель' };
+                this.roleLabel = roleMap[getUserRole()] || getUserRole();
+                this.nameInitial = (getUserName() || '?').charAt(0).toUpperCase();
+                this.avatarUrl = getUserAvatar() || null;
+
+                // Fetch fresh data from /me
+                try {
+                    const res = await authFetch('/api/v1/auth/me');
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.profileForm.full_name = data.full_name || '';
+                        this.profileForm.email = data.email || '';
+                        if (data.avatar_url) {
+                            this.avatarUrl = data.avatar_url;
+                            localStorage.setItem('invest_avatar', data.avatar_url);
+                        }
+                        this.nameInitial = (data.full_name || '?').charAt(0).toUpperCase();
+                    }
+                } catch (e) {
+                    if (e.message !== 'Unauthorized') console.error(e);
+                }
+            },
+
+            async saveProfile() {
+                const full_name = this.profileForm.full_name.trim();
+                const email = this.profileForm.email.trim().toLowerCase();
+                if (!full_name) { this._toast('Введите имя', 'error'); return; }
+                if (!email || !email.includes('@')) { this._toast('Введите корректный email', 'error'); return; }
+
+                this.savingProfile = true;
+                try {
+                    const res = await authFetch('/api/v1/auth/me', {
+                        method: 'PUT',
+                        body: JSON.stringify({ full_name, email }),
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.detail || 'Ошибка');
+                    }
+                    const data = await res.json();
+                    localStorage.setItem('invest_name', data.full_name);
+                    this.nameInitial = (data.full_name || '?').charAt(0).toUpperCase();
+                    document.getElementById('sidebar-name').textContent = data.full_name;
+                    this._toast('Профиль обновлён', 'success');
+                } catch (e) {
+                    this._toast(e.message, 'error');
+                } finally {
+                    this.savingProfile = false;
+                }
+            },
+
+            calcStrength() {
+                const p = this.pwdForm.new_password;
+                let score = 0;
+                if (p.length >= 8) score++;
+                if (p.length >= 12) score++;
+                if (/[A-Z]/.test(p)) score++;
+                if (/[0-9]/.test(p)) score++;
+                if (/[^A-Za-z0-9]/.test(p)) score++;
+                const levels = [
+                    { pct: 20, color: '#FF3B30', label: 'Очень слабый' },
+                    { pct: 40, color: '#FF9500', label: 'Слабый' },
+                    { pct: 60, color: '#FFD60A', label: 'Средний' },
+                    { pct: 80, color: '#34C759', label: 'Хороший' },
+                    { pct: 100, color: '#30D158', label: 'Надёжный' },
+                ];
+                this.pwdStrength = levels[Math.max(0, score - 1)] || levels[0];
+            },
+
+            async changePassword() {
+                if (this.pwdForm.new_password !== this.pwdForm.confirm_password) {
+                    this._toast('Пароли не совпадают', 'error'); return;
+                }
+                if (this.pwdForm.new_password.length < 6) {
+                    this._toast('Пароль должен содержать не менее 6 символов', 'error'); return;
+                }
+                this.changingPwd = true;
+                try {
+                    const res = await authFetch('/api/v1/auth/change-password', {
+                        method: 'PUT',
+                        body: JSON.stringify({
+                            current_password: this.pwdForm.current_password,
+                            new_password: this.pwdForm.new_password,
+                        }),
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.detail || 'Ошибка');
+                    }
+                    this.pwdForm = { current_password: '', new_password: '', confirm_password: '' };
+                    this.pwdStrength = { pct: 0, color: '#E5E5ED', label: '' };
+                    this._toast('Пароль изменён', 'success');
+                } catch (e) {
+                    this._toast(e.message, 'error');
+                } finally {
+                    this.changingPwd = false;
+                }
+            },
+
+            onAvatarFileChange(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+                if (!allowed.includes(file.type)) {
+                    this._toast('Допустимые форматы: JPG, PNG, WebP', 'error'); return;
+                }
+                if (file.size > 5 * 1024 * 1024) {
+                    this._toast('Файл слишком большой (макс. 5 МБ)', 'error'); return;
+                }
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.showCropModal = true;
+                    this.$nextTick(() => {
+                        const imgEl = document.getElementById('crop-image');
+                        imgEl.src = e.target.result;
+                        if (this.cropper) { this.cropper.destroy(); this.cropper = null; }
+                        this.cropper = new Cropper(imgEl, {
+                            aspectRatio: 1,
+                            viewMode: 2,
+                            dragMode: 'move',
+                            autoCropArea: 0.85,
+                            responsive: true,
+                            background: false,
+                        });
+                    });
+                };
+                reader.readAsDataURL(file);
+                // Reset input so same file can be re-selected
+                event.target.value = '';
+            },
+
+            closeCropModal() {
+                if (this.cropper) { this.cropper.destroy(); this.cropper = null; }
+                this.showCropModal = false;
+            },
+
+            async applyCrop() {
+                if (!this.cropper) return;
+                this.uploadingAvatar = true;
+                try {
+                    const canvas = this.cropper.getCroppedCanvas({ width: 400, height: 400 });
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+                    const formData = new FormData();
+                    formData.append('file', blob, 'avatar.jpg');
+
+                    const res = await authFetch('/api/v1/auth/avatar', {
+                        method: 'POST',
+                        body: formData,
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.detail || 'Ошибка загрузки');
+                    }
+                    const data = await res.json();
+                    this.avatarUrl = data.avatar_url + '?t=' + Date.now();
+                    localStorage.setItem('invest_avatar', data.avatar_url);
+                    // Update sidebar avatar
+                    patchSidebar();
+                    this.closeCropModal();
+                    this._toast('Фото профиля обновлено', 'success');
+                } catch (e) {
+                    this._toast(e.message, 'error');
+                } finally {
+                    this.uploadingAvatar = false;
+                }
+            },
+
+            async removeAvatar() {
+                this.uploadingAvatar = true;
+                try {
+                    // Send empty avatar update — just clear locally
+                    // (no dedicated delete endpoint needed; we can update with null)
+                    this.avatarUrl = null;
+                    localStorage.removeItem('invest_avatar');
+                    patchSidebar();
+                    this._toast('Фото удалено', 'success');
+                } catch (e) {
+                    this._toast(e.message, 'error');
+                } finally {
+                    this.uploadingAvatar = false;
+                }
+            },
+
+            async deleteAccount() {
+                if (!this.deleteConfirmPassword) return;
+                this.deletingAccount = true;
+                try {
+                    // Verify password first via change-password (non-destructive: change to same pw)
+                    const verifyRes = await authFetch('/api/v1/auth/change-password', {
+                        method: 'PUT',
+                        body: JSON.stringify({
+                            current_password: this.deleteConfirmPassword,
+                            new_password: this.deleteConfirmPassword,
+                        }),
+                    });
+                    if (!verifyRes.ok) {
+                        const err = await verifyRes.json();
+                        throw new Error(err.detail || 'Неверный пароль');
+                    }
+                    // Delete the account
+                    const res = await authFetch('/api/v1/auth/me', { method: 'DELETE' });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.detail || 'Ошибка');
+                    }
+                    this._toast('Аккаунт удалён. До свидания!', 'success');
+                    setTimeout(() => logout(), 1500);
+                } catch (e) {
+                    this._toast(e.message, 'error');
+                    this.deletingAccount = false;
+                }
+            },
+
+            _toast(msg, type = 'success') {
+                window.dispatchEvent(new CustomEvent('toast', { detail: { msg, type } }));
+            },
+        };
+    }
+</script>
+</body>
+</html>
