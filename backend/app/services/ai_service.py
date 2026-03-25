@@ -1,5 +1,5 @@
 """
-AI service — wraps the OpenAI API (GPT-4.1) for project-level features:
+AI service — wraps the OpenAI API (GPT-4.5) for project-level features:
   - generate_description: formulate project description from key fields
   - generate_risks: produce risks & assumptions analysis
   - generate_risk_score: AI risk scoring for operational projects
@@ -13,7 +13,7 @@ from openai import OpenAI
 from .. import settings_store
 
 
-AI_MODEL = "gpt-4.1"
+AI_MODEL = "gpt-5.4"
 
 SYSTEM_PROMPT = (
     "Ты — Ксения, AI-ассистент инвестиционного процессора. "
