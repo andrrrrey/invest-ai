@@ -7,7 +7,7 @@ from ...auth import require_cfo
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
-AI_MODEL = "gpt-4.1"
+AI_MODEL = "gpt-4.5"
 
 
 class SettingsUpdate(BaseModel):
@@ -61,7 +61,7 @@ def test_connection(_=Depends(require_cfo)) -> dict:
         resp = client.chat.completions.create(
             model=AI_MODEL,
             messages=[{"role": "user", "content": "Ответь словом OK"}],
-            max_completion_tokens=5,
+            max_tokens=5,
         )
         return {"success": True, "model": resp.model, "response": resp.choices[0].message.content}
     except Exception as e:
