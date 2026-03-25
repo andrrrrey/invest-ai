@@ -255,7 +255,7 @@
                     <div class="ai-status" @click="isCfo && (window.location.href='/settings')"
                          :style="isCfo ? 'cursor:pointer' : ''">
                         <span class="dot" :style="aiActive ? '' : 'background:#FF9500;box-shadow:0 0 10px #FF9500'"></span>
-                        <span x-text="aiActive ? 'GPT-4.1 активен' : 'AI не настроен'"></span>
+                        <span x-text="aiActive ? 'GPT-5.4 активен' : 'AI не настроен'"></span>
                     </div>
                     <button x-show="!isOwner" class="btn btn-outline" onclick="window.location.href='/export'">Экспорт отчёта</button>
                     <button x-show="canCreate" class="btn btn-primary" onclick="window.location.href='/new'">Создать проект</button>

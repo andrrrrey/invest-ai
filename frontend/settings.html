@@ -223,7 +223,7 @@
                     </template>
                     <template x-if="!loading && apiKeySet">
                         <span class="status-badge status-ok">
-                            <span class="dot dot-green"></span> AI подключён — GPT-4.1
+                            <span class="dot dot-green"></span> AI подключён — GPT-5.4
                         </span>
                     </template>
                     <template x-if="!loading && !apiKeySet">
@@ -269,7 +269,7 @@
                         <p style="font-size: 13px; font-weight: 600;"
                            :style="testResult.success ? 'color:#2D9B63' : 'color:#9c1c15'"
                            x-text="testResult.success
-                               ? 'Соединение успешно. Модель: ' + (testResult.model || 'GPT-4.1')
+                               ? 'Соединение успешно. Модель: ' + (testResult.model || 'GPT-5.4')
                                : 'Ошибка: ' + testResult.error">
                         </p>
                     </div>
@@ -328,11 +328,11 @@
             <!-- AI Model info -->
             <div class="settings-card">
                 <h2><i class="fas fa-microchip"></i> Используемая модель</h2>
-                <p class="desc">Система использует последнюю версию GPT-4.1 для всех AI-функций.</p>
+                <p class="desc">Система использует последнюю версию GPT-5.4 для всех AI-функций.</p>
 
                 <div class="info-row">
                     <span class="label">Модель</span>
-                    <span class="value">GPT-4.1 (OpenAI)</span>
+                    <span class="value">GPT-5.4 (OpenAI)</span>
                 </div>
                 <div class="info-row">
                     <span class="label">Функции AI</span>
