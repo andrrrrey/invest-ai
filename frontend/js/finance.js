@@ -69,62 +69,122 @@ const Finance = {
     return r;
   },
 
-  /* ─── Main entry point ───────────────────────────────────────────────── */
-  calculate(form) {
-    const ny       = +form.numYears || 5;
-    const conv     = (+form.conversionRate || 0) / 100;
-    const initChurn = (+form.churnRate || 0) / 100;
-    const qInc     = +form.quarterlyChurnIncrease || 0;
-
-    // 1.1.2 Churn table
+  /* ─── Per-product calculation ───────────────────────────────────────── */
+  _calculateProduct(prod, ny) {
+    const conv      = (+prod.conversionRate || 0) / 100;
+    const initChurn = (+prod.churnRate || 0) / 100;
+    const qInc      = +prod.quarterlyChurnIncrease || 0;
     const churnTable = this.buildChurnTable(initChurn, qInc, ny);
 
-    // 1.1.1 / 1.1.3 / 1.1.4  User tables
-    const paidWithoutChurn = [];
-    const paidUsers        = [];
-    const newPaidUsers     = [];
-    let prevPaid = null;
+    const paidWithoutChurn = [], paidUsers = [], newPaidUsers = [], revenue = [];
+    let prevPwc = null;
 
     for (let y = 0; y < ny; y++) {
-      const pwcRow = [], puRow = [], npuRow = [];
+      const pwcRow = [], puRow = [], npuRow = [], revRow = [];
+      const py = this._price(prod, y);
       for (let q = 0; q < 4; q++) {
-        // 1.1.1
-        const total = this._s2(form.users, y, q);
+        const total = this._s2(prod.users, y, q);
         const pwc   = Math.round(total * conv);
         pwcRow.push(pwc);
-
-        // 1.1.3
-        const paid = Math.round(pwc * (1 + churnTable[y][q]));
+        const paid  = Math.round(pwc * (1 + churnTable[y][q]));
         puRow.push(paid);
-
-        // 1.1.4
-        const npu = prevPaid === null ? paid : paid - prevPaid;
+        const npu = prevPwc === null ? pwc : pwc - prevPwc;
         npuRow.push(npu);
-        prevPaid = paid;
+        prevPwc = pwc;
+        let rev = 0;
+        if (prod.revenueModel === 'subscription') {
+          rev = paid * py;
+        } else if (prod.revenueModel === 'transactional') {
+          rev = this._s2(prod.transactions, y, q) * this._s2(prod.avgChecks, y, q);
+        } else {
+          rev = paid * py + this._s2(prod.hybridTransactional, y, q);
+        }
+        revRow.push(rev);
       }
       paidWithoutChurn.push(pwcRow);
       paidUsers.push(puRow);
       newPaidUsers.push(npuRow);
+      revenue.push(revRow);
     }
+    const annualRevenue = revenue.map(r => r.reduce((a, b) => a + b, 0));
+    return { name: prod.name || '', paidWithoutChurn, paidUsers, newPaidUsers, revenue, annualRevenue };
+  },
 
-    // 1.1.5  Quarterly revenue
-    const revenue = [];
-    for (let y = 0; y < ny; y++) {
-      const py  = this._price(form, y);
-      const row = [];
-      for (let q = 0; q < 4; q++) {
-        let rev = 0;
-        if (form.revenueModel === 'subscription') {
-          rev = paidUsers[y][q] * py;
-        } else if (form.revenueModel === 'transactional') {
-          rev = this._s2(form.transactions, y, q) * this._s2(form.avgChecks, y, q);
-        } else {  // hybrid
-          rev = paidUsers[y][q] * py +
-                this._s2(form.transactions, y, q) * this._s2(form.avgChecks, y, q);
+  /* ─── Sum multiple [year][quarter] tables element-wise ──────────────── */
+  _sumTables(tables, ny) {
+    const result = Array.from({ length: ny }, () => Array(4).fill(0));
+    for (const tbl of tables)
+      for (let y = 0; y < ny; y++)
+        for (let q = 0; q < 4; q++)
+          result[y][q] += this._s2(tbl, y, q);
+    return result;
+  },
+
+  /* ─── Main entry point ───────────────────────────────────────────────── */
+  calculate(form) {
+    const ny = +form.numYears || 5;
+
+    // Multi-product vs single-product path
+    let paidWithoutChurn, paidUsers, newPaidUsers, revenue, churnTable;
+    let productMetrics = [];
+
+    if (form.products && form.products.length > 0) {
+      // Multi-product: calculate each stream and sum
+      productMetrics = form.products.map(p => this._calculateProduct(p, ny));
+      paidWithoutChurn = this._sumTables(productMetrics.map(m => m.paidWithoutChurn), ny);
+      paidUsers        = this._sumTables(productMetrics.map(m => m.paidUsers), ny);
+      newPaidUsers     = this._sumTables(productMetrics.map(m => m.newPaidUsers), ny);
+      revenue          = this._sumTables(productMetrics.map(m => m.revenue), ny);
+      // Churn table from first product (representative)
+      const p0 = form.products[0];
+      churnTable = this.buildChurnTable((+p0.churnRate || 0) / 100, +p0.quarterlyChurnIncrease || 0, ny);
+    } else {
+      // Legacy single-product path
+      const conv      = (+form.conversionRate || 0) / 100;
+      const initChurn = (+form.churnRate || 0) / 100;
+      const qInc      = +form.quarterlyChurnIncrease || 0;
+      churnTable = this.buildChurnTable(initChurn, qInc, ny);
+
+      paidWithoutChurn = [];
+      paidUsers        = [];
+      newPaidUsers     = [];
+      let prevPwc = null;
+
+      for (let y = 0; y < ny; y++) {
+        const pwcRow = [], puRow = [], npuRow = [];
+        for (let q = 0; q < 4; q++) {
+          const total = this._s2(form.users, y, q);
+          const pwc   = Math.round(total * conv);
+          pwcRow.push(pwc);
+          const paid  = Math.round(pwc * (1 + churnTable[y][q]));
+          puRow.push(paid);
+          const npu = prevPwc === null ? pwc : pwc - prevPwc;
+          npuRow.push(npu);
+          prevPwc = pwc;
         }
-        row.push(rev);
+        paidWithoutChurn.push(pwcRow);
+        paidUsers.push(puRow);
+        newPaidUsers.push(npuRow);
       }
-      revenue.push(row);
+
+      revenue = [];
+      for (let y = 0; y < ny; y++) {
+        const py  = this._price(form, y);
+        const row = [];
+        for (let q = 0; q < 4; q++) {
+          let rev = 0;
+          if (form.revenueModel === 'subscription') {
+            rev = paidUsers[y][q] * py;
+          } else if (form.revenueModel === 'transactional') {
+            rev = this._s2(form.transactions, y, q) * this._s2(form.avgChecks, y, q);
+          } else {
+            rev = paidUsers[y][q] * py +
+                  this._s2(form.transactions, y, q) * this._s2(form.avgChecks, y, q);
+          }
+          row.push(rev);
+        }
+        revenue.push(row);
+      }
     }
 
     // 1.1.6  Annual revenue
@@ -171,8 +231,8 @@ const Finance = {
       ? (+form.nwc || 0)
       : nwcCalc;
 
-    // Net cash flow array: year 0 = CAPEX + effective NWC
-    const zeroPeriod  = (+form.initialInvestment || 0) + effectiveNwc;
+    // Net cash flow array: year 0 = effective NWC (CAPEX field removed)
+    const zeroPeriod  = effectiveNwc;
     const netCashFlow = [zeroPeriod, ...operatingCF];
 
     // 1.2.1  Discount factors (annual)
@@ -289,6 +349,7 @@ const Finance = {
       netCashFlow,
       annualCostsByCat,
       cacByYear,
+      productMetrics,
     };
   },
 
