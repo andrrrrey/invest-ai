@@ -7,7 +7,7 @@ from ...auth import require_cfo
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
-AI_MODEL = "gpt-4.5"
+AI_MODEL = "gpt-5.4"
 
 
 class SettingsUpdate(BaseModel):

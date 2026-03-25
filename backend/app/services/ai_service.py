@@ -13,7 +13,7 @@ from openai import OpenAI
 from .. import settings_store
 
 
-AI_MODEL = "gpt-4.5"
+AI_MODEL = "gpt-5.4"
 
 SYSTEM_PROMPT = (
     "Ты — Ксения, AI-ассистент инвестиционного процессора. "
