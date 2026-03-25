@@ -940,17 +940,10 @@
                 </div>
             </div>
 
-            <!-- 3.2 Модель выручки -->
+            <!-- 3.2 Модель выручки — мультипродуктовая -->
             <div class="subsection">
                 <h3>3.2 Модель выручки</h3>
                 <div class="grid-3">
-                    <div class="field"><label>Тип модели</label>
-                        <select x-model="form.revenueModel">
-                            <option value="subscription">Подписка</option>
-                            <option value="transactional">Транзакционная</option>
-                            <option value="hybrid">Гибридная (подписка + транзакции)</option>
-                        </select>
-                    </div>
                     <div class="field"><label>Гранулярность ввода / просмотра</label>
                         <select x-model="form.granularity" @change="onGranularityChange()">
                             <option value="month">По месяцам (1–12 в год)</option>
@@ -958,15 +951,6 @@
                             <option value="half">По полугодиям (H1–H2)</option>
                             <option value="year">По годам (итог)</option>
                         </select>
-                    </div>
-                    <div class="field"><label>Индексация в год (%)</label>
-                        <input type="number" x-model.number="form.indexationRate" min="0" max="100" step="0.5">
-                    </div>
-                    <div class="field"><label>Применять индексацию</label>
-                        <label style="display:flex;align-items:center;gap:8px;padding:9px 0;cursor:pointer">
-                            <input type="checkbox" x-model="form.applyIndexation">
-                            <span style="font-size:13px">Да, начиная с года 2</span>
-                        </label>
                     </div>
                     <div class="field"><label>Горизонт (лет)</label>
                         <input type="number" x-model.number="form.numYears" min="1" max="10" step="1"
@@ -976,261 +960,377 @@
                 <p class="hint" style="margin-top:4px">
                     <i class="fas fa-info-circle" style="color:var(--accent)"></i>
                     <strong>Гранулярность</strong> определяет, как вы вводите и просматриваете данные.
-                    Все внутренние расчёты и ключевые метрики всегда приводятся к <strong>квартальной сетке</strong>.
-                    Индексация начинается с года 2, поскольку год 1 является базовым (цена вводится вручную),
-                    а с года 2 применяется формула: <em>цена₁ × (1 + ставка)^год</em>.
+                    Все внутренние расчёты приводятся к <strong>квартальной сетке</strong>.
+                    Индексация начинается с года 2: <em>цена₁ × (1 + ставка)^год</em>.
                 </p>
 
-                <!-- Цены по годам (subscription / hybrid) -->
-                <template x-if="form.revenueModel !== 'transactional'">
-                    <div>
-                        <p class="tbl-label">
-                            Цена подписки на платящего пользователя в квартал (₽)
-                            — год 1 вводится вручную, остальные годы считаются с индексацией
-                        </p>
-                        <div class="tbl-wrap">
-                            <table>
+                <!-- Product cards -->
+                <template x-for="(prod, pi) in form.products" :key="pi">
+                    <div style="border:1.5px solid #EBEBF2;border-radius:12px;padding:16px;margin-top:16px">
+                        <!-- Header -->
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                            <span style="font-weight:700;color:var(--accent);white-space:nowrap"
+                                x-text="'3.2.' + (pi+1)"></span>
+                            <input x-model="form.products[pi].name"
+                                style="flex:1;border:none;border-bottom:1.5px solid #EBEBF2;background:transparent;font-size:14px;font-weight:600;padding:4px 2px;outline:none">
+                            <button x-show="form.products.length > 1" @click="removeProduct(pi)"
+                                style="padding:4px 10px;border-radius:8px;border:1.5px solid #ff4d4f;background:white;color:#ff4d4f;font-size:12px;font-weight:600;cursor:pointer">
+                                Удалить
+                            </button>
+                        </div>
+
+                        <!-- Per-product revenue settings -->
+                        <div class="grid-3">
+                            <div class="field"><label>Тип модели</label>
+                                <select x-model="form.products[pi].revenueModel">
+                                    <option value="subscription">Подписка</option>
+                                    <option value="transactional">Транзакционная</option>
+                                    <option value="hybrid">Гибридная (подписка + транзакции)</option>
+                                </select>
+                            </div>
+                            <div class="field"><label>Индексация в год (%)</label>
+                                <input type="number" x-model.number="form.products[pi].indexationRate" min="0" max="100" step="0.5">
+                            </div>
+                            <div class="field"><label>Применять индексацию</label>
+                                <label style="display:flex;align-items:center;gap:8px;padding:9px 0;cursor:pointer">
+                                    <input type="checkbox" x-model="form.products[pi].applyIndexation">
+                                    <span style="font-size:13px">Да, начиная с года 2</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Prices (subscription / hybrid) -->
+                        <template x-if="form.products[pi].revenueModel !== 'transactional'">
+                            <div>
+                                <p class="tbl-label">Цена подписки (₽/польз./кв.) — год 1 вручную, остальные с индексацией</p>
+                                <div class="tbl-wrap">
+                                    <table>
+                                        <thead><tr>
+                                            <th>Год</th>
+                                            <th>Цена (₽/польз./кв.)</th>
+                                            <th>С индексацией</th>
+                                            <th>Выручка за год (авто)</th>
+                                        </tr></thead>
+                                        <tbody>
+                                            <template x-for="(_, yi) in Array.from({length: form.numYears})" :key="yi">
+                                                <tr>
+                                                    <td>Год <span x-text="yi+1"></span></td>
+                                                    <td>
+                                                        <input type="number" min="0"
+                                                            :value="form.products[pi].prices[yi]"
+                                                            @focus="$event.target.select()"
+                                                            @input="form.products[pi].prices[yi] = parseFloat($event.target.value)||0"
+                                                            placeholder="0">
+                                                    </td>
+                                                    <td class="cell-comp"
+                                                        x-text="yi>0 && form.products[pi].applyIndexation
+                                                            ? Finance.fmt((form.products[pi].prices[0]||0) * Math.pow(1+(form.products[pi].indexationRate||0)/100, yi))
+                                                            : '—'">
+                                                    </td>
+                                                    <td class="cell-comp"
+                                                        x-text="Finance.fmtShort(metrics.productMetrics?.[pi]?.annualRevenue?.[yi])">
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Transactions (transactional / hybrid) -->
+                        <template x-if="form.products[pi].revenueModel !== 'subscription'">
+                            <div>
+                                <p class="tbl-label">Транзакционная выручка — кол-во транзакций и средний чек (прокрутите вправо →)</p>
+                                <div class="tbl-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                                    <table style="min-width:max-content;table-layout:auto;">
+                                        <thead><tr>
+                                            <th style="min-width:160px;position:sticky;left:0;background:#F7F7FB;z-index:1;">Параметр</th>
+                                            <template x-for="yi in form.numYears" :key="yi">
+                                                <th colspan="4" style="min-width:320px;text-align:center;white-space:nowrap;">Год <span x-text="yi"></span> (Q1–Q4)</th>
+                                            </template>
+                                        </tr>
+                                        <tr>
+                                            <th style="position:sticky;left:0;background:#F7F7FB;z-index:1;"></th>
+                                            <template x-for="(_, yi) in Array.from({length:form.numYears})" :key="yi">
+                                                <template x-for="(ql, qi) in ['Q1','Q2','Q3','Q4']" :key="qi">
+                                                    <th style="min-width:80px;white-space:nowrap;" x-text="ql"></th>
+                                                </template>
+                                            </template>
+                                        </tr></thead>
+                                        <tbody>
+                                            <tr>
+                                                <td style="font-weight:600;position:sticky;left:0;background:#fff;z-index:1;white-space:nowrap;">Кол-во транзакций</td>
+                                                <template x-for="(_, yi) in Array.from({length:form.numYears})" :key="yi">
+                                                    <template x-for="(_, qi) in [0,1,2,3]" :key="qi">
+                                                        <td style="min-width:80px;">
+                                                            <input type="number" min="0" style="width:80px;"
+                                                                :value="form.products[pi].transactions[yi]?.[qi]"
+                                                                @input="setProductM(pi,'transactions',yi,qi,$event.target.value)">
+                                                        </td>
+                                                    </template>
+                                                </template>
+                                            </tr>
+                                            <tr>
+                                                <td style="font-weight:600;position:sticky;left:0;background:#fff;z-index:1;white-space:nowrap;">Средний чек (₽)</td>
+                                                <template x-for="(_, yi) in Array.from({length:form.numYears})" :key="yi">
+                                                    <template x-for="(_, qi) in [0,1,2,3]" :key="qi">
+                                                        <td style="min-width:80px;">
+                                                            <input type="number" min="0" style="width:80px;"
+                                                                :value="form.products[pi].avgChecks[yi]?.[qi]"
+                                                                @input="setProductM(pi,'avgChecks',yi,qi,$event.target.value)">
+                                                        </td>
+                                                    </template>
+                                                </template>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Users table (was section 3.3) -->
+                        <p class="tbl-label" style="margin-top:12px"
+                            x-text="'Пользователи (привлечённых) — ' + granularityLabel()"></p>
+                        <div class="tbl-wrap" style="overflow-x:auto">
+                            <table :style="form.granularity==='month' ? 'min-width:900px' : ''">
                                 <thead><tr>
                                     <th>Год</th>
-                                    <th>Цена (₽/польз./кв.)</th>
-                                    <th>С индексацией</th>
-                                    <th>Выручка за год (авто)</th>
+                                    <template x-for="col in periodCols()" :key="col.label">
+                                        <th x-text="col.label"></th>
+                                    </template>
+                                    <th></th>
                                 </tr></thead>
                                 <tbody>
-                                    <template x-for="(_, yi) in Array.from({length: form.numYears})" :key="yi">
+                                    <template x-for="(row, yi) in form.products[pi].users" :key="yi">
                                         <tr>
                                             <td>Год <span x-text="yi+1"></span></td>
+                                            <template x-for="col in periodCols()" :key="col.label">
+                                                <td>
+                                                    <input type="number" min="0"
+                                                        :style="col.quarters.length===4 ? 'width:120px' : 'width:72px'"
+                                                        :value="getProductUserDisplayVal(pi, yi, col)"
+                                                        @focus="$event.target.select()"
+                                                        @input="setProductUserDisplayVal(pi, yi, col, $event.target.value)">
+                                                </td>
+                                            </template>
                                             <td>
-                                                <input type="number" min="0"
-                                                    :value="form.prices[yi]"
-                                                    @focus="$event.target.select()"
-                                                    @input="form.prices[yi] = parseFloat($event.target.value)||0"
-                                                    placeholder="0">
-                                            </td>
-                                            <td class="cell-comp"
-                                                x-text="yi>0 && form.applyIndexation
-                                                    ? Finance.fmt(form.prices[0] * Math.pow(1+form.indexationRate/100, yi))
-                                                    : '—'">
-                                            </td>
-                                            <td class="cell-comp"
-                                                x-text="Finance.fmtShort(metrics.annualRevenue?.[yi])">
+                                                <button class="row-del" x-show="form.products[pi].users.length>1"
+                                                    @click="removeYear(yi)" title="Удалить год">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
                                             </td>
                                         </tr>
                                     </template>
                                 </tbody>
                             </table>
                         </div>
-                    </div>
-                </template>
-
-                <!-- Транзакционная -->
-                <template x-if="form.revenueModel !== 'subscription'">
-                    <div>
-                        <p class="tbl-label">Транзакционная выручка — кол-во транзакций и средний чек (прокрутите вправо →)</p>
-                        <div class="tbl-wrap" style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
-                            <table style="min-width: max-content; table-layout: auto;">
-                                <thead><tr>
-                                    <th style="min-width:160px; position:sticky; left:0; background:#F7F7FB; z-index:1;">Параметр</th>
-                                    <template x-for="yi in form.numYears" :key="yi">
-                                        <th colspan="4" style="min-width:320px; text-align:center; white-space:nowrap;">Год <span x-text="yi"></span> (Q1–Q4)</th>
-                                    </template>
-                                </tr>
-                                <tr>
-                                    <th style="position:sticky; left:0; background:#F7F7FB; z-index:1;"></th>
-                                    <template x-for="(_, yi) in Array.from({length:form.numYears})" :key="yi">
-                                        <template x-for="(ql, qi) in ['Q1','Q2','Q3','Q4']" :key="qi">
-                                            <th style="min-width:80px; white-space:nowrap;" x-text="ql"></th>
-                                        </template>
-                                    </template>
-                                </tr></thead>
-                                <tbody>
-                                    <tr>
-                                        <td style="font-weight:600; position:sticky; left:0; background:#fff; z-index:1; white-space:nowrap;">Кол-во транзакций</td>
-                                        <template x-for="(_, yi) in Array.from({length:form.numYears})" :key="yi">
-                                            <template x-for="(_, qi) in [0,1,2,3]" :key="qi">
-                                                <td style="min-width:80px;">
-                                                    <input type="number" min="0" style="width:80px;"
-                                                        :value="form.transactions[yi]?.[qi]"
-                                                        @input="setM('transactions',yi,qi,$event.target.value)">
-                                                </td>
-                                            </template>
-                                        </template>
-                                    </tr>
-                                    <tr>
-                                        <td style="font-weight:600; position:sticky; left:0; background:#fff; z-index:1; white-space:nowrap;">Средний чек (₽)</td>
-                                        <template x-for="(_, yi) in Array.from({length:form.numYears})" :key="yi">
-                                            <template x-for="(_, qi) in [0,1,2,3]" :key="qi">
-                                                <td style="min-width:80px;">
-                                                    <input type="number" min="0" style="width:80px;"
-                                                        :value="form.avgChecks[yi]?.[qi]"
-                                                        @input="setM('avgChecks',yi,qi,$event.target.value)">
-                                                </td>
-                                            </template>
-                                        </template>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="table-actions" style="display:flex;gap:8px;flex-wrap:wrap">
+                            <button class="btn btn-outline" @click="addYear()"><i class="fas fa-plus"></i> Добавить год</button>
                         </div>
+
+                        <!-- Churn params -->
+                        <div class="grid-3" style="margin-top:10px">
+                            <div class="field">
+                                <label>Конверсия в платящих (%)</label>
+                                <input type="number" x-model.number="form.products[pi].conversionRate" min="0" max="100" step="1">
+                            </div>
+                            <div class="field">
+                                <label>Начальный Churn rate (%)</label>
+                                <input type="number" x-model.number="form.products[pi].churnRate" min="-100" max="0" step="0.5">
+                            </div>
+                            <div class="field">
+                                <label>Ежеквартальное улучшение churn</label>
+                                <input type="number" x-model.number="form.products[pi].quarterlyChurnIncrease"
+                                       min="0" max="0.1" step="0.0005">
+                            </div>
+                        </div>
+
+                        <!-- Per-product computed tables -->
+                        <template x-if="metrics.productMetrics && metrics.productMetrics[pi]">
+                            <div style="display:grid;gap:12px;margin-top:12px">
+                                <div>
+                                    <p class="tbl-label">1.1.1 — Платные пользователи без учёта оттока (авто)</p>
+                                    <div class="tbl-wrap">
+                                        <table>
+                                            <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead>
+                                            <tbody>
+                                                <template x-for="(row, yi) in metrics.productMetrics[pi].paidWithoutChurn" :key="yi">
+                                                    <tr>
+                                                        <td>Год <span x-text="yi+1"></span></td>
+                                                        <template x-for="(v, qi) in row" :key="qi">
+                                                            <td class="cell-comp" x-text="new Intl.NumberFormat('ru-RU').format(v)"></td>
+                                                        </template>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p class="tbl-label">1.1.3 — Платные пользователи итого (авто)</p>
+                                    <div class="tbl-wrap">
+                                        <table>
+                                            <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th style="min-width:100px">Σ год</th></tr></thead>
+                                            <tbody>
+                                                <template x-for="(row, yi) in metrics.productMetrics[pi].paidUsers" :key="yi">
+                                                    <tr>
+                                                        <td>Год <span x-text="yi+1"></span></td>
+                                                        <template x-for="(v, qi) in row" :key="qi">
+                                                            <td class="cell-comp" x-text="new Intl.NumberFormat('ru-RU').format(v)"></td>
+                                                        </template>
+                                                        <td class="cell-comp" style="font-weight:600"
+                                                            x-text="new Intl.NumberFormat('ru-RU').format(row.reduce((a,b)=>a+b,0))"></td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p class="tbl-label">1.1.4 — Новые платные пользователи (авто)</p>
+                                    <div class="tbl-wrap">
+                                        <table>
+                                            <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th style="min-width:100px">Σ год</th></tr></thead>
+                                            <tbody>
+                                                <template x-for="(row, yi) in metrics.productMetrics[pi].newPaidUsers" :key="yi">
+                                                    <tr>
+                                                        <td>Год <span x-text="yi+1"></span></td>
+                                                        <template x-for="(v, qi) in row" :key="qi">
+                                                            <td :class="v>=0?'cell-pos':'cell-neg'"
+                                                                x-text="new Intl.NumberFormat('ru-RU').format(v)"></td>
+                                                        </template>
+                                                        <td style="font-weight:600"
+                                                            :class="row.reduce((a,b)=>a+b,0)>=0?'cell-pos':'cell-neg'"
+                                                            x-text="new Intl.NumberFormat('ru-RU').format(row.reduce((a,b)=>a+b,0))"></td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </template>
-            </div>
 
-            <!-- 3.3 Пользователи -->
-            <div class="subsection">
-                <h3>3.3 Количество привлечённых пользователей</h3>
-
-                <!-- User input table -->
-                <p class="tbl-label" x-text="'Всего пользователей (привлечённых) — ' + granularityLabel()"></p>
-                <div class="tbl-wrap" style="overflow-x:auto">
-                    <table :style="form.granularity==='month' ? 'min-width:900px' : ''">
-                        <thead><tr>
-                            <th>Год</th>
-                            <template x-for="col in periodCols()" :key="col.label">
-                                <th x-text="col.label"></th>
-                            </template>
-                            <th></th>
-                        </tr></thead>
-                        <tbody>
-                            <template x-for="(row, yi) in form.users" :key="yi">
-                                <tr>
-                                    <td>Год <span x-text="yi+1"></span></td>
-                                    <template x-for="col in periodCols()" :key="col.label">
-                                        <td>
-                                            <input type="number" min="0"
-                                                :style="col.quarters.length===4 ? 'width:120px' : 'width:72px'"
-                                                :value="getUserDisplayVal(yi, col)"
-                                                @focus="$event.target.select()"
-                                                @input="setUserDisplayVal(yi, col, $event.target.value)">
-                                        </td>
-                                    </template>
-                                    <td>
-                                        <button class="row-del" x-show="form.users.length>1"
-                                            @click="removeYear(yi)" title="Удалить год">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="table-actions" style="display:flex;gap:8px;flex-wrap:wrap">
-                    <button class="btn btn-outline" @click="addYear()"><i class="fas fa-plus"></i> Добавить год</button>
-                    <button class="btn btn-outline" @click="indexModalRates = Array.from({length:form.numYears}, (_,i) => indexModalRates[i] || 0); showIndexModal = true">
-                        <i class="fas fa-chart-line"></i> Индексировать помесячно
+                <!-- Add product button -->
+                <div style="margin-top:12px">
+                    <button class="btn btn-outline" @click="addProduct()">
+                        <i class="fas fa-plus"></i> Добавить продукт
                     </button>
                 </div>
 
-                <!-- Churn params -->
-                <div class="grid-3" style="margin-top:6px">
-                    <div class="field">
-                        <label>Конверсия в платящих (%)</label>
-                        <input type="number" x-model.number="form.conversionRate" min="0" max="100" step="1">
-                    </div>
-                    <div class="field">
-                        <label>Начальный Churn rate (%)</label>
-                        <input type="number" x-model.number="form.churnRate" min="-100" max="0" step="0.5">
-                    </div>
-                    <div class="field">
-                        <label>Ежеквартальное улучшение churn</label>
-                        <input type="number" x-model.number="form.quarterlyChurnIncrease"
-                               min="0" max="0.1" step="0.0005">
-                    </div>
-                </div>
-
-                <!-- Computed tables (read-only) -->
-                <div style="display:grid;gap:12px">
-
-                    <!-- Churn table -->
-                    <div>
-                        <p class="tbl-label">Формула 1.1.2 — Churn rate по кварталам (авто)</p>
-                        <div class="tbl-wrap">
-                            <table>
-                                <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead>
-                                <tbody>
-                                    <template x-for="(row, yi) in metrics.churnTable" :key="yi">
-                                        <tr>
-                                            <td>Год <span x-text="yi+1"></span></td>
-                                            <template x-for="(v, qi) in row" :key="qi">
-                                                <td class="cell-comp" x-text="Finance.fmtPct(v*100)"></td>
+                <!-- Combined tables (only when multiple products) -->
+                <template x-if="form.products.length > 1">
+                    <div style="margin-top:20px;border-top:2px solid #EBEBF2;padding-top:16px">
+                        <h4 style="margin:0 0 12px;font-size:14px;font-weight:700">Σ Сводные таблицы (сумма по всем продуктам)</h4>
+                        <div style="display:grid;gap:12px">
+                            <div>
+                                <p class="tbl-label">Формула 1.1.2 — Churn rate (продукт 1, авто)</p>
+                                <div class="tbl-wrap">
+                                    <table>
+                                        <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead>
+                                        <tbody>
+                                            <template x-for="(row, yi) in metrics.churnTable" :key="yi">
+                                                <tr>
+                                                    <td>Год <span x-text="yi+1"></span></td>
+                                                    <template x-for="(v, qi) in row" :key="qi">
+                                                        <td class="cell-comp" x-text="Finance.fmtPct(v*100)"></td>
+                                                    </template>
+                                                </tr>
                                             </template>
-                                        </tr>
-                                    </template>
-                                </tbody>
-                            </table>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="tbl-label">Формула 1.1.1 — Платные пользователи без учёта оттока, итого (авто)</p>
+                                <div class="tbl-wrap">
+                                    <table>
+                                        <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead>
+                                        <tbody>
+                                            <template x-for="(row, yi) in metrics.paidWithoutChurn" :key="yi">
+                                                <tr>
+                                                    <td>Год <span x-text="yi+1"></span></td>
+                                                    <template x-for="(v, qi) in row" :key="qi">
+                                                        <td class="cell-comp" x-text="new Intl.NumberFormat('ru-RU').format(v)"></td>
+                                                    </template>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="tbl-label">Формула 1.1.3 — Платные пользователи итого (авто)</p>
+                                <div class="tbl-wrap">
+                                    <table>
+                                        <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th style="min-width:100px">Σ год</th></tr></thead>
+                                        <tbody>
+                                            <template x-for="(row, yi) in metrics.paidUsers" :key="yi">
+                                                <tr>
+                                                    <td>Год <span x-text="yi+1"></span></td>
+                                                    <template x-for="(v, qi) in row" :key="qi">
+                                                        <td class="cell-comp" x-text="new Intl.NumberFormat('ru-RU').format(v)"></td>
+                                                    </template>
+                                                    <td class="cell-comp" style="font-weight:600"
+                                                        x-text="new Intl.NumberFormat('ru-RU').format(row.reduce((a,b)=>a+b,0))"></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="tbl-label">Формула 1.1.4 — Новые платные пользователи, итого (авто)</p>
+                                <div class="tbl-wrap">
+                                    <table>
+                                        <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th style="min-width:100px">Σ год</th></tr></thead>
+                                        <tbody>
+                                            <template x-for="(row, yi) in metrics.newPaidUsers" :key="yi">
+                                                <tr>
+                                                    <td>Год <span x-text="yi+1"></span></td>
+                                                    <template x-for="(v, qi) in row" :key="qi">
+                                                        <td :class="v>=0?'cell-pos':'cell-neg'"
+                                                            x-text="new Intl.NumberFormat('ru-RU').format(v)"></td>
+                                                    </template>
+                                                    <td style="font-weight:600"
+                                                        :class="row.reduce((a,b)=>a+b,0)>=0?'cell-pos':'cell-neg'"
+                                                        x-text="new Intl.NumberFormat('ru-RU').format(row.reduce((a,b)=>a+b,0))"></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
+                </template>
 
-                    <!-- Paid without churn -->
-                    <div>
-                        <p class="tbl-label">Формула 1.1.1 — Платные пользователи без учёта оттока (авто)</p>
-                        <div class="tbl-wrap">
-                            <table>
-                                <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead>
-                                <tbody>
-                                    <template x-for="(row, yi) in metrics.paidWithoutChurn" :key="yi">
-                                        <tr>
-                                            <td>Год <span x-text="yi+1"></span></td>
-                                            <template x-for="(v, qi) in row" :key="qi">
-                                                <td class="cell-comp"
-                                                    x-text="new Intl.NumberFormat('ru-RU').format(v)"></td>
-                                            </template>
-                                        </tr>
-                                    </template>
-                                </tbody>
-                            </table>
+                <!-- Single-product computed tables (shown when only 1 product) -->
+                <template x-if="form.products.length === 1">
+                    <div style="display:grid;gap:12px;margin-top:12px">
+                        <div>
+                            <p class="tbl-label">Формула 1.1.2 — Churn rate по кварталам (авто)</p>
+                            <div class="tbl-wrap">
+                                <table>
+                                    <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead>
+                                    <tbody>
+                                        <template x-for="(row, yi) in metrics.churnTable" :key="yi">
+                                            <tr>
+                                                <td>Год <span x-text="yi+1"></span></td>
+                                                <template x-for="(v, qi) in row" :key="qi">
+                                                    <td class="cell-comp" x-text="Finance.fmtPct(v*100)"></td>
+                                                </template>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
-
-                    <!-- Paid users -->
-                    <div>
-                        <p class="tbl-label">Формула 1.1.3 — Платные пользователи итого (авто)</p>
-                        <div class="tbl-wrap">
-                            <table>
-                                <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th style="min-width:100px">Σ год</th></tr></thead>
-                                <tbody>
-                                    <template x-for="(row, yi) in metrics.paidUsers" :key="yi">
-                                        <tr>
-                                            <td>Год <span x-text="yi+1"></span></td>
-                                            <template x-for="(v, qi) in row" :key="qi">
-                                                <td class="cell-comp"
-                                                    x-text="new Intl.NumberFormat('ru-RU').format(v)"></td>
-                                            </template>
-                                            <td class="cell-comp" style="font-weight:600"
-                                                x-text="new Intl.NumberFormat('ru-RU').format(row.reduce((a,b)=>a+b,0))">
-                                            </td>
-                                        </tr>
-                                    </template>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- New paid users -->
-                    <div>
-                        <p class="tbl-label">Формула 1.1.4 — Новые платные пользователи (авто)</p>
-                        <div class="tbl-wrap">
-                            <table>
-                                <thead><tr><th>Год</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th style="min-width:100px">Σ год</th></tr></thead>
-                                <tbody>
-                                    <template x-for="(row, yi) in metrics.newPaidUsers" :key="yi">
-                                        <tr>
-                                            <td>Год <span x-text="yi+1"></span></td>
-                                            <template x-for="(v, qi) in row" :key="qi">
-                                                <td :class="v>=0?'cell-pos':'cell-neg'"
-                                                    x-text="new Intl.NumberFormat('ru-RU').format(v)"></td>
-                                            </template>
-                                            <td style="font-weight:600"
-                                                :class="row.reduce((a,b)=>a+b,0)>=0?'cell-pos':'cell-neg'"
-                                                x-text="new Intl.NumberFormat('ru-RU').format(row.reduce((a,b)=>a+b,0))">
-                                            </td>
-                                        </tr>
-                                    </template>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+                </template>
             </div>
 
             <!-- 3.4 Затраты -->
@@ -1384,9 +1484,6 @@
             <div class="subsection">
                 <h3>3.6 Нулевой период и инвестиции</h3>
                 <div class="grid-3">
-                    <div class="field"><label>Начальные инвестиции / CAPEX (₽)</label>
-                        <input type="number" x-model.number="form.initialInvestment" placeholder="-1200000">
-                    </div>
                     <div class="field">
                         <label>NWC — чистый оборотный капитал (₽)
                             <span style="font-size:11px;font-weight:400;color:var(--muted)"> — рассчитывается автоматически</span>
@@ -1404,7 +1501,7 @@
                     </div>
                     <div class="field"><label>Итого год 0 (NCF₀)</label>
                         <input type="text" readonly
-                            :value="Finance.fmtShort(+form.initialInvestment + (form.nwcManual && form.nwc !== '' ? +form.nwc : metrics.nwcCalc))">
+                            :value="Finance.fmtShort(form.nwcManual && form.nwc !== '' ? +form.nwc : metrics.nwcCalc)">
                     </div>
                 </div>
                 <p class="hint">
@@ -2105,7 +2202,7 @@ function wizardApp() {
             et_ops_repetitions: null,
             et_ops_rate: null,
 
-            // Revenue model
+            // Revenue model (legacy single-product fields kept for backward compat)
             revenueModel: 'subscription',
             granularity: 'quarter',
             indexationRate: 10,
@@ -2128,6 +2225,9 @@ function wizardApp() {
             churnRate: -10,
             quarterlyChurnIncrease: 0.0015,
 
+            // Multi-product streams
+            products: [_defaultProduct(5)],
+
             // Cost rows
             costs: [
                 { category: 'COGS',      mode: 'percent_revenue', param: 11,   values: [0,0,0,0,0] },
@@ -2141,7 +2241,7 @@ function wizardApp() {
             keyRate: 10, riskPremium: 3,
 
             // Zero period (NWC is auto-calculated; nwcManual=true enables override)
-            initialInvestment: -1200000, nwc: '', nwcManual: false,
+            nwc: '', nwcManual: false,
         },
 
         // ── Lifecycle ──────────────────────────────────────────────────────
@@ -2197,6 +2297,26 @@ function wizardApp() {
                     delete fmWithoutMvz.op_mvz_sub1;
                     delete fmWithoutMvz.op_mvz_sub2;
                     Object.assign(this.form, fmWithoutMvz);
+                    // Migrate legacy single-product fields to multi-product format
+                    if (!this.form.products || this.form.products.length === 0) {
+                        const fm = p.financial_model;
+                        const ny = fm.numYears || 5;
+                        this.form.products = [{
+                            name: 'Продукт 1',
+                            revenueModel: fm.revenueModel || 'subscription',
+                            applyIndexation: fm.applyIndexation !== false,
+                            indexationRate: fm.indexationRate || 10,
+                            prices: fm.prices || Array(ny).fill(0),
+                            transactions: fm.transactions || _m2d(ny, 4),
+                            avgChecks: fm.avgChecks || _m2d(ny, 4),
+                            hybridTransactional: fm.hybridTransactional || _m2d(ny, 4),
+                            users: fm.users || _m2d(ny, 4),
+                            usersMonthly: fm.usersMonthly || _m2d(ny, 12),
+                            conversionRate: fm.conversionRate || 85,
+                            churnRate: fm.churnRate || -10,
+                            quarterlyChurnIncrease: fm.quarterlyChurnIncrease || 0.0015,
+                        }];
+                    }
                     // Now set MVZ step-by-step: each nextTick lets Alpine render
                     // the dependent x-for options before the next value is applied.
                     await this.$nextTick();
@@ -2239,8 +2359,9 @@ function wizardApp() {
 
         // ── Calculations ───────────────────────────────────────────────────
         recalc() {
+            const form = { ...this.form };
+            // For monthly granularity, convert monthly → quarterly for legacy users field
             if (this.form.granularity === 'month' && this.form.usersMonthly) {
-                const form = { ...this.form };
                 const monthly = this.form.usersMonthly;
                 form.users = Array.from({length: this.form.numYears}, (_, y) =>
                     [0, 1, 2, 3].map(q => {
@@ -2248,10 +2369,22 @@ function wizardApp() {
                         return Math.round(ms.reduce((a, b) => a + b, 0) / 3);
                     })
                 );
-                this.metrics = Finance.calculate(form);
-            } else {
-                this.metrics = Finance.calculate(this.form);
             }
+            // For monthly granularity, convert per-product usersMonthly → quarterly users
+            if (this.form.granularity === 'month' && form.products) {
+                form.products = form.products.map(prod => {
+                    if (!prod.usersMonthly) return prod;
+                    const p = { ...prod };
+                    p.users = Array.from({length: this.form.numYears}, (_, y) =>
+                        [0, 1, 2, 3].map(q => {
+                            const ms = [3*q, 3*q+1, 3*q+2].map(m => (prod.usersMonthly[y] || [])[m] || 0);
+                            return Math.round(ms.reduce((a, b) => a + b, 0) / 3);
+                        })
+                    );
+                    return p;
+                });
+            }
+            this.metrics = Finance.calculate(form);
         },
 
         // ── Matrix helpers ─────────────────────────────────────────────────
@@ -2280,6 +2413,51 @@ function wizardApp() {
             return c.values?.[yi] || 0;
         },
 
+        // ── Multi-product helpers ─────────────────────────────────────────
+        addProduct() {
+            const ny = this.form.numYears;
+            const p = _defaultProduct(ny);
+            p.name = 'Продукт ' + (this.form.products.length + 1);
+            this.form.products.push(p);
+        },
+
+        removeProduct(pi) {
+            if (this.form.products.length > 1) this.form.products.splice(pi, 1);
+        },
+
+        setProductM(pi, field, y, q, val) {
+            const prod = this.form.products[pi];
+            const m = prod[field].map(r => [...r]);
+            m[y][q] = parseFloat(val) || 0;
+            prod[field] = m;
+        },
+
+        getProductUserDisplayVal(pi, yi, col) {
+            const prod = this.form.products[pi];
+            if (this.form.granularity === 'month' && col.monthIndex !== undefined) {
+                return (prod.usersMonthly[yi] || [])[col.monthIndex] || 0;
+            }
+            const row = prod.users[yi] || [];
+            return col.quarters.reduce((s, q) => s + (row[q] || 0), 0);
+        },
+
+        setProductUserDisplayVal(pi, yi, col, val) {
+            const prod = this.form.products[pi];
+            if (this.form.granularity === 'month' && col.monthIndex !== undefined) {
+                const v = parseFloat(val) || 0;
+                const m = prod.usersMonthly.map(r => [...r]);
+                if (!m[yi]) m[yi] = Array(12).fill(0);
+                m[yi][col.monthIndex] = v;
+                prod.usersMonthly = m;
+                return;
+            }
+            const total = parseFloat(val) || 0;
+            const perQ = col.quarters.length > 1 ? Math.round(total / col.quarters.length) : total;
+            const m = prod.users.map(r => [...r]);
+            col.quarters.forEach(q => { m[yi][q] = perQ; });
+            prod.users = m;
+        },
+
         // ── Year add / remove ─────────────────────────────────────────────
         addYear() {
             const ny = this.form.numYears + 1;
@@ -2288,6 +2466,14 @@ function wizardApp() {
                 this.form[f] = [...this.form[f].map(r=>[...r]), [0,0,0,0]];
             });
             this.form.usersMonthly = [...(this.form.usersMonthly || []).map(r=>[...r]), Array(12).fill(0)];
+            // Also update all product arrays
+            (this.form.products || []).forEach(prod => {
+                prod.prices = [...(prod.prices || []), 0];
+                ['users','transactions','avgChecks','hybridTransactional'].forEach(f => {
+                    prod[f] = [...(prod[f] || []).map(r=>[...r]), [0,0,0,0]];
+                });
+                prod.usersMonthly = [...(prod.usersMonthly || []).map(r=>[...r]), Array(12).fill(0)];
+            });
             this.form.costs = this.form.costs.map(c => ({
                 ...c, values: [...(c.values||[]), 0]
             }));
@@ -2301,6 +2487,14 @@ function wizardApp() {
                 this.form[f] = this.form[f].filter((_, i) => i !== yi);
             });
             this.form.usersMonthly = (this.form.usersMonthly || []).filter((_, i) => i !== yi);
+            // Also update all product arrays
+            (this.form.products || []).forEach(prod => {
+                prod.prices = (prod.prices || []).filter((_, i) => i !== yi);
+                ['users','transactions','avgChecks','hybridTransactional'].forEach(f => {
+                    prod[f] = (prod[f] || []).filter((_, i) => i !== yi);
+                });
+                prod.usersMonthly = (prod.usersMonthly || []).filter((_, i) => i !== yi);
+            });
             this.form.costs = this.form.costs.map(c => ({
                 ...c, values: (c.values||[]).filter((_, i) => i !== yi)
             }));
@@ -2822,6 +3016,25 @@ function _m2d(rows, cols) {
     return Array.from({ length: rows }, () => Array(cols).fill(0));
 }
 
+function _defaultProduct(ny) {
+    ny = ny || 5;
+    return {
+        name: 'Продукт 1',
+        revenueModel: 'subscription',
+        applyIndexation: true,
+        indexationRate: 10,
+        prices: Array(ny).fill(0),
+        transactions:        _m2d(ny, 4),
+        avgChecks:           _m2d(ny, 4),
+        hybridTransactional: _m2d(ny, 4),
+        users: _m2d(ny, 4),
+        usersMonthly: _m2d(ny, 12),
+        conversionRate: 85,
+        churnRate: -10,
+        quarterlyChurnIncrease: 0.0015,
+    };
+}
+
 function _emptyMetrics() {
     return {
         discountRate: 0, dcf: 0, npv: 0, dpp: null, pi: 0, irr: null,
@@ -2830,7 +3043,7 @@ function _emptyMetrics() {
         discountFactors: [], discountedCF: [], cumulativeDcfSeries: [],
         churnTable: [], paidWithoutChurn: [], paidUsers: [], newPaidUsers: [],
         revenue: [], annualRevenue: [], totalCosts: [], netCashFlow: [],
-        annualCostsByCat: {}, cacByYear: [],
+        annualCostsByCat: {}, cacByYear: [], productMetrics: [],
     };
 }
 

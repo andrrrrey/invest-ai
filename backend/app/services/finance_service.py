@@ -13,7 +13,7 @@ from typing import Optional
 import numpy as np
 import numpy_financial as npf
 
-from ..schemas.finance import FinancialModelInput, FinancialMetrics
+from ..schemas.finance import FinancialModelInput, FinancialMetrics, ProductStream, ProductMetrics
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -37,18 +37,16 @@ def _safe1d(arr: list, i: int, default: float = 0.0) -> float:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Main calculation
+# Per-product calculation helper
 # ─────────────────────────────────────────────────────────────────────────────
 
-def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
-    ny   = model.numYears
-    conv = model.conversionRate / 100.0
-    init_churn = model.churnRate / 100.0
-    q_inc      = model.quarterlyChurnIncrease
+def _calculate_product(p: ProductStream, ny: int) -> ProductMetrics:
+    """Calculate user tables and revenue for a single product stream."""
+    conv = p.conversionRate / 100.0
+    init_churn = p.churnRate / 100.0
+    q_inc = p.quarterlyChurnIncrease
 
-    # ── 1.1.2  Churn table ──────────────────────────────────────────────────
-    # churn[y][q] = initialChurn + (quarterIndex - 1) × quarterlyIncrease
-    # quarterIndex is 1-based → (quarterIndex-1) = 0-based q_idx
+    # Churn table for this product
     churn_table: list[list[float]] = []
     q_idx = 0
     for y in range(ny):
@@ -58,63 +56,164 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
             q_idx += 1
         churn_table.append(row)
 
-    # ── 1.1.1 / 1.1.3 / 1.1.4  User tables ─────────────────────────────────
+    def price_for_year(y: int) -> float:
+        manual = _safe1d(p.prices, y)
+        if manual != 0:
+            return manual
+        base = _safe1d(p.prices, 0)
+        if p.applyIndexation and y > 0:
+            return base * (1 + p.indexationRate / 100) ** y
+        return base
+
     paid_without_churn: list[list[float]] = []
     paid_users:         list[list[float]] = []
     new_paid_users:     list[list[float]] = []
-
-    prev_paid: Optional[int] = None
+    revenue:            list[list[float]] = []
+    prev_pwc: Optional[int] = None
 
     for y in range(ny):
-        pwc_row, pu_row, npu_row = [], [], []
+        pwc_row, pu_row, npu_row, rev_row = [], [], [], []
+        py = price_for_year(y)
         for q in range(4):
-            total = _safe2d(model.users, y, q)
-
-            # 1.1.1
+            total = _safe2d(p.users, y, q)
             pwc = round(total * conv)
             pwc_row.append(pwc)
-
-            # 1.1.3
             paid = round(pwc * (1 + churn_table[y][q]))
             pu_row.append(paid)
-
-            # 1.1.4
-            if prev_paid is None:   # very first period
-                npu = paid
-            else:
-                npu = paid - prev_paid
+            npu = pwc if prev_pwc is None else pwc - prev_pwc
             npu_row.append(npu)
-            prev_paid = paid
-
+            prev_pwc = pwc
+            # Revenue
+            if p.revenueModel == "subscription":
+                rev = paid * py
+            elif p.revenueModel == "transactional":
+                rev = _safe2d(p.transactions, y, q) * _safe2d(p.avgChecks, y, q)
+            else:  # hybrid
+                rev = paid * py + _safe2d(p.hybridTransactional, y, q)
+            rev_row.append(rev)
         paid_without_churn.append(pwc_row)
         paid_users.append(pu_row)
         new_paid_users.append(npu_row)
+        revenue.append(rev_row)
 
-    # ── Price per year (with optional indexation) ────────────────────────────
-    def price_for_year(y: int) -> float:
-        # Manual override per year takes precedence
-        manual = _safe1d(model.prices, y)
-        if manual != 0:
-            return manual
-        base = _safe1d(model.prices, 0)
-        if model.applyIndexation and y > 0:
-            return base * (1 + model.indexationRate / 100) ** y
-        return base
+    annual_revenue = [sum(revenue[y]) for y in range(ny)]
+    return ProductMetrics(
+        name=p.name,
+        paidWithoutChurn=paid_without_churn,
+        paidUsers=paid_users,
+        newPaidUsers=new_paid_users,
+        revenue=revenue,
+        annualRevenue=annual_revenue,
+    )
 
-    # ── 1.1.5  Quarterly revenue ─────────────────────────────────────────────
-    revenue: list[list[float]] = []
-    for y in range(ny):
-        py = price_for_year(y)
-        row = []
-        for q in range(4):
-            if model.revenueModel == "subscription":
-                rev = paid_users[y][q] * py
-            elif model.revenueModel == "transactional":
-                rev = _safe2d(model.transactions, y, q) * _safe2d(model.avgChecks, y, q)
-            else:  # hybrid
-                rev = paid_users[y][q] * py + _safe2d(model.hybridTransactional, y, q)
-            row.append(rev)
-        revenue.append(row)
+
+def _sum_tables(tables: list[list[list[float]]], ny: int) -> list[list[float]]:
+    """Element-wise sum of multiple [year][quarter] tables."""
+    result = [[0.0] * 4 for _ in range(ny)]
+    for tbl in tables:
+        for y in range(ny):
+            for q in range(4):
+                result[y][q] += _safe2d(tbl, y, q)
+    return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main calculation
+# ─────────────────────────────────────────────────────────────────────────────
+
+def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
+    ny   = model.numYears
+
+    # ── Multi-product vs single-product path ─────────────────────────────────
+    product_metrics_list: list[ProductMetrics] = []
+
+    if model.products:
+        # Multi-product: calculate each stream and sum tables
+        for p in model.products:
+            product_metrics_list.append(_calculate_product(p, ny))
+
+        paid_without_churn = _sum_tables(
+            [pm.paidWithoutChurn for pm in product_metrics_list], ny)
+        paid_users = _sum_tables(
+            [pm.paidUsers for pm in product_metrics_list], ny)
+        new_paid_users = _sum_tables(
+            [pm.newPaidUsers for pm in product_metrics_list], ny)
+        revenue = _sum_tables(
+            [pm.revenue for pm in product_metrics_list], ny)
+
+        # Churn table: use first product's churn (representative for metrics display)
+        p0 = model.products[0]
+        init_churn = p0.churnRate / 100.0
+        q_inc = p0.quarterlyChurnIncrease
+        churn_table: list[list[float]] = []
+        q_idx = 0
+        for y in range(ny):
+            row = []
+            for q in range(4):
+                row.append(init_churn + q_idx * q_inc)
+                q_idx += 1
+            churn_table.append(row)
+    else:
+        # Single-product legacy path
+        conv = model.conversionRate / 100.0
+        init_churn = model.churnRate / 100.0
+        q_inc      = model.quarterlyChurnIncrease
+
+        # ── 1.1.2  Churn table ──────────────────────────────────────────────────
+        churn_table = []
+        q_idx = 0
+        for y in range(ny):
+            row = []
+            for q in range(4):
+                row.append(init_churn + q_idx * q_inc)
+                q_idx += 1
+            churn_table.append(row)
+
+        # ── 1.1.1 / 1.1.3 / 1.1.4  User tables ─────────────────────────────────
+        paid_without_churn = []
+        paid_users         = []
+        new_paid_users     = []
+        prev_pwc: Optional[int] = None
+
+        for y in range(ny):
+            pwc_row, pu_row, npu_row = [], [], []
+            for q in range(4):
+                total = _safe2d(model.users, y, q)
+                pwc = round(total * conv)
+                pwc_row.append(pwc)
+                paid = round(pwc * (1 + churn_table[y][q]))
+                pu_row.append(paid)
+                npu = pwc if prev_pwc is None else pwc - prev_pwc
+                npu_row.append(npu)
+                prev_pwc = pwc
+            paid_without_churn.append(pwc_row)
+            paid_users.append(pu_row)
+            new_paid_users.append(npu_row)
+
+        # ── Price per year (with optional indexation) ────────────────────────────
+        def price_for_year(y: int) -> float:
+            manual = _safe1d(model.prices, y)
+            if manual != 0:
+                return manual
+            base = _safe1d(model.prices, 0)
+            if model.applyIndexation and y > 0:
+                return base * (1 + model.indexationRate / 100) ** y
+            return base
+
+        # ── 1.1.5  Quarterly revenue ─────────────────────────────────────────────
+        revenue = []
+        for y in range(ny):
+            py = price_for_year(y)
+            row = []
+            for q in range(4):
+                if model.revenueModel == "subscription":
+                    rev = paid_users[y][q] * py
+                elif model.revenueModel == "transactional":
+                    rev = _safe2d(model.transactions, y, q) * _safe2d(model.avgChecks, y, q)
+                else:  # hybrid
+                    rev = paid_users[y][q] * py + _safe2d(model.hybridTransactional, y, q)
+                row.append(rev)
+            revenue.append(row)
 
     # ── 1.1.6  Annual revenue ────────────────────────────────────────────────
     annual_revenue = [sum(revenue[y]) for y in range(ny)]
@@ -142,7 +241,7 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
     ]
 
     # ── 1.1.9  Net cash flow ─────────────────────────────────────────────────
-    # year 0: user-entered initial investment + NWC
+    # year 0: NWC (CAPEX field removed from UI; initialInvestment kept for backward compat)
     zero_period = model.initialInvestment + model.nwc
     net_cash_flow = [zero_period] + [
         annual_revenue[y] + total_costs[y] for y in range(ny)
@@ -271,4 +370,5 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
         totalCosts=total_costs,
         netCashFlow=net_cash_flow,
         cacByYear=cac_by_year,
+        productMetrics=product_metrics_list,
     )
