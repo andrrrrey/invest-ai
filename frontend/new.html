@@ -343,7 +343,7 @@
         <div class="ai-banner">
             <i class="fas fa-wand-magic-sparkles" style="font-size:22px;margin-top:2px"></i>
             <div>
-                <strong style="display:block;margin-bottom:3px">Ксения, AI-ассистент (GPT-4.1)</strong>
+                <strong style="display:block;margin-bottom:3px">Ксения, AI-ассистент (GPT-5.4)</strong>
                 <p style="font-size:13px;line-height:1.45">
                     Заполняйте шаги по очереди. Все расчёты обновляются мгновенно — не нужно нажимать «Рассчитать».
                 </p>
@@ -423,7 +423,7 @@
                     <div>
                         <button class="btn btn-primary" @click="aiDescription()" :disabled="aiLoad.desc">
                             <i class="fas" :class="aiLoad.desc ? 'fa-spinner spin' : 'fa-wand-magic-sparkles'"></i>
-                            <span x-text="aiLoad.desc ? 'Генерируем...' : 'Сформулировать с GPT-4.1'"></span>
+                            <span x-text="aiLoad.desc ? 'Генерируем...' : 'Сформулировать с GPT-5.4'"></span>
                         </button>
                     </div>
                 </div>
@@ -1610,7 +1610,7 @@
                     <div>
                         <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 4 из 5 · AI Risk Score</span>
                         <h2 style="font-size:20px;font-weight:700;margin-top:4px">AI-скоринг рисков</h2>
-                        <p class="hint" style="margin-top:3px">GPT-4.1 анализирует заявку и Value Score, возвращает оценку рисков и рекомендацию по маршруту.</p>
+                        <p class="hint" style="margin-top:3px">GPT-5.4 анализирует заявку и Value Score, возвращает оценку рисков и рекомендацию по маршруту.</p>
                     </div>
 
                     <!-- Value Score recap -->
@@ -1631,7 +1631,7 @@
                     <template x-if="!riskScoreData && !aiLoad.riskScore">
                         <div style="text-align:center;padding:30px;color:var(--muted)">
                             <i class="fas fa-shield-halved" style="font-size:32px;margin-bottom:12px;display:block;color:var(--accent)"></i>
-                            <p style="margin-bottom:16px">GPT-4.1 проанализирует заявку и оценит риски по 4 категориям.</p>
+                            <p style="margin-bottom:16px">GPT-5.4 проанализирует заявку и оценит риски по 4 категориям.</p>
                             <button class="btn btn-primary" @click="aiRiskScore()">
                                 <i class="fas fa-wand-magic-sparkles"></i> Запустить AI Risk Score
                             </button>
@@ -1641,7 +1641,7 @@
                     <template x-if="aiLoad.riskScore">
                         <div style="text-align:center;padding:30px;color:var(--muted)">
                             <i class="fas fa-spinner spin" style="font-size:32px;margin-bottom:12px;display:block;color:var(--accent)"></i>
-                            <p>GPT-4.1 анализирует заявку...</p>
+                            <p>GPT-5.4 анализирует заявку...</p>
                         </div>
                     </template>
 
@@ -1743,7 +1743,7 @@
                     <div>
                         <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 4 из 5</span>
                         <h2 style="font-size:20px;font-weight:700;margin-top:4px">Риски и допущения</h2>
-                        <p class="hint" style="margin-top:3px">Раздел формируется GPT-4.1 на основе вашей финансовой модели.</p>
+                        <p class="hint" style="margin-top:3px">Раздел формируется GPT-5.4 на основе вашей финансовой модели.</p>
                     </div>
 
             <!-- Metrics recap -->
@@ -1771,7 +1771,7 @@
                     <i class="fas fa-wand-magic-sparkles"
                        style="font-size:32px;margin-bottom:12px;display:block;color:var(--accent)"></i>
                     <p style="margin-bottom:16px">
-                        GPT-4.1 проанализирует финансовую модель и сформулирует риски и допущения.
+                        GPT-5.4 проанализирует финансовую модель и сформулирует риски и допущения.
                     </p>
                     <button class="btn btn-primary" @click="aiRisks()">
                         <i class="fas fa-wand-magic-sparkles"></i> Сформировать риски и допущения
@@ -1783,7 +1783,7 @@
                 <div style="text-align:center;padding:30px;color:var(--muted)">
                     <i class="fas fa-spinner spin"
                        style="font-size:32px;margin-bottom:12px;display:block;color:var(--accent)"></i>
-                    <p>GPT-4.1 анализирует модель...</p>
+                    <p>GPT-5.4 анализирует модель...</p>
                 </div>
             </template>
 
@@ -1820,7 +1820,7 @@
                     </template>
                     <div>
                         <button class="btn btn-primary" @click="aiRisks()">
-                            <i class="fas fa-wand-magic-sparkles"></i> Обновить через GPT-4.1
+                            <i class="fas fa-wand-magic-sparkles"></i> Обновить через GPT-5.4
                         </button>
                     </div>
                 </div>
