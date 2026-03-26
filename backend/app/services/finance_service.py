@@ -278,7 +278,7 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
     for yr in range(1, len(cum_dcf)):
         if cum_dcf[yr] > 0 and cum_dcf[yr - 1] < 0:
             span = cum_dcf[yr] - cum_dcf[yr - 1]
-            dpp = round(yr - cum_dcf[yr - 1] / span, 2) if span != 0 else float(yr)
+            dpp = round(yr - cum_dcf[yr] / span, 2) if span != 0 else float(yr)
             break
 
     # ── 1.2.6  PI ────────────────────────────────────────────────────────────
@@ -326,11 +326,12 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
     all_churn = [churn_table[y][q] for y in range(ny) for q in range(4)]
     avg_churn = float(np.mean(all_churn)) if all_churn else 0.0
 
-    # ── 1.2.11  Lifetime = 1 / |avgChurn| / 4  (always positive)
-    #           avg_churn is negative (e.g. -0.10 = 10% churn); if zero, use project horizon as fallback
-    lifetime_years = (1.0 / abs(avg_churn) / 4) if avg_churn != 0 else float(ny)
+    # ── 1.2.11  Lifetime = 1 / |avgChurn|  (in months; always positive)
+    #           avg_churn is negative quarterly rate (e.g. -0.10 = 10% churn per quarter)
+    lifetime_months = (1.0 / abs(avg_churn)) if avg_churn != 0 else float(ny * 12)
 
-    # ── 1.2.12  LTV = ARPU × lifetimeYears × grossMargin ───────────────────
+    # ── 1.2.12  LTV = ARPU × lifetime_quarters × grossMargin ───────────────
+    # lifetime_months == 1/|churn_q| which equals lifetime in quarters numerically
     # grossMargin = 1 - COGS% - Support%
     gross_margin = 1.0
     for c in model.costs:
@@ -339,7 +340,7 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
         ):
             gross_margin -= c.param / 100.0
     gross_margin = max(0.0, gross_margin)
-    ltv = arpu * lifetime_years * gross_margin
+    ltv = arpu * lifetime_months * gross_margin
 
     # ── 1.2.13  LTV/CAC ─────────────────────────────────────────────────────
     ltv_cac = round(ltv / avg_cac, 2) if avg_cac > 0 else 0.0
@@ -356,7 +357,7 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
         cac=round(avg_cac),
         arpu=round(arpu),
         avgChurn=round(avg_churn * 100, 2),
-        lifetime=round(lifetime_years, 1),
+        lifetime=round(lifetime_months, 1),
         ltv=round(ltv),
         ltvCac=ltv_cac,
         grossMargin=round(gross_margin * 100, 1),
