@@ -381,9 +381,10 @@
                 async init() {
                     if (!redirectIfNotLoggedIn()) return;
                     try {
+                        const projUrl = this.isOwner ? '/api/v1/projects/?status=approved' : '/api/v1/projects/';
                         const [statsRes, projRes] = await Promise.all([
                             authFetch('/api/v1/stats/'),
-                            authFetch('/api/v1/projects/'),
+                            authFetch(projUrl),
                         ]);
                         if (statsRes.ok) {
                             this.stats = await statsRes.json();
@@ -397,14 +398,9 @@
                     }
                 },
 
-                get approvedProjects() {
-                    return this.projects.filter(p => p.status === 'approved');
-                },
-
                 get ownerStats() {
-                    const approved = this.approvedProjects;
                     let totalNpv = 0, totalInvestment = 0, investCount = 0, opCount = 0;
-                    for (const p of approved) {
+                    for (const p of this.projects) {
                         if (p.project_type === 'investment') {
                             investCount++;
                             totalNpv += (p.metrics?.npv || 0);
@@ -413,7 +409,7 @@
                             opCount++;
                         }
                     }
-                    return { total: approved.length, totalNpv, totalInvestment, investCount, opCount };
+                    return { total: this.projects.length, totalNpv, totalInvestment, investCount, opCount };
                 },
 
                 get displayTotal() {
@@ -455,7 +451,7 @@
                 },
 
                 get displayProjects() {
-                    return this.isOwner ? this.approvedProjects : this.projects;
+                    return this.projects;
                 },
 
                 showAllProjects: false,

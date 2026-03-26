@@ -49,8 +49,8 @@ def list_projects(
     current_user: User = Depends(get_current_user),
 ):
     q = db.query(Project)
-    # Owners see only their own projects
-    if current_user.role == "owner":
+    # Owners see only their own projects, except approved projects are visible system-wide
+    if current_user.role == "owner" and status != "approved":
         q = q.filter(Project.user_id == current_user.id)
     if status:
         q = q.filter(Project.status == status)
