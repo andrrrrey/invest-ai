@@ -461,17 +461,21 @@
                 },
 
                 statusLabel(p) {
-                    const risks = p.risks_data || {};
-                    const ai = risks.ai_assessment || {};
-                    if (ai.risk_level === 'высокий' || risks.overall_risk === 'высокий') return 'В зоне риска';
+                    if (getUserRole() !== 'owner') {
+                        const risks = p.risks_data || {};
+                        const ai = risks.ai_assessment || {};
+                        if (ai.risk_level === 'высокий' || risks.overall_risk === 'высокий') return 'В зоне риска';
+                    }
                     const map = { draft: 'Черновик', pending_approval: 'На согласовании', approved: 'Активен', rejected: 'Отклонён' };
                     return map[p.status] || p.status;
                 },
 
                 statusClass(p) {
-                    const risks = p.risks_data || {};
-                    const ai = risks.ai_assessment || {};
-                    if (ai.risk_level === 'высокий' || risks.overall_risk === 'высокий') return 'st-risk';
+                    if (getUserRole() !== 'owner') {
+                        const risks = p.risks_data || {};
+                        const ai = risks.ai_assessment || {};
+                        if (ai.risk_level === 'высокий' || risks.overall_risk === 'высокий') return 'st-risk';
+                    }
                     if (p.status === 'approved') return 'st-completed';
                     return 'st-draft';
                 },
