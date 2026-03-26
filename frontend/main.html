@@ -266,17 +266,17 @@
                 <div class="kpi-card card-1">
                     <div class="label"><i class="fas fa-layer-group"></i> Всего проектов</div>
                     <div class="value" x-text="loading ? '...' : displayTotal"></div>
-                    <span class="trend" x-text="isOwner ? ('Инв: ' + (ownerStats.investCount) + ' / Опер: ' + (ownerStats.opCount)) : ('Инв: ' + (stats.by_type?.investment || 0) + ' / Опер: ' + (stats.by_type?.operational || 0))"></span>
+                    <span class="trend" x-text="authRole === 'owner' ? ('Инв: ' + (ownerStats.investCount) + ' / Опер: ' + (ownerStats.opCount)) : ('Инв: ' + (stats.by_type?.investment || 0) + ' / Опер: ' + (stats.by_type?.operational || 0))"></span>
                 </div>
                 <div class="kpi-card card-2">
                     <div class="label"><i class="fas fa-chart-line"></i> Суммарный NPV</div>
                     <div class="value" x-text="loading ? '...' : displayNpvFormatted"></div>
-                    <span class="trend" x-show="!isOwner && stats.avg_irr" x-text="'Ср. IRR: ' + stats.avg_irr + '%'"></span>
+                    <span class="trend" x-show="authRole !== 'owner' && stats.avg_irr" x-text="'Ср. IRR: ' + stats.avg_irr + '%'"></span>
                 </div>
                 <div class="kpi-card card-3">
                     <div class="label"><i class="fas fa-briefcase"></i> Активные</div>
                     <div class="value" x-text="loading ? '...' : (displayActiveCount + ' проек' + (displayActiveCount === 1 ? 'т' : displayActiveCount < 5 ? 'та' : 'тов'))"></div>
-                    <span class="trend" x-show="!isOwner" x-text="'На согл.: ' + (stats.by_status?.pending_approval || 0)"></span>
+                    <span class="trend" x-show="authRole !== 'owner'" x-text="'На согл.: ' + (stats.by_status?.pending_approval || 0)"></span>
                 </div>
                 <div class="kpi-card card-4">
                     <div class="label"><i class="fas fa-exclamation-triangle"></i> В зоне риска</div>
@@ -285,7 +285,7 @@
                 <div class="kpi-card card-5">
                     <div class="label">Всего доступно для инвестиций</div>
                     <div class="value" x-text="loading ? '...' : displayAvailableFormatted"></div>
-                    <p style="font-size: 11px; opacity: 0.9;" x-text="isOwner ? 'Сумма по утверждённым проектам' : (stats.investment_budget != null ? ('Бюджет: ' + budgetFormatted) : 'Задайте бюджет в настройках')"></p>
+                    <p style="font-size: 11px; opacity: 0.9;" x-text="authRole === 'owner' ? 'Сумма по утверждённым проектам' : (stats.investment_budget != null ? ('Бюджет: ' + budgetFormatted) : 'Задайте бюджет в настройках')"></p>
                 </div>
             </section>
 
@@ -381,7 +381,7 @@
                 async init() {
                     if (!redirectIfNotLoggedIn()) return;
                     try {
-                        const projUrl = this.isOwner ? '/api/v1/projects/?status=approved' : '/api/v1/projects/';
+                        const projUrl = getUserRole() === 'owner' ? '/api/v1/projects/?status=approved' : '/api/v1/projects/';
                         const [statsRes, projRes] = await Promise.all([
                             authFetch('/api/v1/stats/'),
                             authFetch(projUrl),
@@ -413,30 +413,30 @@
                 },
 
                 get displayTotal() {
-                    return this.isOwner ? this.ownerStats.total : this.stats.total;
+                    return getUserRole() === 'owner' ? this.ownerStats.total : this.stats.total;
                 },
 
                 get displayActiveCount() {
-                    if (this.isOwner) return this.ownerStats.total;
+                    if (getUserRole() === 'owner') return this.ownerStats.total;
                     const s = this.stats.by_status || {};
                     return (s.approved || 0) + (s.pending_approval || 0);
                 },
 
                 get displayNpvFormatted() {
-                    const n = this.isOwner ? this.ownerStats.totalNpv : (this.stats.total_npv || 0);
+                    const n = getUserRole() === 'owner' ? this.ownerStats.totalNpv : (this.stats.total_npv || 0);
                     if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1) + ' млн ₽';
                     if (Math.abs(n) >= 1e3) return Math.round(n / 1e3) + ' тыс ₽';
                     return Math.round(n) + ' ₽';
                 },
 
                 get displayAvailableFormatted() {
-                    if (this.isOwner) {
+                    if (getUserRole() === 'owner') {
                         const n = this.ownerStats.totalInvestment;
                         if (Math.abs(n) >= 1e6) return Math.round(n / 1e6) + ' млн ₽';
                         if (Math.abs(n) >= 1e3) return Math.round(n / 1e3) + ' тыс ₽';
                         return Math.round(n) + ' ₽';
                     }
-                    return this._fmtBudget(this.stats.available_for_investment) ?? 'Не задан';
+                    return this._fmtBudget(this.stats.available_for_investment) || 'Не задан';
                 },
 
                 _fmtBudget(n) {
