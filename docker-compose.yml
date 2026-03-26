@@ -10,6 +10,7 @@ services:
       - DATABASE_URL=sqlite:////data/invest_ai.db
     volumes:
       - db_data:/data
+      - ./backend/app:/app/app           # live code — no rebuild needed
       - ./frontend:/app/../frontend:ro   # serve static files
     ports:
       - "8000:8000"
