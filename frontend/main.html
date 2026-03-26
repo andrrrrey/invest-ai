@@ -265,18 +265,18 @@
             <section class="kpi-row">
                 <div class="kpi-card card-1">
                     <div class="label"><i class="fas fa-layer-group"></i> Всего проектов</div>
-                    <div class="value" x-text="loading ? '...' : stats.total"></div>
-                    <span class="trend" x-text="'Инв: ' + (stats.by_type?.investment || 0) + ' / Опер: ' + (stats.by_type?.operational || 0)"></span>
+                    <div class="value" x-text="loading ? '...' : displayTotal"></div>
+                    <span class="trend" x-text="isOwner ? ('Инв: ' + (ownerStats.investCount) + ' / Опер: ' + (ownerStats.opCount)) : ('Инв: ' + (stats.by_type?.investment || 0) + ' / Опер: ' + (stats.by_type?.operational || 0))"></span>
                 </div>
                 <div class="kpi-card card-2">
                     <div class="label"><i class="fas fa-chart-line"></i> Суммарный NPV</div>
-                    <div class="value" x-text="loading ? '...' : totalNpvFormatted"></div>
-                    <span class="trend" x-show="stats.avg_irr" x-text="'Ср. IRR: ' + stats.avg_irr + '%'"></span>
+                    <div class="value" x-text="loading ? '...' : displayNpvFormatted"></div>
+                    <span class="trend" x-show="!isOwner && stats.avg_irr" x-text="'Ср. IRR: ' + stats.avg_irr + '%'"></span>
                 </div>
                 <div class="kpi-card card-3">
                     <div class="label"><i class="fas fa-briefcase"></i> Активные</div>
-                    <div class="value" x-text="loading ? '...' : (activeCount + ' проек' + (activeCount === 1 ? 'т' : activeCount < 5 ? 'та' : 'тов'))"></div>
-                    <span class="trend" x-text="'На согл.: ' + (stats.by_status?.pending_approval || 0)"></span>
+                    <div class="value" x-text="loading ? '...' : (displayActiveCount + ' проек' + (displayActiveCount === 1 ? 'т' : displayActiveCount < 5 ? 'та' : 'тов'))"></div>
+                    <span class="trend" x-show="!isOwner" x-text="'На согл.: ' + (stats.by_status?.pending_approval || 0)"></span>
                 </div>
                 <div class="kpi-card card-4">
                     <div class="label"><i class="fas fa-exclamation-triangle"></i> В зоне риска</div>
@@ -284,16 +284,16 @@
                 </div>
                 <div class="kpi-card card-5">
                     <div class="label">Всего доступно для инвестиций</div>
-                    <div class="value" x-text="loading ? '...' : (stats.available_for_investment != null ? availableFormatted : 'Не задан')"></div>
-                    <p style="font-size: 11px; opacity: 0.9;" x-text="stats.investment_budget != null ? ('Бюджет: ' + budgetFormatted) : 'Задайте бюджет в настройках'"></p>
+                    <div class="value" x-text="loading ? '...' : displayAvailableFormatted"></div>
+                    <p style="font-size: 11px; opacity: 0.9;" x-text="isOwner ? 'Сумма по утверждённым проектам' : (stats.investment_budget != null ? ('Бюджет: ' + budgetFormatted) : 'Задайте бюджет в настройках')"></p>
                 </div>
             </section>
 
             <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
                 <h2>Последние проекты</h2>
-                <button x-show="!loading && projects.length > 5" @click="showAllProjects = !showAllProjects"
+                <button x-show="!loading && displayProjects.length > 5" @click="showAllProjects = !showAllProjects"
                     style="padding:8px 16px;border-radius:10px;border:1.5px solid #C7C9FF;background:white;color:#5E5CE6;font-size:13px;font-weight:600;cursor:pointer"
-                    x-text="showAllProjects ? 'Свернуть' : 'Показать все (' + projects.length + ')'">
+                    x-text="showAllProjects ? 'Свернуть' : 'Показать все (' + displayProjects.length + ')'">
                 </button>
             </div>
 
@@ -301,10 +301,10 @@
                 <template x-if="loading">
                     <p style="color: var(--text-muted); padding: 20px;">Загрузка данных...</p>
                 </template>
-                <template x-if="!loading && projects.length === 0">
+                <template x-if="!loading && displayProjects.length === 0">
                     <p style="color: var(--text-muted); padding: 20px;">Проектов пока нет. <a href="/new" style="color: var(--accent-purple);">Создать первый</a></p>
                 </template>
-                <table class="projects-table" x-show="!loading && projects.length > 0">
+                <table class="projects-table" x-show="!loading && displayProjects.length > 0">
                     <thead>
                         <tr>
                             <th>Проект</th>
@@ -397,37 +397,71 @@
                     }
                 },
 
-                get activeCount() {
+                get approvedProjects() {
+                    return this.projects.filter(p => p.status === 'approved');
+                },
+
+                get ownerStats() {
+                    const approved = this.approvedProjects;
+                    let totalNpv = 0, totalInvestment = 0, investCount = 0, opCount = 0;
+                    for (const p of approved) {
+                        if (p.project_type === 'investment') {
+                            investCount++;
+                            totalNpv += (p.metrics?.npv || 0);
+                            totalInvestment += Math.abs(parseFloat(p.financial_model?.initialInvestment || 0));
+                        } else {
+                            opCount++;
+                        }
+                    }
+                    return { total: approved.length, totalNpv, totalInvestment, investCount, opCount };
+                },
+
+                get displayTotal() {
+                    return this.isOwner ? this.ownerStats.total : this.stats.total;
+                },
+
+                get displayActiveCount() {
+                    if (this.isOwner) return this.ownerStats.total;
                     const s = this.stats.by_status || {};
                     return (s.approved || 0) + (s.pending_approval || 0);
                 },
 
-                get totalNpvFormatted() {
-                    const n = this.stats.total_npv || 0;
+                get displayNpvFormatted() {
+                    const n = this.isOwner ? this.ownerStats.totalNpv : (this.stats.total_npv || 0);
                     if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1) + ' млн ₽';
                     if (Math.abs(n) >= 1e3) return Math.round(n / 1e3) + ' тыс ₽';
                     return Math.round(n) + ' ₽';
+                },
+
+                get displayAvailableFormatted() {
+                    if (this.isOwner) {
+                        const n = this.ownerStats.totalInvestment;
+                        if (Math.abs(n) >= 1e6) return Math.round(n / 1e6) + ' млн ₽';
+                        if (Math.abs(n) >= 1e3) return Math.round(n / 1e3) + ' тыс ₽';
+                        return Math.round(n) + ' ₽';
+                    }
+                    return this._fmtBudget(this.stats.available_for_investment) ?? 'Не задан';
                 },
 
                 _fmtBudget(n) {
-                    if (n == null) return '—';
+                    if (n == null) return null;
                     if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1) + ' млн ₽';
                     if (Math.abs(n) >= 1e3) return Math.round(n / 1e3) + ' тыс ₽';
                     return Math.round(n) + ' ₽';
                 },
 
-                get availableFormatted() {
-                    return this._fmtBudget(this.stats.available_for_investment);
+                get budgetFormatted() {
+                    return this._fmtBudget(this.stats.investment_budget) ?? '—';
                 },
 
-                get budgetFormatted() {
-                    return this._fmtBudget(this.stats.investment_budget);
+                get displayProjects() {
+                    return this.isOwner ? this.approvedProjects : this.projects;
                 },
 
                 showAllProjects: false,
 
                 get recentProjects() {
-                    return this.showAllProjects ? this.projects : this.projects.slice(0, 5);
+                    return this.showAllProjects ? this.displayProjects : this.displayProjects.slice(0, 5);
                 },
 
                 statusLabel(p) {
