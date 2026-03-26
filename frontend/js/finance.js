@@ -257,7 +257,7 @@ const Finance = {
     for (let yr = 1; yr < cumDcf.length; yr++) {
       if (cumDcf[yr] > 0 && cumDcf[yr - 1] < 0) {
         const span = cumDcf[yr] - cumDcf[yr - 1];
-        dpp = +(yr - cumDcf[yr - 1] / span).toFixed(2);
+        dpp = +(yr - cumDcf[yr] / span).toFixed(2);
         break;
       }
     }
@@ -296,11 +296,11 @@ const Finance = {
     const allChurn  = churnTable.flat();
     const avgChurn  = allChurn.reduce((a, b) => a + b, 0) / (allChurn.length || 1);
 
-    // 1.2.11  Lifetime = 1 / |avgChurn| / 4  (quarters to years, always positive)
-    //         avgChurn is negative (e.g. -0.10 = 10% churn), so we take absolute value
-    const lifetimeYears = avgChurn !== 0 ? 1 / Math.abs(avgChurn) / 4 : ny; // fallback to project horizon if no churn
+    // 1.2.11  Lifetime = 1 / |avgChurn|  (in months; always positive)
+    //         avgChurn is negative quarterly rate (e.g. -0.10 = 10% churn per quarter)
+    const lifetimeMonths = avgChurn !== 0 ? 1 / Math.abs(avgChurn) : ny * 12; // fallback to project horizon if no churn
 
-    // 1.2.12  LTV = ARPU × lifetimeYears × grossMargin
+    // 1.2.12  LTV = ARPU × lifetimeMonths × grossMargin
     let grossMargin = 1;
     for (const c of form.costs) {
       if (c.mode === 'percent_revenue' &&
@@ -310,7 +310,7 @@ const Finance = {
       }
     }
     grossMargin = Math.max(0, grossMargin);
-    const ltv = arpu * lifetimeYears * grossMargin;
+    const ltv = arpu * lifetimeMonths * grossMargin;
 
     // 1.2.13  LTV/CAC
     const ltvCac = avgCac > 0 ? +(ltv / avgCac).toFixed(2) : 0;
@@ -329,7 +329,7 @@ const Finance = {
       cac:            Math.round(avgCac),
       arpu:           Math.round(arpu),
       avgChurn:       +(avgChurn * 100).toFixed(2),
-      lifetime:       +lifetimeYears.toFixed(1),
+      lifetime:       +lifetimeMonths.toFixed(1),
       ltv:            Math.round(ltv),
       ltvCac,
       grossMargin:    +(grossMargin * 100).toFixed(1),
