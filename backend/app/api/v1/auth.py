@@ -3,8 +3,12 @@ import secrets
 import string
 import uuid
 from datetime import datetime
+from typing import Optional
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+import httpx
+from fastapi import APIRouter, Cookie, Depends, HTTPException, status, UploadFile, File
+from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -14,9 +18,33 @@ from ...models.user import User
 from ...auth import verify_password, hash_password, create_access_token, get_current_user
 from ...schemas.user import Token, UserRead, UserProfileUpdate, ChangePasswordRequest
 from ... import settings_store
+from ...config import settings
 from ...services.email_service import send_registration_email
 
 AVATARS_DIR = os.environ.get("AVATARS_DIR", "/data/avatars")
+
+# ---------- OIDC discovery cache ----------
+
+_oidc_config_cache: dict = {}
+
+
+def _get_oidc_config() -> dict:
+    """Fetch and cache OIDC discovery document from the provider's well-known endpoint."""
+    if _oidc_config_cache:
+        return _oidc_config_cache
+
+    if not settings.OIDC_ISSUER_URL:
+        raise HTTPException(status_code=501, detail="SSO не настроен (OIDC_ISSUER_URL не задан)")
+
+    discovery_url = settings.OIDC_ISSUER_URL.rstrip("/") + "/.well-known/openid-configuration"
+    try:
+        resp = httpx.get(discovery_url, timeout=10)
+        resp.raise_for_status()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Не удалось получить OIDC конфигурацию: {exc}")
+
+    _oidc_config_cache.update(resp.json())
+    return _oidc_config_cache
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -221,3 +249,129 @@ async def upload_avatar(
     db.commit()
     db.refresh(current_user)
     return current_user
+
+
+# ---------- SSO / OIDC endpoints ----------
+
+@router.get("/sso/login")
+def sso_login():
+    """Redirect the browser to the OIDC provider's authorization endpoint."""
+    if not settings.OIDC_CLIENT_ID or not settings.OIDC_ISSUER_URL:
+        raise HTTPException(status_code=501, detail="SSO не настроен на сервере")
+
+    oidc_cfg = _get_oidc_config()
+    state = secrets.token_urlsafe(32)
+
+    query = urlencode({
+        "response_type": "code",
+        "client_id": settings.OIDC_CLIENT_ID,
+        "redirect_uri": settings.OIDC_REDIRECT_URI,
+        "scope": "openid email profile",
+        "state": state,
+    })
+    auth_url = oidc_cfg["authorization_endpoint"] + "?" + query
+
+    response = RedirectResponse(url=auth_url, status_code=302)
+    # Store state in a short-lived cookie for CSRF protection
+    response.set_cookie(
+        key="sso_state",
+        value=state,
+        httponly=True,
+        samesite="lax",
+        max_age=300,
+        secure=settings.APP_ENV == "production",
+    )
+    return response
+
+
+@router.get("/sso/callback")
+def sso_callback(
+    code: str,
+    state: str,
+    sso_state: Optional[str] = Cookie(default=None),
+    db: Session = Depends(get_db),
+):
+    """Handle the authorization code callback from the OIDC provider."""
+    if not sso_state or sso_state != state:
+        raise HTTPException(status_code=400, detail="Неверный state параметр (возможна CSRF-атака)")
+
+    oidc_cfg = _get_oidc_config()
+
+    # Exchange authorization code for tokens
+    try:
+        token_resp = httpx.post(
+            oidc_cfg["token_endpoint"],
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": settings.OIDC_REDIRECT_URI,
+                "client_id": settings.OIDC_CLIENT_ID,
+                "client_secret": settings.OIDC_CLIENT_SECRET,
+            },
+            timeout=10,
+        )
+        token_resp.raise_for_status()
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Ошибка получения токена от SSO: {exc}")
+
+    access_token_oidc = token_resp.json().get("access_token")
+
+    # Get user info from provider
+    try:
+        userinfo_resp = httpx.get(
+            oidc_cfg["userinfo_endpoint"],
+            headers={"Authorization": f"Bearer {access_token_oidc}"},
+            timeout=10,
+        )
+        userinfo_resp.raise_for_status()
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Ошибка получения данных пользователя от SSO: {exc}")
+
+    userinfo = userinfo_resp.json()
+    email = (userinfo.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="SSO провайдер не вернул email пользователя")
+
+    full_name = (
+        userinfo.get("name")
+        or userinfo.get("preferred_username")
+        or email
+    )
+
+    # Find existing user or create a new one with default role
+    user = db.query(User).filter(User.email == email).first()
+    if user is None:
+        user = User(
+            email=email,
+            full_name=full_name,
+            hashed_password="",   # SSO-only account; password login disabled
+            role=settings.SSO_DEFAULT_ROLE,
+            is_active=True,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    elif not user.is_active:
+        raise HTTPException(status_code=403, detail="Аккаунт деактивирован")
+
+    # Issue our own JWT so the frontend works identically to password login
+    jwt_token = create_access_token(data={
+        "sub": user.email,
+        "role": user.role,
+        "user_id": user.id,
+    })
+
+    # Redirect to login page with token in query string;
+    # login.html JS will call saveAuth() and immediately replace the URL.
+    params = urlencode({
+        "access_token": jwt_token,
+        "token_type": "bearer",
+        "user_id": user.id,
+        "role": user.role,
+        "full_name": user.full_name,
+    })
+    response = RedirectResponse(url=f"/login.html?{params}", status_code=302)
+    response.delete_cookie("sso_state")
+    return response

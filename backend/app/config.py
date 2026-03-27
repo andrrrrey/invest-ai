@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     SMTP_USER: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
     SMTP_FROM: str = "noreply@invest-ai.local"
+    # SSO / OIDC settings (Keycloak or any OIDC-compatible provider)
+    OIDC_ISSUER_URL: Optional[str] = None   # e.g. https://keycloak.example.com/realms/myrealm
+    OIDC_CLIENT_ID: Optional[str] = None
+    OIDC_CLIENT_SECRET: Optional[str] = None
+    OIDC_REDIRECT_URI: str = "http://localhost/api/v1/auth/sso/callback"
+    SSO_DEFAULT_ROLE: str = "owner"         # role assigned to new users created via SSO
 
     class Config:
         env_file = ".env"

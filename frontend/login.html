@@ -148,6 +148,53 @@
         }
 
         .register-link a:hover { text-decoration: underline; }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 20px 0;
+            color: #8E8E93;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #E5E5E5;
+        }
+
+        .btn-sso {
+            width: 100%;
+            padding: 13px;
+            background: white;
+            color: #1C1C1E;
+            border: 1.5px solid #E5E5E5;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: 0.2s;
+            text-decoration: none;
+        }
+        .btn-sso:hover { border-color: #5E5CE6; color: #5E5CE6; transform: translateY(-1px); }
+        .btn-sso-icon {
+            width: 20px;
+            height: 20px;
+            background: #5E5CE6;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+        }
     </style>
 </head>
 <body>
@@ -182,6 +229,13 @@
             <div class="error-msg" id="errorMsg"></div>
         </form>
 
+        <div class="divider">или</div>
+
+        <a href="/api/v1/auth/sso/login" class="btn-sso" id="ssoBtn">
+            <span class="btn-sso-icon"><i class="fas fa-key"></i></span>
+            Войти через SSO
+        </a>
+
         <div class="register-link">
             Нет аккаунта? <a href="/register.html">Зарегистрироваться</a>
         </div>
@@ -189,6 +243,23 @@
 
     <script src="/js/auth.js"></script>
     <script>
+        // Handle SSO callback: backend redirects here with token params in query string
+        (function handleSSOCallback() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('access_token')) {
+                saveAuth({
+                    access_token: params.get('access_token'),
+                    token_type:   params.get('token_type') || 'bearer',
+                    user_id:      parseInt(params.get('user_id') || '0', 10),
+                    role:         params.get('role') || '',
+                    full_name:    params.get('full_name') || '',
+                });
+                // Replace history entry so the token is not kept in browser history
+                window.location.replace('/');
+                return;
+            }
+        })();
+
         // Already logged in → redirect
         if (isLoggedIn()) {
             window.location.href = '/';
