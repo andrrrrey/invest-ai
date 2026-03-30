@@ -39,7 +39,7 @@ def _chat(prompt: str, max_tokens: int = 700) -> str:
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
         ],
-        max_tokens=max_tokens,
+        max_completion_tokens=max_tokens,
         temperature=0.4,
     )
     return response.choices[0].message.content.strip()
