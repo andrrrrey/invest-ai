@@ -1874,7 +1874,7 @@
                     <!-- Summary grid -->
                     <div class="summary-grid">
                         <!-- Left: application summary -->
-                        <article class="summary-card">
+                        <article class="summary-card" x-data="{ thesisExpanded: false, stopLossExpanded: false }">
                             <h4>Инвестиционный запрос</h4>
                             <p><strong>Инициатива:</strong> <span x-text="form.name||'(без названия)'"></span></p>
                             <p><strong>Категория:</strong> <span x-text="form.op_category||'—'"></span></p>
@@ -1883,9 +1883,19 @@
                             <p><strong>Value Drivers:</strong> <span x-text="form.op_value_drivers.map(d => d === '__other__' ? (form.op_value_drivers_other || 'other') : d).join(', ') || '—'"></span></p>
                             <p><strong>Метрика:</strong> <span x-text="(form.op_metrics === '__custom__' ? (form.op_metrics_custom || '—') : form.op_metrics) || '—'"></span></p>
                             <p style="margin-top:8px"><strong>Тезис:</strong></p>
-                            <p x-text="form.op_investment_thesis ? form.op_investment_thesis.slice(0,200) + (form.op_investment_thesis.length>200?'…':'') : '—'"></p>
+                            <p x-text="thesisExpanded ? form.op_investment_thesis : (form.op_investment_thesis ? form.op_investment_thesis.slice(0,200)+(form.op_investment_thesis.length>200?'…':'') : '—')"></p>
+                            <template x-if="form.op_investment_thesis?.length > 200">
+                                <button @click="thesisExpanded = !thesisExpanded"
+                                    style="margin-top:4px;background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:0;font-weight:600"
+                                    x-text="thesisExpanded ? 'Свернуть ▲' : 'Читать далее ▼'"></button>
+                            </template>
                             <p style="margin-top:8px"><strong>Stop-loss:</strong></p>
-                            <p x-text="form.op_stop_loss ? form.op_stop_loss.slice(0,150) + (form.op_stop_loss.length>150?'…':'') : '—'"></p>
+                            <p x-text="stopLossExpanded ? form.op_stop_loss : (form.op_stop_loss ? form.op_stop_loss.slice(0,150)+(form.op_stop_loss.length>150?'…':'') : '—')"></p>
+                            <template x-if="form.op_stop_loss?.length > 150">
+                                <button @click="stopLossExpanded = !stopLossExpanded"
+                                    style="margin-top:4px;background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:0;font-weight:600"
+                                    x-text="stopLossExpanded ? 'Свернуть ▲' : 'Читать далее ▼'"></button>
+                            </template>
                         </article>
 
                         <!-- Right: scores -->
@@ -1995,12 +2005,17 @@
                     </div>
 
             <div class="summary-grid">
-                <article class="summary-card">
+                <article class="summary-card" x-data="{ descExpanded: false }">
                     <h4>Investment Hypothesis</h4>
                     <p><strong>Проект:</strong> <span x-text="form.name||'(без названия)'"></span></p>
                     <p><strong>Юнит:</strong> <span x-text="form.businessUnit"></span> · <strong>Стадия:</strong> <span x-text="form.stage"></span></p>
                     <p><strong>Старт:</strong> <span x-text="form.startDate||'не указан'"></span></p>
-                    <p style="margin-top:8px" x-text="form.description?form.description.slice(0,200)+(form.description.length>200?'…':''):'—'"></p>
+                    <p style="margin-top:8px" x-text="descExpanded ? form.description : (form.description ? form.description.slice(0,200)+(form.description.length>200?'…':'') : '—')"></p>
+                    <template x-if="form.description?.length > 200">
+                        <button @click="descExpanded = !descExpanded"
+                            style="margin-top:4px;background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:0;font-weight:600"
+                            x-text="descExpanded ? 'Свернуть ▲' : 'Читать далее ▼'"></button>
+                    </template>
                     <p style="margin-top:10px">
                         <strong>NPV:</strong> <span x-text="Finance.fmtShort(metrics.npv)"></span> ·
                         <strong>IRR:</strong> <span x-text="metrics.irr!=null?metrics.irr+'%':'—'"></span> ·
@@ -2277,7 +2292,8 @@ function wizardApp() {
                 const res = await authFetch('/api/v1/projects/' + id);
                 if (!res.ok) throw new Error('Проект не найден');
                 const p = await res.json();
-                if (p.status !== 'draft') {
+                const role = getUserRole();
+                if (p.status !== 'draft' && !(role === 'cfo' || role === 'manager')) {
                     this._toast('Редактирование доступно только для черновиков', 'error');
                     return;
                 }

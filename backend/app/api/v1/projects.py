@@ -9,6 +9,10 @@ from ...schemas.project import ProjectCreate, ProjectUpdate, ProjectRead
 from ...schemas.finance import FinancialModelInput
 from ...services.finance_service import calculate_metrics
 from ...auth import get_current_user
+from ...services.email_service import (
+    send_approval_request_emails,
+    send_status_notification_email,
+)
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -182,6 +186,39 @@ def change_status(
     project.status = new_status
     db.commit()
     db.refresh(project)
+
+    # --- Email notifications (fire-and-forget, never block the response) ---
+    import logging
+
+    _log = logging.getLogger(__name__)
+    try:
+        project_name = project.name or "(без названия)"
+
+        if new_status == "pending_approval":
+            # Notify all CFO and managers
+            approvers = (
+                db.query(User)
+                .filter(User.role.in_(["cfo", "manager"]), User.is_active == True)
+                .all()
+            )
+            recipients = [
+                {"email": u.email, "full_name": u.full_name} for u in approvers
+            ]
+            if recipients:
+                send_approval_request_emails(
+                    recipients, project_name, current_user.full_name
+                )
+
+        elif new_status in ("approved", "rejected", "draft"):
+            # Notify the project applicant
+            owner = db.get(User, project.user_id) if project.user_id else None
+            if owner and owner.email:
+                send_status_notification_email(
+                    owner.email, owner.full_name, project_name, new_status
+                )
+    except Exception:
+        _log.exception("Email notification failed for project %s", project_id)
+
     return project
 
 

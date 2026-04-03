@@ -762,6 +762,22 @@
                                             </button>
                                         </div>
                                     </template>
+                                    <template x-if="project.status === 'approved' && canApprove">
+                                        <div style="display:flex;flex-direction:column;gap:10px">
+                                            <button @click="window.location.href='/new?id=' + project.id"
+                                                style="padding:14px;border-radius:14px;border:1.5px solid var(--accent-purple);background:white;color:var(--accent-purple);font-weight:700;cursor:pointer;font-size:13px">
+                                                <i class="fas fa-pen" style="margin-right:6px"></i>Редактировать проект
+                                            </button>
+                                            <button @click="changeStatus('draft')"
+                                                style="padding:14px;border-radius:14px;border:1px solid #E5E5E5;background:white;font-weight:700;cursor:pointer;font-size:13px">
+                                                Вернуть в черновик
+                                            </button>
+                                            <button @click="changeStatus('rejected')"
+                                                style="padding:14px;border-radius:14px;border:none;background:#FF3B30;color:white;font-weight:700;cursor:pointer;font-size:13px">
+                                                Отклонить
+                                            </button>
+                                        </div>
+                                    </template>
                                     <template x-if="project.status === 'rejected' && (canApprove || project.user_id === authUserId)">
                                         <button @click="changeStatus('draft')"
                                             style="padding:14px;border-radius:14px;border:1px solid #E5E5E5;background:white;font-weight:700;cursor:pointer">
