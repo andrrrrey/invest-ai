@@ -69,7 +69,10 @@ def generate_risk_score(req: RiskScoreRequest, _=Depends(get_current_user)) -> d
 @router.post("/analyze")
 def analyze_project(req: AnalyzeRequest, _=Depends(get_current_user)) -> dict:
     _check_api_key()
-    return ai_service.analyze_project(
-        project=req.project,
-        metrics=req.metrics,
-    )
+    try:
+        return ai_service.analyze_project(
+            project=req.project,
+            metrics=req.metrics,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Ошибка AI-сервиса: {e}")

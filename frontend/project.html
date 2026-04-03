@@ -932,14 +932,23 @@
                     if (!this.project) return;
                     this.aiLoading = true;
                     try {
+                        const plainProject = JSON.parse(JSON.stringify(this.project));
+                        const plainMetrics = JSON.parse(JSON.stringify(this.metrics));
                         const res = await authFetch('/api/v1/ai/analyze', {
                             method: 'POST',
-                            body: JSON.stringify({ project: this.project, metrics: this.metrics }),
+                            body: JSON.stringify({ project: plainProject, metrics: plainMetrics }),
                         });
-                        if (res.ok) this.aiAnalysis = await res.json();
-                        else this.aiAnalysis = { comment: 'AI недоступен', anomalies: [], comparison: '' };
+                        if (res.ok) {
+                            this.aiAnalysis = await res.json();
+                        } else {
+                            const err = await res.json().catch(() => ({}));
+                            this.aiAnalysis = { comment: err.detail || 'AI недоступен', anomalies: [], comparison: '' };
+                        }
                     } catch(e) {
-                        this.aiAnalysis = { comment: 'Ошибка соединения', anomalies: [], comparison: '' };
+                        if (e.message !== 'Unauthorized') {
+                            console.error('AI analysis error:', e);
+                            this.aiAnalysis = { comment: 'Ошибка соединения', anomalies: [], comparison: '' };
+                        }
                     } finally {
                         this.aiLoading = false;
                     }
