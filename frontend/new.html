@@ -2293,8 +2293,8 @@ function wizardApp() {
                 if (!res.ok) throw new Error('Проект не найден');
                 const p = await res.json();
                 const role = getUserRole();
-                if (p.status !== 'draft' && !(role === 'cfo' || role === 'manager')) {
-                    this._toast('Редактирование доступно только для черновиков', 'error');
+                if (p.status !== 'draft' && p.status !== 'pending_approval' && !(role === 'cfo' || role === 'manager')) {
+                    this._toast('Редактирование доступно только для черновиков и заявок на согласовании', 'error');
                     return;
                 }
                 this.projectId = p.id;
