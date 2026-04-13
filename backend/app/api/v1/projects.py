@@ -23,7 +23,19 @@ def _recalc_and_save(project: Project, db: Session) -> None:
     if not fm:
         return
     try:
-        model_input = FinancialModelInput(**fm)
+        # The frontend stores the entire form inside financial_model,
+        # which may include empty-string values for numeric fields
+        # (e.g. nwc: '').  Sanitise known numeric fields so that
+        # Pydantic validation does not fail silently.
+        clean = dict(fm)
+        for key in ("nwc", "initialInvestment", "keyRate", "riskPremium",
+                     "conversionRate", "churnRate", "quarterlyChurnIncrease",
+                     "indexationRate", "numYears"):
+            val = clean.get(key)
+            if val is None or val == "":
+                clean.pop(key, None)          # let Pydantic use the default
+
+        model_input = FinancialModelInput(**clean)
         metrics = calculate_metrics(model_input)
         project.metrics = metrics.model_dump()
     except Exception:
@@ -116,11 +128,11 @@ def update_project(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="CEO не может редактировать проекты",
         )
-    # Owner can only edit their own draft projects
-    if current_user.role == "owner" and project.status != "draft":
+    # Owner can only edit their own draft or pending_approval projects
+    if current_user.role == "owner" and project.status not in ("draft", "pending_approval"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Заявитель может редактировать только черновики",
+            detail="Заявитель может редактировать только черновики и заявки на согласовании",
         )
 
     update_data = data.model_dump(exclude_unset=True)

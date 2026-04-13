@@ -379,7 +379,7 @@
                                     <table class="metrics-table">
                                         <tr>
                                             <td class="label">Начальные инвестиции (CAPEX)</td>
-                                            <td class="value" x-text="fmtMoney(Math.abs(fm.initialInvestment))"></td>
+                                            <td class="value" x-text="fmtMoney(Math.abs(fm.initialInvestment || (metrics.netCashFlow && metrics.netCashFlow[0]) || 0))"></td>
                                         </tr>
                                         <tr>
                                             <td class="label">Горизонт (лет)</td>
@@ -407,11 +407,11 @@
                                         </tr>
                                         <tr>
                                             <td class="label">Ср. квартальный отток</td>
-                                            <td class="value" x-text="metrics.avgChurn != null ? (metrics.avgChurn*100).toFixed(1) + '%' : '—'"></td>
+                                            <td class="value" x-text="metrics.avgChurn != null ? metrics.avgChurn.toFixed(1) + '%' : '—'"></td>
                                         </tr>
                                         <tr>
                                             <td class="label">Gross Margin</td>
-                                            <td class="value" x-text="metrics.grossMargin != null ? (metrics.grossMargin*100).toFixed(1) + '%' : '—'"></td>
+                                            <td class="value" x-text="metrics.grossMargin != null ? metrics.grossMargin.toFixed(1) + '%' : '—'"></td>
                                         </tr>
                                         <template x-if="extraTime.hoursPerMonth > 0">
                                             <tr>
@@ -750,15 +750,27 @@
                                             </button>
                                         </div>
                                     </template>
-                                    <template x-if="project.status === 'pending_approval' && canApprove">
-                                        <div style="display:flex;gap:10px">
-                                            <button @click="changeStatus('approved')"
-                                                style="flex:1;padding:14px;border-radius:14px;border:none;background:#34C759;color:white;font-weight:700;cursor:pointer">
-                                                Утвердить
+                                    <template x-if="project.status === 'pending_approval' && (canApprove || project.user_id === authUserId)">
+                                        <div style="display:flex;flex-direction:column;gap:10px">
+                                            <button @click="window.location.href='/new?id=' + project.id"
+                                                style="padding:14px;border-radius:14px;border:1.5px solid var(--accent-purple);background:white;color:var(--accent-purple);font-weight:700;cursor:pointer;font-size:13px">
+                                                <i class="fas fa-pen" style="margin-right:6px"></i>Редактировать проект
                                             </button>
-                                            <button @click="changeStatus('rejected')"
-                                                style="flex:1;padding:14px;border-radius:14px;border:none;background:#FF3B30;color:white;font-weight:700;cursor:pointer">
-                                                Отклонить
+                                            <template x-if="canApprove">
+                                                <div style="display:flex;gap:10px">
+                                                    <button @click="changeStatus('approved')"
+                                                        style="flex:1;padding:14px;border-radius:14px;border:none;background:#34C759;color:white;font-weight:700;cursor:pointer">
+                                                        Утвердить
+                                                    </button>
+                                                    <button @click="changeStatus('rejected')"
+                                                        style="flex:1;padding:14px;border-radius:14px;border:none;background:#FF3B30;color:white;font-weight:700;cursor:pointer">
+                                                        Отклонить
+                                                    </button>
+                                                </div>
+                                            </template>
+                                            <button @click="changeStatus('draft')"
+                                                style="padding:14px;border-radius:14px;border:1px solid #E5E5E5;background:white;font-weight:700;cursor:pointer;font-size:13px">
+                                                Вернуть в черновик
                                             </button>
                                         </div>
                                     </template>
