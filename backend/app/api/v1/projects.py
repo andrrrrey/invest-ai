@@ -237,6 +237,30 @@ def change_status(
     return project
 
 
+@router.patch("/{project_id}/recalculate", response_model=ProjectRead)
+def recalculate_project(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Force-recalculate and persist financial metrics without touching any
+    other project fields.  Available to CFO and Manager for all projects;
+    Owner can recalculate only their own projects."""
+    project = _get_project_or_404(project_id, db)
+    _check_project_access(project, current_user)
+
+    if current_user.role not in ("cfo", "manager", "owner"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Недостаточно прав для пересчёта метрик",
+        )
+
+    _recalc_and_save(project, db)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
 @router.delete("/{project_id}", status_code=204)
 def delete_project(
     project_id: int,
