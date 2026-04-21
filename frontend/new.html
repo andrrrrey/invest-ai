@@ -1111,7 +1111,7 @@
                                                         :style="col.quarters.length===4 ? 'width:120px' : 'width:72px'"
                                                         :value="getProductUserDisplayVal(pi, yi, col)"
                                                         @focus="$event.target.select()"
-                                                        @input="setProductUserDisplayVal(pi, yi, col, $event.target.value)">
+                                                        @change="setProductUserDisplayVal(pi, yi, col, $event.target.value)">
                                                 </td>
                                             </template>
                                             <td>
@@ -2468,9 +2468,15 @@ function wizardApp() {
                 return;
             }
             const total = parseFloat(val) || 0;
-            const perQ = col.quarters.length > 1 ? Math.round(total / col.quarters.length) : total;
+            const n = col.quarters.length;
             const m = prod.users.map(r => [...r]);
-            col.quarters.forEach(q => { m[yi][q] = perQ; });
+            if (n === 1) {
+                m[yi][col.quarters[0]] = total;
+            } else {
+                const base = Math.floor(total / n);
+                const rem = total % n;
+                col.quarters.forEach((q, idx) => { m[yi][q] = base + (idx < rem ? 1 : 0); });
+            }
             prod.users = m;
         },
 
