@@ -2789,13 +2789,38 @@ function wizardApp() {
                 unit_eco_justification: this.form.vs_unit_eco_justification,
             } : null;
 
+            // Build financial_model: when granularity === 'month', convert
+            // usersMonthly → quarterly users so the backend always receives
+            // quarterly data (it has no concept of granularity).
+            const fm = { ...this.form };
+            if (fm.granularity === 'month') {
+                const toQuarterly = (monthly, ny) =>
+                    Array.from({ length: ny }, (_, y) =>
+                        [0, 1, 2, 3].map(q => {
+                            const ms = [3*q, 3*q+1, 3*q+2].map(m => (monthly[y] || [])[m] || 0);
+                            return ms.reduce((a, b) => a + b, 0);
+                        })
+                    );
+                // Top-level (legacy single-product)
+                if (fm.usersMonthly) {
+                    fm.users = toQuarterly(fm.usersMonthly, fm.numYears || 5);
+                }
+                // Per-product streams
+                if (fm.products) {
+                    fm.products = fm.products.map(prod => {
+                        if (!prod.usersMonthly) return prod;
+                        return { ...prod, users: toQuarterly(prod.usersMonthly, fm.numYears || 5) };
+                    });
+                }
+            }
+
             return {
                 project_type: this.form.projectType,
                 name: this.form.name, business_unit: this.form.businessUnit,
                 description: this.form.description, owner: this.form.owner,
                 stage: this.form.stage, start_date: this.form.startDate,
                 platform: this.form.platform === 'Иное' ? (this.form.platformCustom || 'Иное') : this.form.platform,
-                financial_model: { ...this.form },
+                financial_model: fm,
                 risks_data: this.form.projectType === 'operational' ? this.riskScoreData : this.risksData,
                 value_score_data: valueScoreData,
                 decision_route: this.form.vs_band || null,

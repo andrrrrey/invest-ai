@@ -17,6 +17,19 @@ from ...services.email_service import (
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 
+def _monthly_to_quarterly(monthly: list, num_years: int) -> list:
+    """Convert a [year][month] users table to [year][quarter] by summing months."""
+    result = []
+    for y in range(num_years):
+        year_data = monthly[y] if y < len(monthly) else []
+        row = []
+        for q in range(4):
+            ms = [year_data[3*q + m] if 3*q + m < len(year_data) else 0 for m in range(3)]
+            row.append(sum(ms))
+        result.append(row)
+    return result
+
+
 def _recalc_and_save(project: Project, db: Session) -> None:
     """Recalculate financial metrics and persist them."""
     import logging
@@ -37,6 +50,24 @@ def _recalc_and_save(project: Project, db: Session) -> None:
             val = clean.get(key)
             if val is None or val == "":
                 clean.pop(key, None)          # let Pydantic use the default
+
+        # When the frontend uses monthly granularity it stores usersMonthly but
+        # may leave quarterly users empty.  Convert here so the calculation
+        # engine (which only understands quarterly data) gets correct values.
+        num_years = int(clean.get("numYears") or 5)
+        if clean.get("granularity") == "month":
+            # Top-level (legacy single-product)
+            if clean.get("usersMonthly"):
+                clean["users"] = _monthly_to_quarterly(clean["usersMonthly"], num_years)
+            # Per-product streams
+            if clean.get("products"):
+                converted = []
+                for prod in clean["products"]:
+                    p = dict(prod)
+                    if p.get("usersMonthly"):
+                        p["users"] = _monthly_to_quarterly(p["usersMonthly"], num_years)
+                    converted.append(p)
+                clean["products"] = converted
 
         model_input = FinancialModelInput(**clean)
         metrics = calculate_metrics(model_input)
