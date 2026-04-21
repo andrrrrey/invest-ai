@@ -900,11 +900,16 @@
                 },
 
                 get metrics() {
+                    // Prefer backend-cached metrics (authoritative, computed by Python/numpy)
+                    if (this.project?.metrics && Object.keys(this.project.metrics).length > 0) {
+                        return this.project.metrics;
+                    }
+                    // Fallback: recalculate on the client if backend metrics are absent
                     const fm = this.project?.financial_model;
                     if (fm && typeof Finance !== 'undefined') {
                         try { return Finance.calculate(fm); } catch(_) {}
                     }
-                    return this.project?.metrics || {};
+                    return {};
                 },
 
                 get statusLabel() {
