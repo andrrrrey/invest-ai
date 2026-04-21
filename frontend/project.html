@@ -289,6 +289,16 @@
                                 @click="showExtraTimeModal = true">
                                 <i class="fas fa-clock"></i> Extra Time
                             </button>
+                            <button
+                                x-show="project && project.project_type === 'investment'"
+                                :disabled="recalculating"
+                                style="background:#E8F5E9;border:1.5px solid #A5D6A7;color:#2E7D32;border-radius:12px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.2s;"
+                                onmouseover="if(!this.disabled){this.style.background='#2E7D32';this.style.color='white'}"
+                                onmouseout="if(!this.disabled){this.style.background='#E8F5E9';this.style.color='#2E7D32'}"
+                                @click="recalculateMetrics()">
+                                <i class="fas fa-sync-alt" :class="recalculating ? 'fa-spin' : ''"></i>
+                                <span x-text="recalculating ? 'Пересчёт...' : 'Пересчитать'"></span>
+                            </button>
                             <button x-show="canDelete"
                                 style="background:#FFE5E3;border:1.5px solid #FFCCC8;color:#FF3B30;border-radius:12px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.2s;"
                                 onmouseover="this.style.background='#FF3B30';this.style.color='white'"
@@ -852,6 +862,7 @@
                 ...authMixin(),
                 project: null,
                 loading: true,
+                recalculating: false,
                 aiAnalysis: null,
                 aiLoading: false,
                 statusMsg: '',
@@ -988,6 +999,29 @@
                         }
                     }
                     setTimeout(() => { this.statusMsg = ''; }, 3000);
+                },
+
+                async recalculateMetrics() {
+                    if (!this.project || this.recalculating) return;
+                    this.recalculating = true;
+                    try {
+                        const res = await authFetch('/api/v1/projects/' + this.project.id + '/recalculate', { method: 'PATCH' });
+                        if (res.ok) {
+                            this.project = await res.json();
+                            this.statusMsg = 'Метрики пересчитаны';
+                            this.statusMsgType = 'ok';
+                        } else {
+                            const err = await res.json().catch(() => ({}));
+                            this.statusMsg = 'Ошибка: ' + (err.detail || res.status);
+                            this.statusMsgType = 'error';
+                        }
+                    } catch(e) {
+                        this.statusMsg = 'Ошибка соединения: ' + e.message;
+                        this.statusMsgType = 'error';
+                    } finally {
+                        this.recalculating = false;
+                        setTimeout(() => { this.statusMsg = ''; }, 3000);
+                    }
                 },
 
                 async deleteProject() {

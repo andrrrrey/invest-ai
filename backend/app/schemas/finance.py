@@ -1,12 +1,55 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
+from pydantic import BaseModel, Field, model_validator
+from typing import Optional, List, Any
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sanitisation helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _f(v: Any) -> float:
+    """Coerce a single value to float, treating None / '' / invalid as 0."""
+    if v is None or v == '':
+        return 0.0
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _f1(v: Any) -> list:
+    """Coerce a 1-D list to List[float]."""
+    if not isinstance(v, list):
+        return []
+    return [_f(x) for x in v]
+
+
+def _f2(v: Any) -> list:
+    """Coerce a 2-D list to List[List[float]]."""
+    if not isinstance(v, list):
+        return []
+    return [_f1(row) if isinstance(row, list) else [_f(row)] for row in v]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Models
+# ─────────────────────────────────────────────────────────────────────────────
 
 class CostRow(BaseModel):
     category: str
     mode: str  # percent_revenue | cac | manual
     param: float = 0.0
     values: List[float] = Field(default_factory=lambda: [0.0] * 5)
+
+    @model_validator(mode='before')
+    @classmethod
+    def _sanitize(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        if data.get('param') in (None, ''):
+            data['param'] = 0.0
+        if 'values' in data:
+            data['values'] = _f1(data['values'])
+        return data
 
 
 class ProductStream(BaseModel):
@@ -31,6 +74,23 @@ class ProductStream(BaseModel):
     conversionRate: float = 85.0
     churnRate: float = -10.0
     quarterlyChurnIncrease: float = 0.0015
+
+    @model_validator(mode='before')
+    @classmethod
+    def _sanitize(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        for scalar in ('indexationRate', 'conversionRate', 'churnRate',
+                       'quarterlyChurnIncrease'):
+            if data.get(scalar) in (None, ''):
+                data[scalar] = 0.0
+        for key1d in ('prices',):
+            if key1d in data:
+                data[key1d] = _f1(data[key1d])
+        for key2d in ('transactions', 'avgChecks', 'hybridTransactional', 'users'):
+            if key2d in data:
+                data[key2d] = _f2(data[key2d])
+        return data
 
 
 class FinancialModelInput(BaseModel):
@@ -71,6 +131,26 @@ class FinancialModelInput(BaseModel):
     nwc: float = 0.0
     # When True the user has manually overridden the auto-calculated NWC
     nwcManual: bool = False
+
+    @model_validator(mode='before')
+    @classmethod
+    def _sanitize(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        for scalar in ('indexationRate', 'conversionRate', 'churnRate',
+                       'quarterlyChurnIncrease', 'keyRate', 'riskPremium',
+                       'initialInvestment', 'nwc'):
+            if data.get(scalar) in (None, ''):
+                data[scalar] = 0.0
+        if data.get('numYears') in (None, ''):
+            data['numYears'] = 5
+        for key1d in ('prices',):
+            if key1d in data:
+                data[key1d] = _f1(data[key1d])
+        for key2d in ('transactions', 'avgChecks', 'hybridTransactional', 'users'):
+            if key2d in data:
+                data[key2d] = _f2(data[key2d])
+        return data
 
 
 class ProductMetrics(BaseModel):
