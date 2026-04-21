@@ -19,6 +19,9 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 
 def _recalc_and_save(project: Project, db: Session) -> None:
     """Recalculate financial metrics and persist them."""
+    import logging
+    _log = logging.getLogger(__name__)
+
     fm = project.financial_model
     if not fm:
         return
@@ -39,7 +42,7 @@ def _recalc_and_save(project: Project, db: Session) -> None:
         metrics = calculate_metrics(model_input)
         project.metrics = metrics.model_dump()
     except Exception:
-        pass
+        _log.exception("Failed to recalculate metrics for project %s", project.id)
 
 
 def _get_project_or_404(project_id: int, db: Session) -> Project:
