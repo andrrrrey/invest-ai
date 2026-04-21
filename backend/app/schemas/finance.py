@@ -69,6 +69,8 @@ class FinancialModelInput(BaseModel):
     # Zero-period investment (negative values; initialInvestment kept for backward compat)
     initialInvestment: float = 0.0
     nwc: float = 0.0
+    # When True the user has manually overridden the auto-calculated NWC
+    nwcManual: bool = False
 
 
 class ProductMetrics(BaseModel):

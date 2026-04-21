@@ -240,21 +240,27 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
         for y in range(ny)
     ]
 
-    # ── 1.1.9  Net cash flow ─────────────────────────────────────────────────
-    # year 0: NWC (CAPEX field removed from UI; initialInvestment kept for backward compat)
-    zero_period = model.initialInvestment + model.nwc
-    net_cash_flow = [zero_period] + [
-        annual_revenue[y] + total_costs[y] for y in range(ny)
-    ]
+    # ── 1.1.9  Operating cash flows per year (years 1..N) ───────────────────
+    operating_cf = [annual_revenue[y] + total_costs[y] for y in range(ny)]
 
-    # ── 1.1.10  Calculated NWC (sum of consecutive negative operating years
-    #            from year 1 until the first year where revenue - costs >= 0)
+    # ── 1.1.10  Calculated NWC = sum of consecutive negative operating years
+    #            from year 1 until the first positive year (mirrors finance.js)
     nwc_calc = 0.0
-    for v in net_cash_flow[1:]:
+    for v in operating_cf:
         if v < 0:
             nwc_calc += v
         else:
             break
+
+    # ── 1.1.9 (continued)  Net cash flow ────────────────────────────────────
+    # Year 0: use manual NWC override when nwcManual=True, otherwise auto nwcCalc.
+    # initialInvestment is kept only for legacy projects that pre-date the
+    # NWC-based UI; new projects always go through the nwcCalc path.
+    if model.nwcManual and model.nwc != 0.0:
+        zero_period = model.nwc
+    else:
+        zero_period = nwc_calc
+    net_cash_flow = [zero_period] + operating_cf
 
     # ── 1.2.1  Discount factors (annual) ────────────────────────────────────
     discount_rate = (model.keyRate + model.riskPremium) / 100.0
