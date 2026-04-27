@@ -3,7 +3,7 @@ Financial calculation engine for the Investment Processor.
 
 Formulas implement the specification exactly:
   1.1.x — user / revenue / cost tables
-  1.2.x — key metrics (NPV, IRR, DPP, PI, CAC, ARPU, LTV, …)
+  1.2.x — key metrics (NPV, IRR, DPP, PI, CAC, ARPA, LTV, …)
 
 All calculations mirror finance.js so server-side validation gives
 identical results to real-time client-side previews.
@@ -219,8 +219,11 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
     annual_revenue = [sum(revenue[y]) for y in range(ny)]
 
     # ── 1.1.7 / 1.1.8  Annual costs (negative values = expenses) ───────────
+    # Two-pass: percent_costs depends on all other categories computed first.
     annual_costs_by_cat: dict[str, list[float]] = {}
     for c in model.costs:
+        if c.mode == "percent_costs":
+            continue
         cat_costs = []
         for y in range(ny):
             if c.mode == "manual":
@@ -233,6 +236,18 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
             else:
                 val = 0.0
             cat_costs.append(val)
+        annual_costs_by_cat[c.category] = cat_costs
+    for c in model.costs:
+        if c.mode != "percent_costs":
+            continue
+        cat_costs = []
+        for y in range(ny):
+            other_total = sum(
+                abs(annual_costs_by_cat[k][y])
+                for k in annual_costs_by_cat
+                if k != c.category
+            )
+            cat_costs.append(-(other_total * c.param / 100.0))
         annual_costs_by_cat[c.category] = cat_costs
 
     total_costs = [
@@ -301,32 +316,50 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
     except Exception:
         pass
 
-    # ── 1.2.8  CAC ───────────────────────────────────────────────────────────
-    # CAC[y] = |marketingCost[y]| / newPaidUsers[y]  (per year)
+    # ── 1.2.8  CAC = total_marketing_cost / total_new_clients ───────────────
+    # New clients per quarter = max(0, paid_users[y][q] - paid_users_prev)
     mkt_cat = next(
         (cat for cat in annual_costs_by_cat
          if "маркетинг" in cat.lower() or "marketing" in cat.lower()),
         None,
     )
+    new_clients_by_period: list[list[float]] = []
+    prev_paid_q: Optional[float] = None
+    for y in range(ny):
+        year_clients = []
+        for q in range(4):
+            delta = paid_users[y][q] if prev_paid_q is None else paid_users[y][q] - prev_paid_q
+            year_clients.append(max(0.0, float(delta)))
+            prev_paid_q = float(paid_users[y][q])
+        new_clients_by_period.append(year_clients)
+
     cac_by_year: list[float] = []
     for y in range(ny):
-        new_u = sum(new_paid_users[y])
-        if mkt_cat and new_u > 0:
-            cac_by_year.append(abs(annual_costs_by_cat[mkt_cat][y]) / new_u)
+        new_u_y = sum(new_clients_by_period[y])
+        if mkt_cat and new_u_y > 0:
+            cac_by_year.append(abs(annual_costs_by_cat[mkt_cat][y]) / new_u_y)
         else:
-            # Fallback: use fixed param from CAC-mode cost row
             cac_fixed = next((c.param for c in model.costs if c.mode == "cac"), 0.0)
             cac_by_year.append(cac_fixed)
-    avg_cac = float(np.mean(cac_by_year)) if cac_by_year else 0.0
 
-    # ── 1.2.9  ARPU (average quarterly revenue per paying user) ─────────────
-    arpu_vals = [
+    total_new_clients = sum(sum(row) for row in new_clients_by_period)
+    total_mkt_cost = (
+        sum(abs(annual_costs_by_cat[mkt_cat][y]) for y in range(ny))
+        if mkt_cat else 0.0
+    )
+    if total_new_clients > 0:
+        avg_cac = total_mkt_cost / total_new_clients
+    else:
+        avg_cac = next((c.param for c in model.costs if c.mode == "cac"), 0.0)
+
+    # ── 1.2.9  ARPA (average quarterly revenue per paying account) ──────────
+    arpa_vals = [
         revenue[y][q] / paid_users[y][q]
         for y in range(ny)
         for q in range(4)
         if paid_users[y][q] > 0
     ]
-    arpu = float(np.mean(arpu_vals)) if arpu_vals else 0.0
+    arpa = float(np.mean(arpa_vals)) if arpa_vals else 0.0
 
     # ── 1.2.10  Average quarterly churn ─────────────────────────────────────
     all_churn = [churn_table[y][q] for y in range(ny) for q in range(4)]
@@ -336,7 +369,7 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
     #           avg_churn is negative quarterly rate (e.g. -0.10 = 10% churn per quarter)
     lifetime_months = (1.0 / abs(avg_churn)) if avg_churn != 0 else float(ny * 12)
 
-    # ── 1.2.12  LTV = ARPU × lifetime_quarters × grossMargin ───────────────
+    # ── 1.2.12  LTV = ARPA × lifetime_quarters × grossMargin ───────────────
     # lifetime_months == 1/|churn_q| which equals lifetime in quarters numerically
     # grossMargin = 1 - COGS% - Support%
     gross_margin = 1.0
@@ -346,7 +379,7 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
         ):
             gross_margin -= c.param / 100.0
     gross_margin = max(0.0, gross_margin)
-    ltv = arpu * lifetime_months * gross_margin
+    ltv = arpa * lifetime_months * gross_margin
 
     # ── 1.2.13  LTV/CAC ─────────────────────────────────────────────────────
     ltv_cac = round(ltv / avg_cac, 2) if avg_cac > 0 else 0.0
@@ -361,7 +394,7 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
         pi=pi,
         irr=irr_annual,
         cac=round(avg_cac),
-        arpu=round(arpu),
+        arpa=round(arpa),
         avgChurn=round(avg_churn * 100, 2),
         lifetime=round(lifetime_months, 1),
         ltv=round(ltv),

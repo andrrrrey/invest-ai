@@ -295,7 +295,7 @@ def _project_detail_card(project: dict, ai_commentary: str | None, section_offse
         (_fmt(m.get("pi"), "", 2), "PI"),
         (_fmt(m.get("ltvCac"), "", 2), "LTV/CAC"),
         (_fmt(m.get("cac"), " ₽"), "CAC"),
-        (_fmt(m.get("arpu"), " ₽"), "ARPU"),
+        (_fmt(m.get("arpa"), " ₽"), "ARPA"),
         (_fmt(m.get("grossMargin"), "%", 1), "Gross Margin"),
     ]:
         metrics_html += f"""
