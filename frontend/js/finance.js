@@ -70,12 +70,56 @@ const Finance = {
   },
 
   /* ─── Per-product calculation ───────────────────────────────────────── */
-  _calculateProduct(prod, ny) {
+  _calculateProduct(prod, ny, granularity) {
     const conv      = (+prod.conversionRate || 0) / 100;
     const initChurn = (+prod.churnRate || 0) / 100;
     const qInc      = +prod.quarterlyChurnIncrease || 0;
-    const churnTable = this.buildChurnTable(initChurn, qInc, ny);
 
+    if (granularity === 'month' && prod.usersMonthly && prod.usersMonthly.length > 0) {
+      // Monthly path: calculate at monthly granularity, aggregate to quarterly output
+      const mChurnBase = initChurn / 3;
+      const mChurnInc  = qInc / 3;
+
+      const paidWithoutChurn = Array.from({ length: ny }, () => [0, 0, 0, 0]);
+      const paidUsers        = Array.from({ length: ny }, () => [0, 0, 0, 0]);
+      const newPaidUsers     = Array.from({ length: ny }, () => [0, 0, 0, 0]);
+      const revenue          = Array.from({ length: ny }, () => [0, 0, 0, 0]);
+      let prevPwc = null;
+      let mIdx = 0;
+
+      for (let y = 0; y < ny; y++) {
+        const py = this._price(prod, y); // quarterly price — consistent with legacy revenue block
+        for (let m = 0; m < 12; m++) {
+          const q     = Math.floor(m / 3);
+          const total = this._s1(prod.usersMonthly[y] || [], m);
+          const pwc   = Math.round(total * conv);
+          const mChurn = mChurnBase + mIdx * mChurnInc;
+          const paid  = Math.round(pwc * (1 + mChurn));
+          const npu   = prevPwc === null ? pwc : pwc - prevPwc;
+
+          let rev = 0;
+          if (prod.revenueModel === 'subscription') {
+            rev = paid * py; // py is quarterly price; rev accumulates monthly, sums to quarterly total
+          } else if (prod.revenueModel === 'transactional') {
+            rev = (this._s2(prod.transactions, y, q) * this._s2(prod.avgChecks, y, q)) / 3;
+          } else {
+            rev = paid * py + this._s2(prod.hybridTransactional, y, q) / 3;
+          }
+
+          paidWithoutChurn[y][q] += pwc;
+          paidUsers[y][q]        += paid;
+          newPaidUsers[y][q]     += Math.max(0, npu);
+          revenue[y][q]          += rev;
+          prevPwc = pwc;
+          mIdx++;
+        }
+      }
+      const annualRevenue = revenue.map(r => r.reduce((a, b) => a + b, 0));
+      return { name: prod.name || '', paidWithoutChurn, paidUsers, newPaidUsers, revenue, annualRevenue };
+    }
+
+    // Quarterly path (default)
+    const churnTable = this.buildChurnTable(initChurn, qInc, ny);
     const paidWithoutChurn = [], paidUsers = [], newPaidUsers = [], revenue = [];
     let prevPwc = null;
 
@@ -128,9 +172,11 @@ const Finance = {
     let paidWithoutChurn, paidUsers, newPaidUsers, revenue, churnTable;
     let productMetrics = [];
 
+    const granularity = form.granularity || 'quarter';
+
     if (form.products && form.products.length > 0) {
       // Multi-product: calculate each stream and sum
-      productMetrics = form.products.map(p => this._calculateProduct(p, ny));
+      productMetrics = form.products.map(p => this._calculateProduct(p, ny, granularity));
       paidWithoutChurn = this._sumTables(productMetrics.map(m => m.paidWithoutChurn), ny);
       paidUsers        = this._sumTables(productMetrics.map(m => m.paidUsers), ny);
       newPaidUsers     = this._sumTables(productMetrics.map(m => m.newPaidUsers), ny);
@@ -145,26 +191,52 @@ const Finance = {
       const qInc      = +form.quarterlyChurnIncrease || 0;
       churnTable = this.buildChurnTable(initChurn, qInc, ny);
 
-      paidWithoutChurn = [];
-      paidUsers        = [];
-      newPaidUsers     = [];
-      let prevPwc = null;
-
-      for (let y = 0; y < ny; y++) {
-        const pwcRow = [], puRow = [], npuRow = [];
-        for (let q = 0; q < 4; q++) {
-          const total = this._s2(form.users, y, q);
-          const pwc   = Math.round(total * conv);
-          pwcRow.push(pwc);
-          const paid  = Math.round(pwc * (1 + churnTable[y][q]));
-          puRow.push(paid);
-          const npu = prevPwc === null ? pwc : pwc - prevPwc;
-          npuRow.push(npu);
-          prevPwc = pwc;
+      if (granularity === 'month' && form.usersMonthly && form.usersMonthly.length > 0) {
+        // Monthly path: compute at monthly granularity, aggregate to quarterly
+        const mChurnBase = initChurn / 3;
+        const mChurnInc  = qInc / 3;
+        paidWithoutChurn = Array.from({ length: ny }, () => [0, 0, 0, 0]);
+        paidUsers        = Array.from({ length: ny }, () => [0, 0, 0, 0]);
+        newPaidUsers     = Array.from({ length: ny }, () => [0, 0, 0, 0]);
+        let prevPwc = null;
+        let mIdx = 0;
+        for (let y = 0; y < ny; y++) {
+          for (let m = 0; m < 12; m++) {
+            const q     = Math.floor(m / 3);
+            const total = this._s1(form.usersMonthly[y] || [], m);
+            const pwc   = Math.round(total * conv);
+            const mChurn = mChurnBase + mIdx * mChurnInc;
+            const paid  = Math.round(pwc * (1 + mChurn));
+            const npu   = prevPwc === null ? pwc : pwc - prevPwc;
+            paidWithoutChurn[y][q] += pwc;
+            paidUsers[y][q]        += paid;
+            newPaidUsers[y][q]     += Math.max(0, npu);
+            prevPwc = pwc;
+            mIdx++;
+          }
         }
-        paidWithoutChurn.push(pwcRow);
-        paidUsers.push(puRow);
-        newPaidUsers.push(npuRow);
+      } else {
+        // Quarterly path
+        paidWithoutChurn = [];
+        paidUsers        = [];
+        newPaidUsers     = [];
+        let prevPwc = null;
+        for (let y = 0; y < ny; y++) {
+          const pwcRow = [], puRow = [], npuRow = [];
+          for (let q = 0; q < 4; q++) {
+            const total = this._s2(form.users, y, q);
+            const pwc   = Math.round(total * conv);
+            pwcRow.push(pwc);
+            const paid  = Math.round(pwc * (1 + churnTable[y][q]));
+            puRow.push(paid);
+            const npu = prevPwc === null ? pwc : pwc - prevPwc;
+            npuRow.push(npu);
+            prevPwc = pwc;
+          }
+          paidWithoutChurn.push(pwcRow);
+          paidUsers.push(puRow);
+          newPaidUsers.push(npuRow);
+        }
       }
 
       revenue = [];

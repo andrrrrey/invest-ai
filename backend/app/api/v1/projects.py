@@ -51,24 +51,8 @@ def _recalc_and_save(project: Project, db: Session) -> None:
             if val is None or val == "":
                 clean.pop(key, None)          # let Pydantic use the default
 
-        # When the frontend uses monthly granularity it stores usersMonthly but
-        # may leave quarterly users empty.  Convert here so the calculation
-        # engine (which only understands quarterly data) gets correct values.
-        num_years = int(clean.get("numYears") or 5)
-        if clean.get("granularity") == "month":
-            # Top-level (legacy single-product)
-            if clean.get("usersMonthly"):
-                clean["users"] = _monthly_to_quarterly(clean["usersMonthly"], num_years)
-            # Per-product streams
-            if clean.get("products"):
-                converted = []
-                for prod in clean["products"]:
-                    p = dict(prod)
-                    if p.get("usersMonthly"):
-                        p["users"] = _monthly_to_quarterly(p["usersMonthly"], num_years)
-                    converted.append(p)
-                clean["products"] = converted
-
+        # granularity and usersMonthly are now passed directly to the calculation
+        # engine which handles monthly granularity internally.
         model_input = FinancialModelInput(**clean)
         metrics = calculate_metrics(model_input)
         project.metrics = metrics.model_dump()
