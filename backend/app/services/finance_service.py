@@ -40,21 +40,11 @@ def _safe1d(arr: list, i: int, default: float = 0.0) -> float:
 # Per-product calculation helper
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _calculate_product(p: ProductStream, ny: int) -> ProductMetrics:
+def _calculate_product(p: ProductStream, ny: int, granularity: str = "quarter") -> ProductMetrics:
     """Calculate user tables and revenue for a single product stream."""
     conv = p.conversionRate / 100.0
     init_churn = p.churnRate / 100.0
     q_inc = p.quarterlyChurnIncrease
-
-    # Churn table for this product
-    churn_table: list[list[float]] = []
-    q_idx = 0
-    for y in range(ny):
-        row = []
-        for q in range(4):
-            row.append(init_churn + q_idx * q_inc)
-            q_idx += 1
-        churn_table.append(row)
 
     def price_for_year(y: int) -> float:
         manual = _safe1d(p.prices, y)
@@ -65,10 +55,66 @@ def _calculate_product(p: ProductStream, ny: int) -> ProductMetrics:
             return base * (1 + p.indexationRate / 100) ** y
         return base
 
-    paid_without_churn: list[list[float]] = []
-    paid_users:         list[list[float]] = []
-    new_paid_users:     list[list[float]] = []
-    revenue:            list[list[float]] = []
+    if granularity == "month" and p.usersMonthly:
+        # Monthly path: calculate at monthly granularity, aggregate to quarterly output
+        m_churn_base = init_churn / 3
+        m_churn_inc  = q_inc / 3
+
+        paid_without_churn = [[0.0] * 4 for _ in range(ny)]
+        paid_users         = [[0.0] * 4 for _ in range(ny)]
+        new_paid_users     = [[0.0] * 4 for _ in range(ny)]
+        revenue            = [[0.0] * 4 for _ in range(ny)]
+        prev_pwc: Optional[float] = None
+        m_idx = 0
+
+        for y in range(ny):
+            py = price_for_year(y)
+            for m in range(12):
+                q = m // 3
+                total = _safe1d(p.usersMonthly[y] if y < len(p.usersMonthly) else [], m)
+                pwc   = round(total * conv)
+                m_churn = m_churn_base + m_idx * m_churn_inc
+                paid  = round(pwc * (1 + m_churn))
+                npu   = pwc if prev_pwc is None else pwc - prev_pwc
+
+                if p.revenueModel == "subscription":
+                    rev = paid * py
+                elif p.revenueModel == "transactional":
+                    rev = (_safe2d(p.transactions, y, q) * _safe2d(p.avgChecks, y, q)) / 3
+                else:  # hybrid
+                    rev = paid * py + _safe2d(p.hybridTransactional, y, q) / 3
+
+                paid_without_churn[y][q] += pwc
+                paid_users[y][q]         += paid
+                new_paid_users[y][q]     += max(0.0, float(npu))
+                revenue[y][q]            += rev
+                prev_pwc = float(pwc)
+                m_idx += 1
+
+        annual_revenue = [sum(revenue[y]) for y in range(ny)]
+        return ProductMetrics(
+            name=p.name,
+            paidWithoutChurn=paid_without_churn,
+            paidUsers=paid_users,
+            newPaidUsers=new_paid_users,
+            revenue=revenue,
+            annualRevenue=annual_revenue,
+        )
+
+    # Quarterly path (default)
+    churn_table: list[list[float]] = []
+    q_idx = 0
+    for y in range(ny):
+        row = []
+        for q in range(4):
+            row.append(init_churn + q_idx * q_inc)
+            q_idx += 1
+        churn_table.append(row)
+
+    paid_without_churn = []
+    paid_users         = []
+    new_paid_users     = []
+    revenue            = []
     prev_pwc: Optional[int] = None
 
     for y in range(ny):
@@ -83,7 +129,6 @@ def _calculate_product(p: ProductStream, ny: int) -> ProductMetrics:
             npu = pwc if prev_pwc is None else pwc - prev_pwc
             npu_row.append(npu)
             prev_pwc = pwc
-            # Revenue
             if p.revenueModel == "subscription":
                 rev = paid * py
             elif p.revenueModel == "transactional":
@@ -127,10 +172,12 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
     # ── Multi-product vs single-product path ─────────────────────────────────
     product_metrics_list: list[ProductMetrics] = []
 
+    granularity = model.granularity or "quarter"
+
     if model.products:
         # Multi-product: calculate each stream and sum tables
         for p in model.products:
-            product_metrics_list.append(_calculate_product(p, ny))
+            product_metrics_list.append(_calculate_product(p, ny, granularity))
 
         paid_without_churn = _sum_tables(
             [pm.paidWithoutChurn for pm in product_metrics_list], ny)
@@ -169,26 +216,50 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
                 q_idx += 1
             churn_table.append(row)
 
-        # ── 1.1.1 / 1.1.3 / 1.1.4  User tables ─────────────────────────────────
-        paid_without_churn = []
-        paid_users         = []
-        new_paid_users     = []
-        prev_pwc: Optional[int] = None
+        if granularity == "month" and model.usersMonthly:
+            # Monthly path: compute at monthly granularity, aggregate to quarterly
+            m_churn_base = init_churn / 3
+            m_churn_inc  = q_inc / 3
+            paid_without_churn = [[0.0] * 4 for _ in range(ny)]
+            paid_users         = [[0.0] * 4 for _ in range(ny)]
+            new_paid_users     = [[0.0] * 4 for _ in range(ny)]
+            prev_pwc: Optional[float] = None
+            m_idx = 0
+            for y in range(ny):
+                for m in range(12):
+                    q = m // 3
+                    total = _safe1d(
+                        model.usersMonthly[y] if y < len(model.usersMonthly) else [], m)
+                    pwc   = round(total * conv)
+                    m_churn = m_churn_base + m_idx * m_churn_inc
+                    paid  = round(pwc * (1 + m_churn))
+                    npu   = pwc if prev_pwc is None else pwc - prev_pwc
+                    paid_without_churn[y][q] += pwc
+                    paid_users[y][q]         += paid
+                    new_paid_users[y][q]     += max(0.0, float(npu))
+                    prev_pwc = float(pwc)
+                    m_idx += 1
+        else:
+            # ── 1.1.1 / 1.1.3 / 1.1.4  User tables ─────────────────────────────
+            paid_without_churn = []
+            paid_users         = []
+            new_paid_users     = []
+            prev_pwc: Optional[int] = None
 
-        for y in range(ny):
-            pwc_row, pu_row, npu_row = [], [], []
-            for q in range(4):
-                total = _safe2d(model.users, y, q)
-                pwc = round(total * conv)
-                pwc_row.append(pwc)
-                paid = round(pwc * (1 + churn_table[y][q]))
-                pu_row.append(paid)
-                npu = pwc if prev_pwc is None else pwc - prev_pwc
-                npu_row.append(npu)
-                prev_pwc = pwc
-            paid_without_churn.append(pwc_row)
-            paid_users.append(pu_row)
-            new_paid_users.append(npu_row)
+            for y in range(ny):
+                pwc_row, pu_row, npu_row = [], [], []
+                for q in range(4):
+                    total = _safe2d(model.users, y, q)
+                    pwc = round(total * conv)
+                    pwc_row.append(pwc)
+                    paid = round(pwc * (1 + churn_table[y][q]))
+                    pu_row.append(paid)
+                    npu = pwc if prev_pwc is None else pwc - prev_pwc
+                    npu_row.append(npu)
+                    prev_pwc = pwc
+                paid_without_churn.append(pwc_row)
+                paid_users.append(pu_row)
+                new_paid_users.append(npu_row)
 
         # ── Price per year (with optional indexation) ────────────────────────────
         def price_for_year(y: int) -> float:

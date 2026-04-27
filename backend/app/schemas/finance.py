@@ -71,6 +71,8 @@ class ProductStream(BaseModel):
 
     # Users per quarter [year][quarter]
     users: List[List[float]] = Field(default_factory=lambda: [[0]*4]*5)
+    # Users per month [year][month] — populated when granularity == 'month'
+    usersMonthly: List[List[float]] = Field(default_factory=list)
     conversionRate: float = 85.0
     churnRate: float = -10.0
     quarterlyChurnIncrease: float = 0.0015
@@ -87,7 +89,7 @@ class ProductStream(BaseModel):
         for key1d in ('prices',):
             if key1d in data:
                 data[key1d] = _f1(data[key1d])
-        for key2d in ('transactions', 'avgChecks', 'hybridTransactional', 'users'):
+        for key2d in ('transactions', 'avgChecks', 'hybridTransactional', 'users', 'usersMonthly'):
             if key2d in data:
                 data[key2d] = _f2(data[key2d])
         return data
@@ -119,6 +121,12 @@ class FinancialModelInput(BaseModel):
     churnRate: float = -10.0           # e.g. -10 = −10%
     quarterlyChurnIncrease: float = 0.0015
 
+    # Input granularity: 'quarter' | 'month' | 'half' | 'year'
+    granularity: str = "quarter"
+
+    # Users per month [year][month] — used when granularity == 'month'
+    usersMonthly: List[List[float]] = Field(default_factory=list)
+
     # Cost rows
     costs: List[CostRow] = Field(default_factory=list)
 
@@ -147,7 +155,7 @@ class FinancialModelInput(BaseModel):
         for key1d in ('prices',):
             if key1d in data:
                 data[key1d] = _f1(data[key1d])
-        for key2d in ('transactions', 'avgChecks', 'hybridTransactional', 'users'):
+        for key2d in ('transactions', 'avgChecks', 'hybridTransactional', 'users', 'usersMonthly'):
             if key2d in data:
                 data[key2d] = _f2(data[key2d])
         return data
