@@ -36,7 +36,7 @@ def _f2(v: Any) -> list:
 
 class CostRow(BaseModel):
     category: str
-    mode: str  # percent_revenue | cac | manual
+    mode: str  # percent_revenue | percent_costs | cac | manual
     param: float = 0.0
     values: List[float] = Field(default_factory=lambda: [0.0] * 5)
 
@@ -176,7 +176,7 @@ class FinancialMetrics(BaseModel):
     pi: float
     irr: Optional[float]
     cac: float
-    arpu: float
+    arpa: float
     avgChurn: float
     lifetime: float
     ltv: float

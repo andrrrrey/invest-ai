@@ -130,7 +130,7 @@ def _sheet_all_projects(wb: Workbook, projects: list[dict]):
     headers = [
         "ID", "Название", "Бизнес-юнит", "Тип", "Стадия", "Статус", "Владелец",
         "Дата начала", "NPV (₽)", "IRR (%)", "DPP (лет)", "PI",
-        "LTV/CAC", "CAC (₽)", "ARPU (₽)", "Отток (%)", "Gross Margin (%)",
+        "LTV/CAC", "CAC (₽)", "ARPA (₽)", "Отток (%)", "Gross Margin (%)",
         "Уровень риска", "Маршрут решения",
     ]
     _apply_header(ws, headers)
@@ -154,7 +154,7 @@ def _sheet_all_projects(wb: Workbook, projects: list[dict]):
             m.get("pi"),
             m.get("ltvCac"),
             m.get("cac"),
-            m.get("arpu"),
+            m.get("arpa"),
             m.get("avgChurn"),
             m.get("grossMargin"),
             risk_level,

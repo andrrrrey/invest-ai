@@ -190,8 +190,10 @@ const Finance = {
     const annualRevenue = revenue.map(r => r.reduce((a, b) => a + b, 0));
 
     // 1.1.7 / 1.1.8  Annual costs (negative values)
+    // Two-pass: percent_costs depends on all other categories being computed first.
     const annualCostsByCat = {};
     for (const c of form.costs) {
+      if (c.mode === 'percent_costs') continue;
       const arr = [];
       for (let y = 0; y < ny; y++) {
         let val = 0;
@@ -204,6 +206,17 @@ const Finance = {
           val = -(this._s1(c.values, y));
         }
         arr.push(val);
+      }
+      annualCostsByCat[c.category] = arr;
+    }
+    for (const c of form.costs) {
+      if (c.mode !== 'percent_costs') continue;
+      const arr = [];
+      for (let y = 0; y < ny; y++) {
+        const otherTotal = Object.entries(annualCostsByCat)
+          .filter(([k]) => k !== c.category)
+          .reduce((s, [, v]) => s + Math.abs(v[y]), 0);
+        arr.push(-(otherTotal * (+c.param || 0) / 100));
       }
       annualCostsByCat[c.category] = arr;
     }
@@ -273,23 +286,41 @@ const Finance = {
       if (isFinite(v) && !isNaN(v)) irrAnnual = +(v * 100).toFixed(1);
     } catch (_) { /* ignore */ }
 
-    // 1.2.8  CAC per year = |marketingCost[y]| / newPaidUsers[y]
+    // 1.2.8  CAC = total_marketing_cost / total_new_clients
+    // New clients per quarter = max(0, paidUsers[y][q] - paidUsers_prev)
     const mktKey = Object.keys(annualCostsByCat).find(k =>
       k.toLowerCase().includes('маркетинг') || k.toLowerCase().includes('marketing')
     );
+    const newClientsByPeriod = [];
+    let prevPaidQ = null;
+    for (let y = 0; y < ny; y++) {
+      const row = [];
+      for (let q = 0; q < 4; q++) {
+        const delta = prevPaidQ === null ? paidUsers[y][q] : paidUsers[y][q] - prevPaidQ;
+        row.push(Math.max(0, delta));
+        prevPaidQ = paidUsers[y][q];
+      }
+      newClientsByPeriod.push(row);
+    }
     const cacByYear = Array.from({ length: ny }, (_, y) => {
-      const newU = newPaidUsers[y].reduce((a, b) => a + b, 0);
+      const newU = newClientsByPeriod[y].reduce((a, b) => a + b, 0);
       if (mktKey && newU > 0) return Math.abs(annualCostsByCat[mktKey][y]) / newU;
       return +form.costs.find(c => c.mode === 'cac')?.param || 0;
     });
-    const avgCac = cacByYear.length ? cacByYear.reduce((a, b) => a + b, 0) / cacByYear.length : 0;
+    const totalNewClients = newClientsByPeriod.flat().reduce((a, b) => a + b, 0);
+    const totalMktCost = mktKey
+      ? annualCostsByCat[mktKey].reduce((s, v) => s + Math.abs(v), 0)
+      : 0;
+    const avgCac = totalNewClients > 0
+      ? totalMktCost / totalNewClients
+      : (+form.costs.find(c => c.mode === 'cac')?.param || 0);
 
-    // 1.2.9  ARPU = AVERAGE(revenue[y][q] / paidUsers[y][q])
-    const arpuVals = [];
+    // 1.2.9  ARPA = AVERAGE(revenue[y][q] / paidUsers[y][q])
+    const arpaVals = [];
     for (let y = 0; y < ny; y++)
       for (let q = 0; q < 4; q++)
-        if (paidUsers[y][q] > 0) arpuVals.push(revenue[y][q] / paidUsers[y][q]);
-    const arpu = arpuVals.length ? arpuVals.reduce((a, b) => a + b, 0) / arpuVals.length : 0;
+        if (paidUsers[y][q] > 0) arpaVals.push(revenue[y][q] / paidUsers[y][q]);
+    const arpa = arpaVals.length ? arpaVals.reduce((a, b) => a + b, 0) / arpaVals.length : 0;
 
     // 1.2.10  Average quarterly churn
     const allChurn  = churnTable.flat();
@@ -299,7 +330,7 @@ const Finance = {
     //         avgChurn is negative quarterly rate (e.g. -0.10 = 10% churn per quarter)
     const lifetimeMonths = avgChurn !== 0 ? 1 / Math.abs(avgChurn) : ny * 12; // fallback to project horizon if no churn
 
-    // 1.2.12  LTV = ARPU × lifetimeMonths × grossMargin
+    // 1.2.12  LTV = ARPA × lifetimeMonths × grossMargin
     let grossMargin = 1;
     for (const c of form.costs) {
       if (c.mode === 'percent_revenue' &&
@@ -309,7 +340,7 @@ const Finance = {
       }
     }
     grossMargin = Math.max(0, grossMargin);
-    const ltv = arpu * lifetimeMonths * grossMargin;
+    const ltv = arpa * lifetimeMonths * grossMargin;
 
     // 1.2.13  LTV/CAC
     const ltvCac = avgCac > 0 ? +(ltv / avgCac).toFixed(2) : 0;
@@ -326,7 +357,7 @@ const Finance = {
       pi,
       irr:            irrAnnual,
       cac:            Math.round(avgCac),
-      arpu:           Math.round(arpu),
+      arpa:           Math.round(arpa),
       avgChurn:       +(avgChurn * 100).toFixed(2),
       lifetime:       +lifetimeMonths.toFixed(1),
       ltv:            Math.round(ltv),

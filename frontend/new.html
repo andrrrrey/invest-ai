@@ -776,7 +776,7 @@
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
                                 <div style="flex:1;min-width:200px">
                                     <p style="font-size:13px;font-weight:700">5. Влияние на unit-экономику <span style="color:var(--accent);font-size:11px">(вес ×2)</span></p>
-                                    <p class="hint" style="margin-top:3px">Как эта инвестиция повлияет на ключевые юнит-метрики: LTV, CAC, ARPU, Margin? Улучшает ли это структуру затрат? «Мы сделаем Х, это изменит Y, и в цифрах получится Z».</p>
+                                    <p class="hint" style="margin-top:3px">Как эта инвестиция повлияет на ключевые юнит-метрики: LTV, CAC, ARPA, Margin? Улучшает ли это структуру затрат? «Мы сделаем Х, это изменит Y, и в цифрах получится Z».</p>
                                 </div>
                                 <div style="display:flex;gap:6px">
                                     <template x-for="n in [1,2,3,4,5]" :key="n">
@@ -1336,7 +1336,7 @@
             <!-- 3.4 Затраты -->
             <div class="subsection">
                 <h3>3.4 Категории затрат</h3>
-                <p class="hint">Режимы: <strong>% от выручки</strong> — считается от годовой выручки; <strong>CAC</strong> — затраты на маркетинг = новые платные пользователи × CAC; <strong>Ручной</strong> — вы вводите сумму в год.</p>
+                <p class="hint">Режимы: <strong>% от выручки</strong> — считается от годовой выручки; <strong>% затрат</strong> — для G&amp;A: % от суммы (COGS + R&amp;D + Маркетинг + Support); <strong>CAC</strong> — затраты на маркетинг = новые платные пользователи × CAC; <strong>Ручной</strong> — вы вводите сумму в год.</p>
                 <div class="tbl-wrap">
                     <table style="min-width:600px">
                         <thead><tr>
@@ -1360,6 +1360,10 @@
                                         <select x-model="form.costs[ci].mode"
                                             @change="if($event.target.value==='manual') form.costs[ci].param=0">
                                             <option value="percent_revenue">% выручки</option>
+                                            <option value="percent_costs"
+                                                x-show="form.costs[ci].category.toLowerCase().includes('g&amp;a')">
+                                                % затрат
+                                            </option>
                                             <option value="cac"
                                                 x-show="form.costs[ci].category.toLowerCase().includes('маркетинг') || form.costs[ci].category.toLowerCase().includes('marketing')">
                                                 CAC (₽/польз.)
@@ -1369,7 +1373,7 @@
                                     </td>
                                     <td>
                                         <input type="number" x-model.number="form.costs[ci].param" min="0"
-                                            :placeholder="c.mode==='percent_revenue'?'%':'₽'"
+                                            :placeholder="(c.mode==='percent_revenue'||c.mode==='percent_costs')?'%':'₽'"
                                             @focus="$event.target.select()">
                                     </td>
                                     <template x-for="(_, yi) in Array.from({length:form.numYears})" :key="yi">
@@ -1558,8 +1562,8 @@
                         <div class="v" x-text="Finance.fmt(metrics.cac)"></div>
                     </div>
                     <div class="metric-card">
-                        <div class="k">ARPU — ср. выручка/польз./кв. (1.2.9)</div>
-                        <div class="v" x-text="Finance.fmt(metrics.arpu)"></div>
+                        <div class="k">ARPA — ср. выручка/акк./кв. (1.2.9)</div>
+                        <div class="v" x-text="Finance.fmt(metrics.arpa)"></div>
                     </div>
                     <div class="metric-card">
                         <div class="k">Средний квартальный отток (1.2.10)</div>
@@ -2061,8 +2065,8 @@
                         <div class="v" :class="metrics.pi>=1?'pos':'neg'" x-text="metrics.pi"></div></div>
                     <div class="metric-card"><div class="k">CAC</div>
                         <div class="v" x-text="Finance.fmt(metrics.cac)"></div></div>
-                    <div class="metric-card"><div class="k">ARPU</div>
-                        <div class="v" x-text="Finance.fmt(metrics.arpu)"></div></div>
+                    <div class="metric-card"><div class="k">ARPA</div>
+                        <div class="v" x-text="Finance.fmt(metrics.arpa)"></div></div>
                     <div class="metric-card"><div class="k">LTV</div>
                         <div class="v acc" x-text="Finance.fmtShort(metrics.ltv)"></div></div>
                     <div class="metric-card"><div class="k">LTV / CAC</div>
@@ -2425,6 +2429,13 @@ function wizardApp() {
             if (c.mode === 'cac') {
                 const newU = (this.metrics.newPaidUsers?.[yi] || []).reduce((a,b)=>a+b, 0);
                 return newU * (c.param || 0);
+            }
+            if (c.mode === 'percent_costs') {
+                const cat = this.metrics.annualCostsByCat || {};
+                const otherTotal = Object.entries(cat)
+                    .filter(([k]) => k !== c.category)
+                    .reduce((s, [, v]) => s + Math.abs((v[yi] || 0)), 0);
+                return otherTotal * ((c.param || 0) / 100);
             }
             return c.values?.[yi] || 0;
         },
@@ -3085,7 +3096,7 @@ function _defaultProduct(ny) {
 function _emptyMetrics() {
     return {
         discountRate: 0, dcf: 0, npv: 0, dpp: null, pi: 0, irr: null,
-        cac: 0, arpu: 0, avgChurn: 0, lifetime: 0, ltv: 0, ltvCac: 0,
+        cac: 0, arpa: 0, avgChurn: 0, lifetime: 0, ltv: 0, ltvCac: 0,
         grossMargin: 0, nwcCalc: 0,
         discountFactors: [], discountedCF: [], cumulativeDcfSeries: [],
         churnTable: [], paidWithoutChurn: [], paidUsers: [], newPaidUsers: [],
