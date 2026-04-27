@@ -1336,7 +1336,7 @@
             <!-- 3.4 Затраты -->
             <div class="subsection">
                 <h3>3.4 Категории затрат</h3>
-                <p class="hint">Режимы: <strong>% от выручки</strong> — считается от годовой выручки; <strong>% затрат</strong> — для G&amp;A: % от суммы (COGS + R&amp;D + Маркетинг + Support); <strong>CAC</strong> — затраты на маркетинг = новые платные пользователи × CAC; <strong>Ручной</strong> — вы вводите сумму в год.</p>
+                <p class="hint">Режимы: <strong>% от выручки</strong> — считается от годовой выручки; <strong>% затрат</strong> — для G&amp;A: % от прямых затрат на разработку (COGS + R&amp;D, без маркетинга и поддержки); <strong>CAC</strong> — затраты на маркетинг = новые платные пользователи × CAC; <strong>Ручной</strong> — вы вводите сумму в год.</p>
                 <div class="tbl-wrap">
                     <table style="min-width:600px">
                         <thead><tr>
@@ -2432,10 +2432,15 @@ function wizardApp() {
             }
             if (c.mode === 'percent_costs') {
                 const cat = this.metrics.annualCostsByCat || {};
-                const otherTotal = Object.entries(cat)
-                    .filter(([k]) => k !== c.category)
+                const devTotal = Object.entries(cat)
+                    .filter(([k]) => {
+                        const kl = k.toLowerCase();
+                        return k !== c.category
+                            && !kl.includes('маркетинг') && !kl.includes('marketing')
+                            && !kl.includes('support')   && !kl.includes('поддержк');
+                    })
                     .reduce((s, [, v]) => s + Math.abs((v[yi] || 0)), 0);
-                return otherTotal * ((c.param || 0) / 100);
+                return devTotal * ((c.param || 0) / 100);
             }
             return c.values?.[yi] || 0;
         },
