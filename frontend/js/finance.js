@@ -213,10 +213,15 @@ const Finance = {
       if (c.mode !== 'percent_costs') continue;
       const arr = [];
       for (let y = 0; y < ny; y++) {
-        const otherTotal = Object.entries(annualCostsByCat)
-          .filter(([k]) => k !== c.category)
+        const devTotal = Object.entries(annualCostsByCat)
+          .filter(([k]) => {
+            const kl = k.toLowerCase();
+            return k !== c.category
+              && !kl.includes('маркетинг') && !kl.includes('marketing')
+              && !kl.includes('support')   && !kl.includes('поддержк');
+          })
           .reduce((s, [, v]) => s + Math.abs(v[y]), 0);
-        arr.push(-(otherTotal * (+c.param || 0) / 100));
+        arr.push(-(devTotal * (+c.param || 0) / 100));
       }
       annualCostsByCat[c.category] = arr;
     }

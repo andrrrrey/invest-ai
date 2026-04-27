@@ -242,12 +242,16 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
             continue
         cat_costs = []
         for y in range(ny):
-            other_total = sum(
+            dev_total = sum(
                 abs(annual_costs_by_cat[k][y])
                 for k in annual_costs_by_cat
                 if k != c.category
+                and "маркетинг" not in k.lower()
+                and "marketing" not in k.lower()
+                and "support" not in k.lower()
+                and "поддержк" not in k.lower()
             )
-            cat_costs.append(-(other_total * c.param / 100.0))
+            cat_costs.append(-(dev_total * c.param / 100.0))
         annual_costs_by_cat[c.category] = cat_costs
 
     total_costs = [
