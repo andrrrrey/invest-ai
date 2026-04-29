@@ -363,28 +363,16 @@ const Finance = {
       if (isFinite(v) && !isNaN(v)) irrAnnual = +(v * 100).toFixed(1);
     } catch (_) { /* ignore */ }
 
-    // 1.2.8  CAC = total_marketing_cost / total_new_clients
-    // New clients per quarter = max(0, paidUsers[y][q] - paidUsers_prev)
+    // 1.2.8  CAC = total_marketing_cost / total_new_paid_users (1.1.4)
     const mktKey = Object.keys(annualCostsByCat).find(k =>
       k.toLowerCase().includes('маркетинг') || k.toLowerCase().includes('marketing')
     );
-    const newClientsByPeriod = [];
-    let prevPaidQ = null;
-    for (let y = 0; y < ny; y++) {
-      const row = [];
-      for (let q = 0; q < 4; q++) {
-        const delta = prevPaidQ === null ? paidUsers[y][q] : paidUsers[y][q] - prevPaidQ;
-        row.push(Math.max(0, delta));
-        prevPaidQ = paidUsers[y][q];
-      }
-      newClientsByPeriod.push(row);
-    }
     const cacByYear = Array.from({ length: ny }, (_, y) => {
-      const newU = newClientsByPeriod[y].reduce((a, b) => a + b, 0);
+      const newU = newPaidUsers[y].reduce((s, v) => s + Math.max(0, v), 0);
       if (mktKey && newU > 0) return Math.abs(annualCostsByCat[mktKey][y]) / newU;
       return +form.costs.find(c => c.mode === 'cac')?.param || 0;
     });
-    const totalNewClients = newClientsByPeriod.flat().reduce((a, b) => a + b, 0);
+    const totalNewClients = newPaidUsers.flat().reduce((s, v) => s + Math.max(0, v), 0);
     const totalMktCost = mktKey
       ? annualCostsByCat[mktKey].reduce((s, v) => s + Math.abs(v), 0)
       : 0;

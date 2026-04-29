@@ -391,33 +391,23 @@ def calculate_metrics(model: FinancialModelInput) -> FinancialMetrics:
     except Exception:
         pass
 
-    # ── 1.2.8  CAC = total_marketing_cost / total_new_clients ───────────────
-    # New clients per quarter = max(0, paid_users[y][q] - paid_users_prev)
+    # ── 1.2.8  CAC = total_marketing_cost / total_new_paid_users (1.1.4) ────
     mkt_cat = next(
         (cat for cat in annual_costs_by_cat
          if "маркетинг" in cat.lower() or "marketing" in cat.lower()),
         None,
     )
-    new_clients_by_period: list[list[float]] = []
-    prev_paid_q: Optional[float] = None
-    for y in range(ny):
-        year_clients = []
-        for q in range(4):
-            delta = paid_users[y][q] if prev_paid_q is None else paid_users[y][q] - prev_paid_q
-            year_clients.append(max(0.0, float(delta)))
-            prev_paid_q = float(paid_users[y][q])
-        new_clients_by_period.append(year_clients)
 
     cac_by_year: list[float] = []
     for y in range(ny):
-        new_u_y = sum(new_clients_by_period[y])
+        new_u_y = sum(max(0.0, float(v)) for v in new_paid_users[y])
         if mkt_cat and new_u_y > 0:
             cac_by_year.append(abs(annual_costs_by_cat[mkt_cat][y]) / new_u_y)
         else:
             cac_fixed = next((c.param for c in model.costs if c.mode == "cac"), 0.0)
             cac_by_year.append(cac_fixed)
 
-    total_new_clients = sum(sum(row) for row in new_clients_by_period)
+    total_new_clients = sum(max(0.0, float(v)) for row in new_paid_users for v in row)
     total_mkt_cost = (
         sum(abs(annual_costs_by_cat[mkt_cat][y]) for y in range(ny))
         if mkt_cat else 0.0
