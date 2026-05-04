@@ -1,7 +1,7 @@
 """
 File-based settings store.
-Stores configuration (OpenAI API key, etc.) in a JSON file on disk.
-Environment variable OPENAI_API_KEY always takes precedence over file-stored key.
+Stores configuration (OpenAI/Anthropic API keys, active AI provider, etc.) in a JSON file on disk.
+Environment variables OPENAI_API_KEY / ANTHROPIC_API_KEY always take precedence over file-stored keys.
 """
 
 import json
@@ -58,6 +58,33 @@ def get_registration_domain() -> str | None:
 def set_registration_domain(domain: str) -> None:
     data = _load()
     data["registration_domain"] = domain.strip().lstrip("@").lower()
+    _save(data)
+
+
+def get_anthropic_key() -> str | None:
+    """Return the effective Anthropic API key (env var takes priority)."""
+    env_key = os.getenv("ANTHROPIC_API_KEY")
+    if env_key:
+        return env_key
+    return _load().get("anthropic_api_key") or None
+
+
+def set_anthropic_key(key: str) -> None:
+    data = _load()
+    data["anthropic_api_key"] = key.strip()
+    _save(data)
+
+
+def get_ai_provider() -> str:
+    """Return active AI provider: 'openai' (default) or 'anthropic'."""
+    return _load().get("ai_provider") or "openai"
+
+
+def set_ai_provider(provider: str) -> None:
+    if provider not in ("openai", "anthropic"):
+        raise ValueError(f"Unknown AI provider: {provider}")
+    data = _load()
+    data["ai_provider"] = provider
     _save(data)
 
 

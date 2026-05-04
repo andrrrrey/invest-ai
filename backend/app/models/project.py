@@ -44,5 +44,17 @@ class Project(Base):
     # Workflow status
     status = Column(String, default="draft")  # draft | pending_approval | approved | rejected
 
+    # Status change history [{status, changed_at, changed_by, changed_by_id}]
+    status_history = Column(JSON, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships to new features
+    comments = relationship("Comment", back_populates="project", cascade="all, delete-orphan")
+    attachments = relationship("Attachment", back_populates="project", cascade="all, delete-orphan")
+    tranches = relationship(
+        "Tranche", back_populates="project", cascade="all, delete-orphan",
+        order_by="Tranche.order_index"
+    )
+    fact_entries = relationship("FactEntry", back_populates="project", cascade="all, delete-orphan")

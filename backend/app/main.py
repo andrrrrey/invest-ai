@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 AVATARS_DIR = os.environ.get("AVATARS_DIR", "/data/avatars")
+ATTACHMENTS_DIR = os.environ.get("ATTACHMENTS_DIR", "/data/attachments")
 
 from .config import settings
 from .database import init_db
@@ -12,6 +13,11 @@ from .api.v1 import settings as settings_router
 from .api.v1 import auth as auth_router
 from .api.v1 import users as users_router
 from .api.v1 import export as export_router
+from .api.v1 import comments as comments_router
+from .api.v1 import attachments as attachments_router
+from .api.v1 import notifications as notifications_router
+from .api.v1 import tranches as tranches_router
+from .api.v1 import fact as fact_router
 
 app = FastAPI(
     title="Инвестиционный процессор",
@@ -36,6 +42,11 @@ app.include_router(ai.router, prefix="/api/v1")
 app.include_router(stats.router, prefix="/api/v1")
 app.include_router(settings_router.router, prefix="/api/v1")
 app.include_router(export_router.router, prefix="/api/v1")
+app.include_router(comments_router.router, prefix="/api/v1")
+app.include_router(attachments_router.router, prefix="/api/v1")
+app.include_router(notifications_router.router, prefix="/api/v1")
+app.include_router(tranches_router.router, prefix="/api/v1")
+app.include_router(fact_router.router, prefix="/api/v1")
 
 
 @app.on_event("startup")
@@ -51,6 +62,9 @@ def health():
 # Serve avatar uploads
 os.makedirs(AVATARS_DIR, exist_ok=True)
 app.mount("/avatars", StaticFiles(directory=AVATARS_DIR), name="avatars")
+
+# Ensure attachments directory exists (served via authenticated endpoint, not static mount)
+os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 
 # Serve frontend static files in production
 frontend_dir = os.path.join(os.path.dirname(__file__), "..", "..", "frontend")

@@ -1,9 +1,11 @@
 """
-AI service — wraps the OpenAI API (GPT-4.5) for project-level features:
+AI service — wraps OpenAI and Anthropic APIs for project-level features:
   - generate_description: formulate project description from key fields
   - generate_risks: produce risks & assumptions analysis
   - generate_risk_score: AI risk scoring for operational projects
   - analyze_project: detect anomalies, compare with portfolio median
+
+Active provider is controlled via settings_store.get_ai_provider() ('openai' | 'anthropic').
 """
 
 import json
@@ -13,7 +15,8 @@ from openai import OpenAI
 from .. import settings_store
 
 
-AI_MODEL = "gpt-5.4"
+OPENAI_MODEL = "gpt-5.4"
+ANTHROPIC_MODEL = "claude-sonnet-4-6"
 
 SYSTEM_PROMPT = (
     "Ты — Ксения, AI-ассистент инвестиционного процессора. "
@@ -23,18 +26,12 @@ SYSTEM_PROMPT = (
 )
 
 
-def _client() -> OpenAI:
+def _chat_openai(prompt: str, max_tokens: int = 700) -> str:
     key = settings_store.get_openai_key()
     if not key:
-        raise ValueError(
-            "OpenAI API ключ не настроен. Откройте Настройки и введите ключ."
-        )
-    return OpenAI(api_key=key)
-
-
-def _chat(prompt: str, max_tokens: int = 700) -> str:
-    response = _client().chat.completions.create(
-        model=AI_MODEL,
+        raise ValueError("OpenAI API ключ не настроен. Откройте Настройки и введите ключ.")
+    response = OpenAI(api_key=key).chat.completions.create(
+        model=OPENAI_MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
@@ -43,6 +40,28 @@ def _chat(prompt: str, max_tokens: int = 700) -> str:
         temperature=0.4,
     )
     return response.choices[0].message.content.strip()
+
+
+def _chat_anthropic(prompt: str, max_tokens: int = 700) -> str:
+    import anthropic
+    key = settings_store.get_anthropic_key()
+    if not key:
+        raise ValueError("Anthropic API ключ не настроен. Откройте Настройки и введите ключ.")
+    message = anthropic.Anthropic(api_key=key).messages.create(
+        model=ANTHROPIC_MODEL,
+        max_tokens=max_tokens,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return message.content[0].text.strip()
+
+
+def _chat(prompt: str, max_tokens: int = 700) -> str:
+    """Dispatch to active AI provider."""
+    provider = settings_store.get_ai_provider()
+    if provider == "anthropic":
+        return _chat_anthropic(prompt, max_tokens)
+    return _chat_openai(prompt, max_tokens)
 
 
 def _strip_fences(text: str) -> str:

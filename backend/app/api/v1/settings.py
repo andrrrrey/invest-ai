@@ -7,27 +7,39 @@ from ...auth import require_cfo
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
-AI_MODEL = "gpt-5.4"
+OPENAI_MODEL = "gpt-5.4"
+ANTHROPIC_MODEL = "claude-sonnet-4-6"
 
 
 class SettingsUpdate(BaseModel):
     openai_api_key: Optional[str] = None
+    anthropic_api_key: Optional[str] = None
+    ai_provider: Optional[str] = None  # "openai" | "anthropic"
     investment_budget: Optional[float] = None
     registration_domain: Optional[str] = None
 
 
+def _mask_key(key: str | None) -> str | None:
+    if not key:
+        return None
+    visible = key[-4:] if len(key) >= 4 else key
+    return "sk-..." + visible
+
+
 @router.get("/")
 def get_settings(_=Depends(require_cfo)) -> dict:
-    """Return current settings (API key is masked). CFO only."""
-    key = settings_store.get_openai_key()
-    masked = None
-    if key:
-        visible = key[-4:] if len(key) >= 4 else key
-        masked = "sk-..." + visible
+    """Return current settings (API keys are masked). CFO only."""
+    openai_key = settings_store.get_openai_key()
+    anthropic_key = settings_store.get_anthropic_key()
+    provider = settings_store.get_ai_provider()
+    active_model = ANTHROPIC_MODEL if provider == "anthropic" else OPENAI_MODEL
     return {
-        "openai_api_key_set": bool(key),
-        "openai_api_key_masked": masked,
-        "ai_model": AI_MODEL,
+        "openai_api_key_set": bool(openai_key),
+        "openai_api_key_masked": _mask_key(openai_key),
+        "anthropic_api_key_set": bool(anthropic_key),
+        "anthropic_api_key_masked": _mask_key(anthropic_key),
+        "ai_provider": provider,
+        "ai_model": active_model,
         "investment_budget": settings_store.get_investment_budget(),
         "registration_domain": settings_store.get_registration_domain(),
     }
@@ -38,6 +50,12 @@ def update_settings(body: SettingsUpdate, _=Depends(require_cfo)) -> dict:
     """Save new settings. CFO only."""
     if body.openai_api_key is not None:
         settings_store.set_openai_key(body.openai_api_key)
+    if body.anthropic_api_key is not None:
+        settings_store.set_anthropic_key(body.anthropic_api_key)
+    if body.ai_provider is not None:
+        if body.ai_provider not in ("openai", "anthropic"):
+            raise HTTPException(status_code=400, detail="Неверное значение ai_provider. Допустимо: openai, anthropic")
+        settings_store.set_ai_provider(body.ai_provider)
     if body.investment_budget is not None:
         settings_store.set_investment_budget(body.investment_budget)
     if body.registration_domain is not None:
@@ -48,21 +66,36 @@ def update_settings(body: SettingsUpdate, _=Depends(require_cfo)) -> dict:
 
 @router.post("/test-connection")
 def test_connection(_=Depends(require_cfo)) -> dict:
-    """Test that the stored API key works. CFO only."""
-    key = settings_store.get_openai_key()
-    if not key:
-        raise HTTPException(
-            status_code=503,
-            detail="API ключ не настроен. Введите ключ в настройках.",
-        )
-    try:
-        from openai import OpenAI
-        client = OpenAI(api_key=key)
-        resp = client.chat.completions.create(
-            model=AI_MODEL,
-            messages=[{"role": "user", "content": "Ответь словом OK"}],
-            max_completion_tokens=5,
-        )
-        return {"success": True, "model": resp.model, "response": resp.choices[0].message.content}
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=str(e))
+    """Test that the active provider's API key works. CFO only."""
+    provider = settings_store.get_ai_provider()
+
+    if provider == "anthropic":
+        key = settings_store.get_anthropic_key()
+        if not key:
+            raise HTTPException(status_code=503, detail="Anthropic API ключ не настроен. Введите ключ в настройках.")
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=key)
+            msg = client.messages.create(
+                model=ANTHROPIC_MODEL,
+                max_tokens=5,
+                messages=[{"role": "user", "content": "Ответь словом OK"}],
+            )
+            return {"success": True, "model": ANTHROPIC_MODEL, "response": msg.content[0].text}
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=str(e))
+    else:
+        key = settings_store.get_openai_key()
+        if not key:
+            raise HTTPException(status_code=503, detail="OpenAI API ключ не настроен. Введите ключ в настройках.")
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=key)
+            resp = client.chat.completions.create(
+                model=OPENAI_MODEL,
+                messages=[{"role": "user", "content": "Ответь словом OK"}],
+                max_completion_tokens=5,
+            )
+            return {"success": True, "model": resp.model, "response": resp.choices[0].message.content}
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=str(e))
