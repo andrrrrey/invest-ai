@@ -237,6 +237,7 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
+            white-space: nowrap;
         }
         .status-ok { background: #DDF0E1; color: var(--success); }
         .status-delay { background: #FFE5E5; color: var(--danger); }
@@ -298,27 +299,27 @@
                     <p style="color: var(--text-muted); font-size: 14px;" x-text="loading ? 'Загрузка...' : (filtered.length + ' проект' + (filtered.length === 1 ? '' : filtered.length < 5 ? 'а' : 'ов') + ' в портфеле')"></p>
                 </div>
                 <div style="display:flex;align-items:center;gap:12px">
-                    <div x-data="bellApp()" x-init="initBell()" style="position:relative">
+                    <div x-data="bellApp()" x-init="initBell()">
                         <button @click="toggleBell()" style="position:relative;background:white;border:1.5px solid #E5E5E5;border-radius:12px;padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:6px">
                             <i class="fas fa-bell" style="font-size:15px;color:#1C1C1E"></i>
                             <span x-show="unreadCount > 0" x-text="unreadCount > 9 ? '9+' : unreadCount"
                                 style="position:absolute;top:-6px;right:-6px;background:#FF3B30;color:white;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center"></span>
                         </button>
                         <div x-show="open" @click.outside="open=false"
-                            style="position:absolute;right:0;top:calc(100% + 8px);width:340px;background:white;border-radius:20px;box-shadow:0 10px 40px rgba(0,0,0,0.14);z-index:500;overflow:hidden">
-                            <div style="padding:16px 22px;border-bottom:1px solid #F2F2F7;display:flex;justify-content:space-between;align-items:center">
+                            :style="`position:fixed;top:${popupTop}px;right:${popupRight}px;width:360px;background:white;border-radius:20px;box-shadow:0 12px 48px rgba(0,0,0,0.16);z-index:9999;overflow:hidden`">
+                            <div style="padding:16px 24px;border-bottom:1px solid #F2F2F7;display:flex;justify-content:space-between;align-items:center">
                                 <span style="font-weight:700;font-size:13px">Уведомления</span>
                                 <button @click="markAllRead()" style="font-size:12px;color:#5E5CE6;background:none;border:none;cursor:pointer">Прочитать все</button>
                             </div>
-                            <div style="max-height:360px;overflow-y:auto">
+                            <div style="max-height:380px;overflow-y:auto">
                                 <template x-if="notifications.length === 0">
-                                    <p style="padding:22px;text-align:center;color:#8E8E93;font-size:13px">Нет уведомлений</p>
+                                    <p style="padding:24px;text-align:center;color:#8E8E93;font-size:13px">Нет уведомлений</p>
                                 </template>
                                 <template x-for="n in notifications" :key="n.id">
-                                    <div @click="openNotification(n)" style="padding:14px 22px;border-bottom:1px solid #F2F2F7;cursor:pointer;transition:background 0.1s" :style="n.is_read ? '' : 'background:#F5F4FF'">
-                                        <p style="font-size:13px;font-weight:700;margin-bottom:3px;color:#1C1C1E" x-text="n.title"></p>
-                                        <p style="font-size:12px;color:#555;line-height:1.4" x-text="n.message"></p>
-                                        <p style="font-size:11px;color:#C7C7CC;margin-top:4px" x-text="fmtBellDate(n.created_at)"></p>
+                                    <div @click="openNotification(n)" style="padding:14px 24px;border-bottom:1px solid #F2F2F7;cursor:pointer;transition:background 0.1s" :style="n.is_read ? '' : 'background:#F5F4FF'">
+                                        <p style="font-size:13px;font-weight:700;margin-bottom:4px;color:#1C1C1E" x-text="n.title"></p>
+                                        <p style="font-size:12px;color:#555;line-height:1.5" x-text="n.message"></p>
+                                        <p style="font-size:11px;color:#C7C7CC;margin-top:5px" x-text="fmtBellDate(n.created_at)"></p>
                                     </div>
                                 </template>
                             </div>
@@ -563,6 +564,8 @@
         function bellApp() {
             return {
                 open: false,
+                popupTop: 0,
+                popupRight: 0,
                 notifications: [],
                 unreadCount: 0,
                 async initBell() {
@@ -578,7 +581,15 @@
                         }
                     } catch(e) {}
                 },
-                toggleBell() { this.open = !this.open; },
+                toggleBell() {
+                    this.open = !this.open;
+                    if (this.open) {
+                        const btn = this.$el.querySelector('button');
+                        const r = btn.getBoundingClientRect();
+                        this.popupTop = r.bottom + 8;
+                        this.popupRight = window.innerWidth - r.right;
+                    }
+                },
                 async markAllRead() {
                     await authFetch('/api/v1/notifications/read-all', {method:'PATCH'});
                     this.notifications.forEach(n => n.is_read = true);
