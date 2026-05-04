@@ -223,6 +223,102 @@ def generate_portfolio_commentary(projects: list, stats: dict) -> str:
     return _chat(prompt, max_tokens=400)
 
 
+def analyze_fact_vs_plan(
+    project_name: str,
+    fact_rows: list,
+    financial_model: dict,
+    metrics: dict,
+) -> dict:
+    """
+    Deep plan vs fact analysis: compares actual results against plan values
+    and against the original financial model projections.
+    Returns structured JSON with comment, key_deviations, model_comparison,
+    npv_irr_risk, recommendations.
+    """
+    fm = financial_model or {}
+    m = metrics or {}
+
+    lines = []
+    for e in fact_rows:
+        fv = e.get("fact_value")
+        pv = e.get("plan_value")
+        if fv is None:
+            continue
+        if pv and pv != 0:
+            dev = round((fv - pv) / pv * 100, 1)
+            sign = "+" if dev >= 0 else ""
+            icon = "✅" if dev >= -5 else ("⚠️" if dev >= -20 else "❌")
+            dev_str = f"{sign}{dev}%"
+        else:
+            dev, sign, icon, dev_str = None, "", "—", "н/д"
+        lines.append(
+            f"  {icon} {e['metric_name']} {e['year']}/{e['month']:02d}: "
+            f"план={pv}, факт={fv}, откл.={dev_str}"
+        )
+
+    fact_block = "\n".join(lines) or "Фактических данных не введено."
+
+    inv = fm.get("initialInvestment") or 0
+    num_years = fm.get("numYears") or "—"
+    rev_model = fm.get("revenueModel") or "—"
+    price = fm.get("price") or "—"
+    conv = fm.get("conversionRate") or "—"
+    churn = fm.get("churnRate") or "—"
+    nwc = fm.get("nwc") or "—"
+
+    npv = m.get("npv")
+    irr = m.get("irr")
+    dpp = m.get("dpp")
+    ltv_cac = m.get("ltvCac")
+
+    prompt = (
+        f"Ты — AI-финансовый аналитик. Проведи детальный анализ план/факт для инвестиционного проекта.\n\n"
+        f"ПРОЕКТ: «{project_name}»\n\n"
+        f"═══ ДАННЫЕ ПЛАН / ФАКТ ═══\n{fact_block}\n\n"
+        f"═══ ПАРАМЕТРЫ ФИНАНСОВОЙ МОДЕЛИ ═══\n"
+        f"  Начальные инвестиции: {inv:,.0f} ₽\n"
+        f"  Горизонт: {num_years} лет\n"
+        f"  Модель выручки: {rev_model}\n"
+        f"  Цена / ARPU: {price} ₽\n"
+        f"  Конверсия: {conv}%\n"
+        f"  Отток (churn): {churn}% в мес.\n"
+        f"  NWC: {nwc} ₽\n\n"
+        f"═══ РАСЧЁТНЫЕ ФИНАНСОВЫЕ МЕТРИКИ ═══\n"
+        f"  NPV: {f'{npv:,.0f} ₽' if isinstance(npv, (int,float)) else 'н/д'}\n"
+        f"  IRR: {f'{irr}%' if irr is not None else 'н/д'}\n"
+        f"  DPP: {f'{dpp} лет' if dpp is not None else 'н/д'}\n"
+        f"  LTV/CAC: {ltv_cac if ltv_cac is not None else 'н/д'}\n\n"
+        "Проведи анализ по четырём направлениям:\n"
+        "1. Ключевые отклонения от плана (особенно >±10%) — вероятные причины\n"
+        "2. Как факт соотносится с параметрами финансовой модели (конверсия, отток, ARPU)\n"
+        "3. Риск недостижения NPV и IRR при текущей динамике\n"
+        "4. Конкретные рекомендации по корректирующим действиям\n\n"
+        "Верни строго JSON (только JSON, без Markdown-блоков):\n"
+        '{"comment": "2-3 предложения — общий вывод по исполнению плана",'
+        '"key_deviations": ['
+        '{"metric": "название метрики", "deviation_pct": число_или_null, '
+        '"assessment": "норма|тревога|критично", "reason": "вероятная причина отклонения"}'
+        '],'
+        '"model_comparison": "1-2 предложения: как факт соотносится с параметрами модели",'
+        '"npv_irr_risk": "низкий|средний|высокий",'
+        '"npv_irr_comment": "1 предложение о риске достижения NPV/IRR",'
+        '"recommendations": ["действие 1", "действие 2", "действие 3"]}'
+    )
+
+    text = _strip_fences(_chat(prompt, max_tokens=1000))
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return {
+            "comment": text[:500] if text else "Ошибка AI",
+            "key_deviations": [],
+            "model_comparison": "",
+            "npv_irr_risk": "н/д",
+            "npv_irr_comment": "",
+            "recommendations": [],
+        }
+
+
 def analyze_project(project: dict, metrics: dict) -> dict:
     """Analyze anomalies and give AI commentary for project detail page."""
     project_type = project.get("project_type", "investment")
