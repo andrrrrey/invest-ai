@@ -94,25 +94,23 @@
                                 <span x-show="unreadCount > 0" x-text="unreadCount > 9 ? '9+' : unreadCount"
                                     style="position:absolute;top:-6px;right:-6px;background:#FF3B30;color:white;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center"></span>
                             </button>
-                            <template x-if="open">
-                                <div @click.outside="open=false" style="position:absolute;right:0;top:calc(100% + 8px);width:300px;background:white;border-radius:18px;box-shadow:0 10px 40px rgba(0,0,0,0.12);z-index:500;overflow:hidden">
-                                    <div style="padding:12px 16px;border-bottom:1px solid #F2F2F7;display:flex;justify-content:space-between;align-items:center">
-                                        <span style="font-weight:700;font-size:13px">Уведомления</span>
-                                        <button @click="markAllRead()" style="font-size:12px;color:#5E5CE6;background:none;border:none;cursor:pointer">Прочитать все</button>
-                                    </div>
-                                    <div style="max-height:300px;overflow-y:auto">
-                                        <template x-if="notifications.length === 0">
-                                            <p style="padding:16px;text-align:center;color:#8E8E93;font-size:13px">Нет уведомлений</p>
-                                        </template>
-                                        <template x-for="n in notifications" :key="n.id">
-                                            <div @click="openNotification(n)" style="padding:12px 16px;border-bottom:1px solid #F8F7F3;cursor:pointer" :style="n.is_read ? '' : 'background:#F0EFFF'">
-                                                <p style="font-size:13px;font-weight:600;margin-bottom:2px" x-text="n.title"></p>
-                                                <p style="font-size:12px;color:#8E8E93" x-text="n.message"></p>
-                                            </div>
-                                        </template>
-                                    </div>
+                            <div x-show="open" @click.outside="open=false" style="position:absolute;right:0;top:calc(100% + 8px);width:300px;background:white;border-radius:18px;box-shadow:0 10px 40px rgba(0,0,0,0.12);z-index:500;overflow:hidden">
+                                <div style="padding:12px 16px;border-bottom:1px solid #F2F2F7;display:flex;justify-content:space-between;align-items:center">
+                                    <span style="font-weight:700;font-size:13px">Уведомления</span>
+                                    <button @click="markAllRead()" style="font-size:12px;color:#5E5CE6;background:none;border:none;cursor:pointer">Прочитать все</button>
                                 </div>
-                            </template>
+                                <div style="max-height:300px;overflow-y:auto">
+                                    <template x-if="notifications.length === 0">
+                                        <p style="padding:16px;text-align:center;color:#8E8E93;font-size:13px">Нет уведомлений</p>
+                                    </template>
+                                    <template x-for="n in notifications" :key="n.id">
+                                        <div @click="openNotification(n)" style="padding:12px 16px;border-bottom:1px solid #F8F7F3;cursor:pointer" :style="n.is_read ? '' : 'background:#F0EFFF'">
+                                            <p style="font-size:13px;font-weight:600;margin-bottom:2px" x-text="n.title"></p>
+                                            <p style="font-size:12px;color:#8E8E93" x-text="n.message"></p>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
                         <span class="status-pill" :style="statusStyle" x-text="statusLabel"></span>
                         <span style="background:#EEF0FF;color:var(--accent-purple);padding:6px 14px;border-radius:12px;font-size:12px;font-weight:700" x-text="routeLabel(project.decision_route)"></span>
@@ -237,6 +235,56 @@
                             </template>
                         </div>
 
+                        <!-- Действия со статусом -->
+                        <div class="card-block" x-show="canApprove || project.status === 'pending_approval'">
+                            <div class="block-title">Действия</div>
+                            <div style="display:flex;flex-direction:column;gap:10px">
+                                <!-- pending_approval: approve / reject / back to draft -->
+                                <template x-if="project.status === 'pending_approval' && canApprove">
+                                    <div style="display:flex;flex-direction:column;gap:8px">
+                                        <div style="display:flex;gap:8px">
+                                            <button @click="changeStatus('approved')"
+                                                style="flex:1;padding:12px;border-radius:12px;border:none;background:#34C759;color:white;font-weight:700;cursor:pointer;font-size:13px">
+                                                Утвердить
+                                            </button>
+                                            <button @click="changeStatus('rejected')"
+                                                style="flex:1;padding:12px;border-radius:12px;border:none;background:#FF3B30;color:white;font-weight:700;cursor:pointer;font-size:13px">
+                                                Отклонить
+                                            </button>
+                                        </div>
+                                        <button @click="changeStatus('draft')"
+                                            style="padding:12px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-weight:600;cursor:pointer;font-size:13px">
+                                            Вернуть в черновик
+                                        </button>
+                                    </div>
+                                </template>
+                                <!-- approved: back to draft or reject -->
+                                <template x-if="project.status === 'approved' && canApprove">
+                                    <div style="display:flex;flex-direction:column;gap:8px">
+                                        <button @click="changeStatus('draft')"
+                                            style="padding:12px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-weight:600;cursor:pointer;font-size:13px">
+                                            Вернуть в черновик
+                                        </button>
+                                        <button @click="changeStatus('rejected')"
+                                            style="padding:12px;border-radius:12px;border:none;background:#FF3B30;color:white;font-weight:700;cursor:pointer;font-size:13px">
+                                            Отклонить
+                                        </button>
+                                    </div>
+                                </template>
+                                <!-- rejected: back to draft -->
+                                <template x-if="project.status === 'rejected' && canApprove">
+                                    <button @click="changeStatus('draft')"
+                                        style="padding:12px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-weight:600;cursor:pointer;font-size:13px">
+                                        Вернуть в черновик
+                                    </button>
+                                </template>
+                                <template x-if="statusMsg">
+                                    <p :style="statusMsgType === 'ok' ? 'color:#34C759' : 'color:#FF3B30'"
+                                        style="font-size:13px;font-weight:600;text-align:center" x-text="statusMsg"></p>
+                                </template>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -281,11 +329,17 @@
             ...authMixin(),
             project: null,
             loading: true,
+            statusMsg: '',
+            statusMsgType: 'ok',
             statusLabelMap: {
                 draft: 'Черновик',
                 pending_approval: 'На согласовании',
                 approved: 'Утверждён',
                 rejected: 'Отклонён',
+            },
+
+            get canApprove() {
+                return this.authRole === 'cfo' || this.authRole === 'manager';
             },
 
             async init() {
@@ -330,6 +384,29 @@
             fmtDate(iso) {
                 if (!iso) return '—';
                 return new Date(iso).toLocaleDateString('ru-RU', {day:'numeric', month:'long', year:'numeric'});
+            },
+
+            async changeStatus(newStatus) {
+                if (!this.project) return;
+                try {
+                    const res = await authFetch('/api/v1/projects/' + this.project.id + '/status', {
+                        method: 'PATCH',
+                        body: JSON.stringify({status: newStatus}),
+                    });
+                    if (res.ok) {
+                        this.project = await res.json();
+                        this.statusMsg = 'Статус обновлён';
+                        this.statusMsgType = 'ok';
+                    } else {
+                        const err = await res.json().catch(() => ({}));
+                        this.statusMsg = err.detail || 'Ошибка';
+                        this.statusMsgType = 'err';
+                    }
+                } catch(e) {
+                    this.statusMsg = 'Ошибка сети';
+                    this.statusMsgType = 'err';
+                }
+                setTimeout(() => this.statusMsg = '', 3000);
             },
         };
     }
