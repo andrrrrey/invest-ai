@@ -1017,158 +1017,166 @@
                     <!-- ═══ PLAN VS FACT ═══════════════════════════════════════ -->
                     <section class="card-block" style="margin-top:20px" x-show="project.project_type === 'investment'">
                         <div x-data="factApp()" x-init="loadFact()">
-                        <div class="block-title" style="display:flex;justify-content:space-between;align-items:center">
+                        <div class="block-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
                             <span><i class="fas fa-chart-mixed" style="color:var(--accent-purple)"></i> План / Факт</span>
-                            <button @click="getAiFactCommentary()" :disabled="factAiLoading"
-                                style="background:#EEF0FF;border:1.5px solid #C7C9FF;color:var(--accent-purple);border-radius:10px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer">
-                                <i class="fas fa-wand-magic-sparkles"></i> <span x-text="factAiLoading ? 'Анализ...' : 'AI-анализ'"></span>
-                            </button>
-                        </div>
-                        <!-- Add row form -->
-                        <div style="background:#F8F7F3;border-radius:12px;padding:12px 14px;margin-bottom:14px">
-                            <p style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px">ДОБАВИТЬ СТРОКУ</p>
-                            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
-                                <div>
-                                    <p style="font-size:11px;color:#8E8E93;margin-bottom:3px">Метрика</p>
-                                    <input type="text" x-model="newFact.metric_name" placeholder="Название метрики"
-                                        style="padding:6px 10px;border:1.5px solid #E5E5ED;border-radius:8px;font-size:12px;width:160px">
-                                </div>
-                                <div>
-                                    <p style="font-size:11px;color:#8E8E93;margin-bottom:3px">Год</p>
-                                    <input type="number" x-model.number="newFact.year" min="2020" max="2040"
-                                        style="padding:6px 8px;border:1.5px solid #E5E5ED;border-radius:8px;font-size:12px;width:72px">
-                                </div>
-                                <div>
-                                    <p style="font-size:11px;color:#8E8E93;margin-bottom:3px">Месяц</p>
-                                    <input type="number" x-model.number="newFact.month" min="1" max="12"
-                                        style="padding:6px 8px;border:1.5px solid #E5E5ED;border-radius:8px;font-size:12px;width:60px">
-                                </div>
-                                <div>
-                                    <p style="font-size:11px;color:#8E8E93;margin-bottom:3px">План</p>
-                                    <input type="number" step="any" x-model.number="newFact.plan_value" placeholder="0"
-                                        style="padding:6px 8px;border:1.5px solid #E5E5ED;border-radius:8px;font-size:12px;width:80px">
-                                </div>
-                                <div>
-                                    <p style="font-size:11px;color:#8E8E93;margin-bottom:3px">Факт</p>
-                                    <input type="number" step="any" x-model.number="newFact.fact_value" placeholder="0"
-                                        style="padding:6px 8px;border:1.5px solid #E5E5ED;border-radius:8px;font-size:12px;width:80px">
-                                </div>
-                                <button @click="addFactRow()" :disabled="!newFact.metric_name"
-                                    style="padding:6px 14px;background:var(--accent-purple);color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">
-                                    + Добавить
+                            <div style="display:flex;gap:8px">
+                                <button @click="extendPeriods()"
+                                    style="background:#F8F7F3;border:1.5px solid #E5E5ED;color:#555;border-radius:10px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer">
+                                    + 12 мес.
+                                </button>
+                                <button @click="getAiFactCommentary()" :disabled="factAiLoading"
+                                    style="background:#EEF0FF;border:1.5px solid #C7C9FF;color:var(--accent-purple);border-radius:10px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer">
+                                    <i class="fas fa-wand-magic-sparkles"></i>
+                                    <span x-text="factAiLoading ? 'Анализ...' : 'AI-анализ'"></span>
                                 </button>
                             </div>
                         </div>
-                        <div>
-                            <!-- AI commentary -->
-                            <template x-if="factAiData">
-                                <div style="background:#F0EFFF;border-radius:14px;padding:16px 18px;margin-bottom:16px">
-                                    <p style="font-size:12px;font-weight:700;color:var(--accent-purple);margin-bottom:10px"><i class="fas fa-wand-magic-sparkles"></i> AI-анализ план / факт</p>
-                                    <!-- General comment -->
-                                    <p style="font-size:13px;line-height:1.6;color:#1C1C1E;margin-bottom:12px" x-text="factAiData.comment"></p>
-                                    <!-- Key deviations -->
-                                    <template x-if="factAiData.key_deviations && factAiData.key_deviations.length">
-                                        <div style="margin-bottom:12px">
-                                            <p style="font-size:11px;font-weight:700;color:var(--accent-purple);margin-bottom:6px">КЛЮЧЕВЫЕ ОТКЛОНЕНИЯ</p>
-                                            <template x-for="d in factAiData.key_deviations" :key="d.metric">
-                                                <div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid rgba(94,92,230,0.1)">
-                                                    <span style="font-size:13px;flex-shrink:0"
-                                                        x-text="d.assessment==='норма' ? '✅' : d.assessment==='тревога' ? '⚠️' : '❌'"></span>
-                                                    <div>
-                                                        <span style="font-size:12px;font-weight:700;color:#1C1C1E" x-text="d.metric"></span>
-                                                        <span x-show="d.deviation_pct != null" style="font-size:12px;font-weight:700;margin-left:6px"
-                                                            :style="d.deviation_pct >= 0 ? 'color:#2D9B63' : 'color:#FF3B30'"
-                                                            x-text="(d.deviation_pct > 0 ? '+' : '') + d.deviation_pct + '%'"></span>
-                                                        <p style="font-size:11px;color:#8E8E93;margin-top:2px" x-text="d.reason"></p>
-                                                    </div>
+
+                        <!-- AI commentary -->
+                        <template x-if="factAiData">
+                            <div style="background:#F0EFFF;border-radius:14px;padding:16px 18px;margin-bottom:16px">
+                                <p style="font-size:12px;font-weight:700;color:var(--accent-purple);margin-bottom:10px"><i class="fas fa-wand-magic-sparkles"></i> AI-анализ план / факт</p>
+                                <p style="font-size:13px;line-height:1.6;color:#1C1C1E;margin-bottom:12px" x-text="factAiData.comment"></p>
+                                <template x-if="factAiData.key_deviations && factAiData.key_deviations.length">
+                                    <div style="margin-bottom:12px">
+                                        <p style="font-size:11px;font-weight:700;color:var(--accent-purple);margin-bottom:6px">КЛЮЧЕВЫЕ ОТКЛОНЕНИЯ</p>
+                                        <template x-for="d in factAiData.key_deviations" :key="d.metric">
+                                            <div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid rgba(94,92,230,0.1)">
+                                                <span style="font-size:13px;flex-shrink:0"
+                                                    x-text="d.assessment==='норма' ? '✅' : d.assessment==='тревога' ? '⚠️' : '❌'"></span>
+                                                <div>
+                                                    <span style="font-size:12px;font-weight:700;color:#1C1C1E" x-text="d.metric"></span>
+                                                    <span x-show="d.deviation_pct != null" style="font-size:12px;font-weight:700;margin-left:6px"
+                                                        :style="d.deviation_pct >= 0 ? 'color:#2D9B63' : 'color:#FF3B30'"
+                                                        x-text="(d.deviation_pct > 0 ? '+' : '') + d.deviation_pct + '%'"></span>
+                                                    <p style="font-size:11px;color:#8E8E93;margin-top:2px" x-text="d.reason"></p>
                                                 </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                                <template x-if="factAiData.model_comparison">
+                                    <div style="margin-bottom:10px">
+                                        <p style="font-size:11px;font-weight:700;color:var(--accent-purple);margin-bottom:4px">СРАВНЕНИЕ С ФИНАНСОВОЙ МОДЕЛЬЮ</p>
+                                        <p style="font-size:12px;line-height:1.5;color:#555" x-text="factAiData.model_comparison"></p>
+                                    </div>
+                                </template>
+                                <template x-if="factAiData.npv_irr_risk">
+                                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;background:white;border-radius:10px;padding:8px 12px">
+                                        <span style="font-size:11px;font-weight:700;color:var(--text-muted)">РИСК NPV/IRR</span>
+                                        <span style="padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700"
+                                            :style="factAiData.npv_irr_risk==='высокий' ? 'background:#FFE5E3;color:#FF3B30' : factAiData.npv_irr_risk==='средний' ? 'background:#FFF4E5;color:#FF9500' : 'background:#DDF0E1;color:#2D9B63'"
+                                            x-text="factAiData.npv_irr_risk"></span>
+                                        <span style="font-size:12px;color:#555" x-text="factAiData.npv_irr_comment"></span>
+                                    </div>
+                                </template>
+                                <template x-if="factAiData.recommendations && factAiData.recommendations.length">
+                                    <div>
+                                        <p style="font-size:11px;font-weight:700;color:var(--accent-purple);margin-bottom:6px">РЕКОМЕНДАЦИИ</p>
+                                        <template x-for="(r, i) in factAiData.recommendations" :key="i">
+                                            <p style="font-size:12px;color:#1C1C1E;padding:4px 0" x-text="'→ ' + r"></p>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <!-- Spreadsheet table -->
+                        <div style="overflow-x:auto;margin-bottom:14px;border:1.5px solid #E5E5ED;border-radius:12px">
+                            <table style="border-collapse:collapse;font-size:12px;min-width:max-content;width:100%">
+                                <thead>
+                                    <tr style="background:#F8F7F3">
+                                        <th style="position:sticky;left:0;z-index:2;background:#F8F7F3;padding:8px 14px;text-align:left;font-weight:700;color:#8E8E93;border-bottom:2px solid #E5E5ED;white-space:nowrap;min-width:160px">
+                                            Метрика
+                                        </th>
+                                        <template x-for="p in periods" :key="periodKey(p)">
+                                            <th style="padding:8px 6px;text-align:center;font-weight:700;color:#8E8E93;border-bottom:2px solid #E5E5ED;white-space:nowrap;min-width:90px"
+                                                x-text="formatPeriodLabel(p)"></th>
+                                        </template>
+                                    </tr>
+                                </thead>
+                                <!-- one <tbody> per metric — Alpine x-for renders <tbody> as direct table child -->
+                                <template x-for="metric in metricNames" :key="metric">
+                                    <tbody>
+                                        <!-- Plan row -->
+                                        <tr>
+                                            <td style="position:sticky;left:0;z-index:1;background:#F8F8FF;padding:5px 14px;font-weight:600;color:#5E5CE6;border-bottom:1px solid #F0F0F8;white-space:nowrap;font-size:11px">
+                                                <span x-text="metric"></span>
+                                                <span style="font-size:9px;font-weight:400;color:#8E8E93;margin-left:4px;text-transform:uppercase;letter-spacing:0.4px">план</span>
+                                            </td>
+                                            <template x-for="p in periods" :key="periodKey(p)">
+                                                <td style="padding:4px;border-bottom:1px solid #F0F0F8;background:#F8F8FF">
+                                                    <input type="number" step="any"
+                                                        :value="getPlan(metric, p)"
+                                                        @change="setPlan(metric, p, $event.target.value)"
+                                                        style="width:82px;padding:4px 6px;border:1.5px solid #E0E0F0;border-radius:6px;font-size:12px;text-align:right;background:white;color:#333;outline:none"
+                                                        placeholder="—">
+                                                </td>
                                             </template>
-                                        </div>
-                                    </template>
-                                    <!-- Model comparison -->
-                                    <template x-if="factAiData.model_comparison">
-                                        <div style="margin-bottom:10px">
-                                            <p style="font-size:11px;font-weight:700;color:var(--accent-purple);margin-bottom:4px">СРАВНЕНИЕ С ФИНАНСОВОЙ МОДЕЛЬЮ</p>
-                                            <p style="font-size:12px;line-height:1.5;color:#555" x-text="factAiData.model_comparison"></p>
-                                        </div>
-                                    </template>
-                                    <!-- NPV/IRR risk -->
-                                    <template x-if="factAiData.npv_irr_risk">
-                                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;background:white;border-radius:10px;padding:8px 12px">
-                                            <span style="font-size:11px;font-weight:700;color:var(--text-muted)">РИСК NPV/IRR</span>
-                                            <span style="padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700"
-                                                :style="factAiData.npv_irr_risk==='высокий' ? 'background:#FFE5E3;color:#FF3B30' : factAiData.npv_irr_risk==='средний' ? 'background:#FFF4E5;color:#FF9500' : 'background:#DDF0E1;color:#2D9B63'"
-                                                x-text="factAiData.npv_irr_risk"></span>
-                                            <span style="font-size:12px;color:#555" x-text="factAiData.npv_irr_comment"></span>
-                                        </div>
-                                    </template>
-                                    <!-- Recommendations -->
-                                    <template x-if="factAiData.recommendations && factAiData.recommendations.length">
-                                        <div>
-                                            <p style="font-size:11px;font-weight:700;color:var(--accent-purple);margin-bottom:6px">РЕКОМЕНДАЦИИ</p>
-                                            <template x-for="(r, i) in factAiData.recommendations" :key="i">
-                                                <p style="font-size:12px;color:#1C1C1E;padding:4px 0" x-text="'→ ' + r"></p>
+                                        </tr>
+                                        <!-- Fact row -->
+                                        <tr>
+                                            <td style="position:sticky;left:0;z-index:1;background:white;padding:5px 14px;font-weight:600;color:#2D9B63;border-bottom:1px solid #EAFAF0;white-space:nowrap;font-size:11px">
+                                                <span x-text="metric"></span>
+                                                <span style="font-size:9px;font-weight:400;color:#8E8E93;margin-left:4px;text-transform:uppercase;letter-spacing:0.4px">факт</span>
+                                            </td>
+                                            <template x-for="p in periods" :key="periodKey(p)">
+                                                <td style="padding:4px;border-bottom:1px solid #EAFAF0;background:white">
+                                                    <input type="number" step="any"
+                                                        :value="getFact(metric, p)"
+                                                        @change="setFact(metric, p, $event.target.value)"
+                                                        style="width:82px;padding:4px 6px;border:1.5px solid #D0EDD9;border-radius:6px;font-size:12px;text-align:right;background:white;color:#2D9B63;font-weight:600;outline:none"
+                                                        placeholder="—">
+                                                </td>
                                             </template>
-                                        </div>
-                                    </template>
-                                </div>
-                            </template>
-                            <!-- Table -->
-                            <template x-if="factMetrics.length > 0">
-                                <div style="overflow-x:auto;margin-bottom:16px">
-                                    <table style="width:100%;border-collapse:collapse;font-size:12px">
-                                        <thead>
-                                            <tr style="background:#F8F7F3">
-                                                <th style="padding:8px 10px;text-align:left;font-weight:700;color:#8E8E93;border-bottom:1.5px solid #E5E5ED">Метрика</th>
-                                                <template x-for="period in factPeriods" :key="period">
-                                                    <th style="padding:8px 6px;text-align:center;font-weight:700;color:#8E8E93;border-bottom:1.5px solid #E5E5ED;white-space:nowrap" x-text="period"></th>
-                                                </template>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <template x-for="metric in factMetrics" :key="metric">
-                                                <!-- Plan row -->
-                                                <tr>
-                                                    <td style="padding:6px 10px;font-weight:600;color:#555" x-text="metric + ' (план)'"></td>
-                                                    <template x-for="period in factPeriods" :key="period">
-                                                        <td style="padding:6px;text-align:center;color:#555" x-text="getPlanValue(metric, period) ?? '—'"></td>
-                                                    </template>
-                                                </tr>
-                                                <!-- Fact row -->
-                                                <tr style="background:#FAFAF8">
-                                                    <td style="padding:6px 10px;font-weight:600;color:#2D9B63" x-text="metric + ' (факт)'"></td>
-                                                    <template x-for="period in factPeriods" :key="period">
-                                                        <td style="padding:6px;text-align:center;font-weight:600"
-                                                            :style="getFactValue(metric,period)!=='' && getFactValue(metric,period)!==null ? (getDeviation(metric,period)>=0 ? 'color:#2D9B63' : 'color:#FF3B30') : 'color:#C7C7CC'"
-                                                            x-text="getFactValue(metric,period)!=='' && getFactValue(metric,period)!==null ? Number(getFactValue(metric,period)).toLocaleString('ru-RU') : '—'"></td>
-                                                    </template>
-                                                </tr>
-                                                <!-- Deviation row -->
-                                                <tr>
-                                                    <td style="padding:4px 10px;font-size:11px;color:#8E8E93">откл. %</td>
-                                                    <template x-for="period in factPeriods" :key="period">
-                                                        <td style="padding:4px;text-align:center;font-size:11px;font-weight:700"
-                                                            :style="getDeviation(metric,period) > 0 ? 'color:#2D9B63' : getDeviation(metric,period) < 0 ? 'color:#FF3B30' : 'color:#8E8E93'"
-                                                            x-text="getDeviation(metric, period) !== null ? getDeviation(metric, period) + '%' : '—'"></td>
-                                                    </template>
-                                                </tr>
+                                        </tr>
+                                        <!-- Deviation row -->
+                                        <tr>
+                                            <td style="position:sticky;left:0;z-index:1;background:#FAFAF8;padding:3px 14px;font-size:10px;color:#8E8E93;border-bottom:2px solid #E5E5ED;letter-spacing:0.3px">
+                                                ОТКЛ. %
+                                            </td>
+                                            <template x-for="p in periods" :key="periodKey(p)">
+                                                <td style="padding:3px 4px;text-align:center;font-size:10px;font-weight:700;border-bottom:2px solid #E5E5ED;background:#FAFAF8"
+                                                    :style="getDeviation(metric,p) > 0 ? 'color:#2D9B63' : getDeviation(metric,p) < 0 ? 'color:#FF3B30' : 'color:#C7C7CC'"
+                                                    x-text="getDeviation(metric,p) !== null ? (getDeviation(metric,p) > 0 ? '+' : '') + getDeviation(metric,p) + '%' : '—'">
+                                                </td>
                                             </template>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </template>
-                            <p x-show="!factEntries.length && !factLoading" style="font-size:13px;color:#8E8E93;margin-bottom:12px">Нет данных план/факт. Введите вручную или импортируйте из CSV/Excel.</p>
-                            <button @click="saveFact()" :disabled="factSaving || !factEntries.length"
-                                style="background:var(--accent-purple);color:white;border:none;border-radius:12px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:12px">
+                                        </tr>
+                                    </tbody>
+                                </template>
+                                <!-- Add metric row -->
+                                <tbody>
+                                    <tr>
+                                        <td :colspan="periods.length + 1" style="padding:10px 14px">
+                                            <div style="display:flex;gap:8px;align-items:center">
+                                                <input type="text" x-model="newMetricName"
+                                                    placeholder="Название новой метрики..."
+                                                    @keydown.enter="addMetric()"
+                                                    style="padding:6px 10px;border:1.5px dashed #C7C7CC;border-radius:8px;font-size:12px;width:220px;color:#333;background:white;outline:none">
+                                                <button @click="addMetric()" :disabled="!newMetricName.trim()"
+                                                    style="padding:6px 16px;background:var(--accent-purple);color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity 0.15s"
+                                                    :style="newMetricName.trim() ? 'opacity:1' : 'opacity:0.45;cursor:default'">
+                                                    + Метрика
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Save button -->
+                        <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+                            <button @click="saveFact()" :disabled="factSaving"
+                                style="background:var(--accent-purple);color:white;border:none;border-radius:12px;padding:8px 24px;font-size:13px;font-weight:600;cursor:pointer">
                                 <i class="fas" :class="factSaving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
-                                <span x-text="factSaving ? 'Сохраняем...' : 'Сохранить факт'"></span>
+                                <span x-text="factSaving ? 'Сохраняем...' : 'Сохранить'"></span>
                             </button>
-                            <!-- Chart canvas -->
-                            <template x-if="factEntries.length > 0">
-                                <div style="margin-top:16px">
-                                    <canvas x-ref="factChart" style="max-height:280px"></canvas>
-                                </div>
-                            </template>
+                        </div>
+
+                        <!-- Chart canvas -->
+                        <div x-show="hasData" style="background:white;border-radius:14px;padding:16px 20px;border:1.5px solid #E5E5ED">
+                            <canvas x-ref="factChart" style="max-height:300px"></canvas>
                         </div>
                         </div>
                     </section>
@@ -1652,135 +1660,146 @@
         // ── Plan vs Fact ───────────────────────────────────────────────────
         function factApp() {
             return {
-                factEntries: [],
+                metricNames: [],
+                periods: [],          // [{year, month}]
+                _gridPlan: {},        // "metric||year/mm" -> number|null
+                _gridFact: {},
+                newMetricName: '',
                 factDirty: false,
                 factSaving: false,
                 factLoading: false,
-                factImporting: false,
                 factAiLoading: false,
                 factAiData: null,
-                _edits: {},
                 _chart: null,
-                newFact: { metric_name: '', year: new Date().getFullYear(), month: new Date().getMonth() + 1, plan_value: '', fact_value: '' },
 
-                addFactRow() {
-                    if (!this.newFact.metric_name.trim()) return;
-                    // x-model.number yields NaN for empty inputs — guard explicitly
-                    const pv = parseFloat(this.newFact.plan_value);
-                    const fv = parseFloat(this.newFact.fact_value);
-                    const entry = {
-                        id: null,
-                        metric_name: this.newFact.metric_name.trim(),
-                        year: parseInt(this.newFact.year) || new Date().getFullYear(),
-                        month: parseInt(this.newFact.month) || 1,
-                        plan_value: isNaN(pv) ? null : pv,
-                        fact_value: isNaN(fv) ? null : fv,
-                        deviation_abs: null,
-                        deviation_pct: null,
-                    };
-                    // replace existing entry for same metric+period if any
-                    this.factEntries = this.factEntries.filter(e =>
-                        !(e.metric_name === entry.metric_name && Number(e.year) === entry.year && Number(e.month) === entry.month)
-                    );
-                    this.factEntries.push(entry);
+                periodKey(p) { return p.year + '/' + String(p.month).padStart(2, '0'); },
+                _cellKey(metric, p) { return metric + '||' + this.periodKey(p); },
+                formatPeriodLabel(p) {
+                    const M = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+                    return M[p.month - 1] + ' ' + p.year;
+                },
+
+                initPeriods(startYear, startMonth, count) {
+                    this.periods = [];
+                    let y = startYear, m = startMonth;
+                    for (let i = 0; i < count; i++) {
+                        this.periods.push({year: y, month: m});
+                        m++;
+                        if (m > 12) { m = 1; y++; }
+                    }
+                },
+                extendPeriods() {
+                    const last = this.periods[this.periods.length - 1] || {year: new Date().getFullYear(), month: 12};
+                    let y = last.year, m = last.month + 1;
+                    if (m > 12) { m = 1; y++; }
+                    for (let i = 0; i < 12; i++) {
+                        this.periods.push({year: y, month: m});
+                        m++;
+                        if (m > 12) { m = 1; y++; }
+                    }
+                },
+
+                getPlan(metric, p) { return this._gridPlan[this._cellKey(metric, p)] ?? null; },
+                getFact(metric, p) { return this._gridFact[this._cellKey(metric, p)] ?? null; },
+                setPlan(metric, p, val) {
+                    const k = this._cellKey(metric, p);
+                    const v = val === '' || val === null ? null : parseFloat(val);
+                    this._gridPlan = {...this._gridPlan, [k]: (isNaN(v) ? null : v)};
                     this.factDirty = true;
-                    this.newFact = { metric_name: '', year: new Date().getFullYear(), month: new Date().getMonth() + 1, plan_value: '', fact_value: '' };
                     this.$nextTick(() => this._renderChart());
+                },
+                setFact(metric, p, val) {
+                    const k = this._cellKey(metric, p);
+                    const v = val === '' || val === null ? null : parseFloat(val);
+                    this._gridFact = {...this._gridFact, [k]: (isNaN(v) ? null : v)};
+                    this.factDirty = true;
+                    this.$nextTick(() => this._renderChart());
+                },
+                getDeviation(metric, p) {
+                    const plan = this.getPlan(metric, p);
+                    const fact = this.getFact(metric, p);
+                    if (plan == null || fact == null || plan === 0) return null;
+                    return Math.round((fact - plan) / plan * 100 * 10) / 10;
+                },
+
+                addMetric() {
+                    const name = this.newMetricName.trim();
+                    if (!name || this.metricNames.includes(name)) return;
+                    this.metricNames = [...this.metricNames, name];
+                    this.newMetricName = '';
+                    this.factDirty = true;
+                },
+
+                get hasData() {
+                    return Object.values(this._gridPlan).some(v => v !== null) ||
+                           Object.values(this._gridFact).some(v => v !== null);
                 },
 
                 async loadFact() {
                     const id = _projectId();
                     if (!id) return;
                     this.factLoading = true;
+                    const now = new Date();
+                    this.initPeriods(now.getFullYear(), 1, 12);
                     try {
                         const res = await authFetch('/api/v1/projects/' + id + '/fact');
                         if (res.ok) {
-                            this.factEntries = await res.json();
-                            this.$nextTick(() => this._renderChart());
+                            const entries = await res.json();
+                            if (entries.length) {
+                                const years = entries.map(e => e.year);
+                                const minYear = Math.min(...years);
+                                const maxYear = Math.max(...years);
+                                const maxMonth = Math.max(...entries.filter(e => e.year === maxYear).map(e => e.month));
+                                let total = (maxYear - minYear) * 12 + maxMonth;
+                                total = Math.max(12, Math.ceil(total / 12) * 12);
+                                this.initPeriods(minYear, 1, total);
+
+                                const seen = [];
+                                for (const e of entries) {
+                                    if (!seen.includes(e.metric_name)) seen.push(e.metric_name);
+                                }
+                                this.metricNames = seen;
+
+                                const newPlan = {}, newFact = {};
+                                for (const e of entries) {
+                                    const k = this._cellKey(e.metric_name, {year: e.year, month: e.month});
+                                    if (e.plan_value != null) newPlan[k] = e.plan_value;
+                                    if (e.fact_value != null) newFact[k] = e.fact_value;
+                                }
+                                this._gridPlan = newPlan;
+                                this._gridFact = newFact;
+                                this.$nextTick(() => this._renderChart());
+                            }
                         }
-                    } catch(e) {} finally { this.factLoading = false; }
-                },
-
-                get factMetrics() {
-                    const s = new Set(this.factEntries.map(e => e.metric_name));
-                    return [...s].sort();
-                },
-
-                get factPeriods() {
-                    const s = new Set(this.factEntries.map(e => e.year + '/' + String(e.month).padStart(2,'0')));
-                    return [...s].sort();
-                },
-
-                _key(metric, period) { return metric + '|' + period; },
-                _entry(metric, period) {
-                    const [y, m] = period.split('/');
-                    return this.factEntries.find(e => e.metric_name === metric && e.year == y && e.month == m);
-                },
-                getPlanValue(metric, period) { return this._entry(metric, period)?.plan_value ?? null; },
-                getFactValue(metric, period) {
-                    const k = this._key(metric, period);
-                    if (k in this._edits) return this._edits[k];
-                    return this._entry(metric, period)?.fact_value ?? '';
-                },
-                getDeviation(metric, period) {
-                    const plan = this.getPlanValue(metric, period);
-                    const fact = parseFloat(this.getFactValue(metric, period));
-                    if (plan == null || isNaN(fact) || plan === 0) return null;
-                    return Math.round((fact - plan) / plan * 100 * 10) / 10;
-                },
-                setFactValue(metric, period, val) {
-                    this._edits[this._key(metric, period)] = val === '' ? null : parseFloat(val);
-                    this.factDirty = true;
+                    } catch(e) {}
+                    finally { this.factLoading = false; }
                 },
 
                 async saveFact() {
-                    if (!this.factEntries.length) return;
                     this.factSaving = true;
-                    // save ALL entries (not just _edits) — add-row form writes directly to factEntries
-                    const payload = this.factEntries.map(e => ({
-                        year: parseInt(e.year),
-                        month: parseInt(e.month),
-                        metric_name: e.metric_name,
-                        plan_value: (e.plan_value != null && !isNaN(e.plan_value)) ? e.plan_value : null,
-                        fact_value: (e.fact_value != null && !isNaN(e.fact_value)) ? e.fact_value : null,
-                    }));
+                    const payload = [];
+                    for (const metric of this.metricNames) {
+                        for (const p of this.periods) {
+                            const plan = this.getPlan(metric, p);
+                            const fact = this.getFact(metric, p);
+                            if (plan !== null || fact !== null) {
+                                payload.push({year: p.year, month: p.month, metric_name: metric, plan_value: plan, fact_value: fact});
+                            }
+                        }
+                    }
+                    if (!payload.length) { this.factSaving = false; return; }
                     try {
                         const res = await authFetch('/api/v1/projects/' + _projectId() + '/fact', {
                             method: 'PUT', body: JSON.stringify(payload),
                         });
                         if (res.ok) {
-                            this.factEntries = await res.json();
-                            this._edits = {};
                             this.factDirty = false;
-                            this.$nextTick(() => this._renderChart());
                         } else {
                             const err = await res.json().catch(() => ({}));
                             alert(err.detail || 'Ошибка сохранения');
                         }
                     } catch(e) { alert('Ошибка сохранения: ' + e.message); }
                     finally { this.factSaving = false; }
-                },
-
-                async importFact(event) {
-                    const file = event.target.files[0];
-                    if (!file) return;
-                    this.factImporting = true;
-                    const fd = new FormData();
-                    fd.append('file', file);
-                    try {
-                        const res = await fetch('/api/v1/projects/' + _projectId() + '/fact/import', {
-                            method: 'POST',
-                            headers: {Authorization: 'Bearer ' + localStorage.getItem('invest_token')},
-                            body: fd,
-                        });
-                        if (res.ok) {
-                            await this.loadFact();
-                        } else {
-                            const err = await res.json().catch(()=>({}));
-                            alert(err.detail || 'Ошибка импорта');
-                        }
-                    } catch(e) { alert('Ошибка: ' + e.message); }
-                    finally { this.factImporting = false; event.target.value = ''; }
                 },
 
                 async getAiFactCommentary() {
@@ -1800,31 +1819,33 @@
                 _renderChart() {
                     if (!this.$refs.factChart || typeof Chart === 'undefined') return;
                     if (this._chart) { this._chart.destroy(); this._chart = null; }
-                    const metrics = this.factMetrics;
-                    if (!metrics.length) return;
+                    if (!this.metricNames.length || !this.hasData) return;
 
-                    const periods = this.factPeriods;
+                    const M = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+                    const labels = this.periods.map(p => M[p.month - 1] + '\'' + String(p.year).slice(2));
                     const PALETTE = [
-                        {plan:'#5E5CE6', planBg:'rgba(94,92,230,0.08)',  fact:'#34C759', factBg:'rgba(52,199,89,0.08)'},
-                        {plan:'#0A84FF', planBg:'rgba(10,132,255,0.08)', fact:'#FF9500', factBg:'rgba(255,149,0,0.08)'},
-                        {plan:'#FF2D55', planBg:'rgba(255,45,85,0.08)',  fact:'#5AC8FA', factBg:'rgba(90,200,250,0.08)'},
+                        {plan:'#5E5CE6', planBg:'rgba(94,92,230,0.07)',  fact:'#34C759', factBg:'rgba(52,199,89,0.09)'},
+                        {plan:'#0A84FF', planBg:'rgba(10,132,255,0.07)', fact:'#FF9500', factBg:'rgba(255,149,0,0.09)'},
+                        {plan:'#FF2D55', planBg:'rgba(255,45,85,0.07)',  fact:'#5AC8FA', factBg:'rgba(90,200,250,0.09)'},
+                        {plan:'#30B0C7', planBg:'rgba(48,176,199,0.07)', fact:'#FF6B35', factBg:'rgba(255,107,53,0.09)'},
                     ];
 
                     const datasets = [];
-                    metrics.forEach((metric, i) => {
+                    this.metricNames.forEach((metric, i) => {
                         const c = PALETTE[i % PALETTE.length];
-                        const planData = periods.map(p => { const e = this._entry(metric, p); return e?.plan_value ?? null; });
-                        const factData = periods.map(p => { const v = this.getFactValue(metric, p); return v !== '' && v !== null ? parseFloat(v) : null; });
+                        const planData = this.periods.map(p => this.getPlan(metric, p));
+                        const factData = this.periods.map(p => this.getFact(metric, p));
                         datasets.push({
                             label: metric + ' (план)',
                             data: planData,
                             borderColor: c.plan,
                             backgroundColor: c.planBg,
-                            borderDash: [6, 4],
+                            borderDash: [7, 4],
                             borderWidth: 2,
                             fill: true,
-                            tension: 0.4,
+                            tension: 0.35,
                             pointRadius: 4,
+                            pointHoverRadius: 6,
                             pointBackgroundColor: 'white',
                             pointBorderColor: c.plan,
                             pointBorderWidth: 2,
@@ -1837,8 +1858,9 @@
                             backgroundColor: c.factBg,
                             borderWidth: 2.5,
                             fill: true,
-                            tension: 0.4,
+                            tension: 0.35,
                             pointRadius: 5,
+                            pointHoverRadius: 7,
                             pointBackgroundColor: 'white',
                             pointBorderColor: c.fact,
                             pointBorderWidth: 2.5,
@@ -1848,17 +1870,17 @@
 
                     this._chart = new Chart(this.$refs.factChart, {
                         type: 'line',
-                        data: {labels: periods, datasets},
+                        data: {labels, datasets},
                         options: {
                             responsive: true,
                             interaction: {mode: 'index', intersect: false},
                             plugins: {
                                 legend: {
                                     position: 'bottom',
-                                    labels: {usePointStyle: true, pointStyle: 'circle', padding: 18, font: {size: 11, family: 'inherit'}, color: '#555'},
+                                    labels: {usePointStyle: true, pointStyle: 'circle', padding: 20, font: {size: 11, family: 'inherit'}, color: '#555'},
                                 },
                                 tooltip: {
-                                    backgroundColor: 'white',
+                                    backgroundColor: 'rgba(255,255,255,0.97)',
                                     titleColor: '#1C1C1E',
                                     bodyColor: '#555',
                                     borderColor: '#E5E5ED',
@@ -1872,12 +1894,12 @@
                             },
                             scales: {
                                 x: {
-                                    grid: {color: '#F2F2F7', drawBorder: false},
-                                    ticks: {font: {size: 11, family: 'inherit'}, color: '#8E8E93', padding: 6},
+                                    grid: {color: '#F5F5F8'},
+                                    ticks: {font: {size: 10, family: 'inherit'}, color: '#8E8E93', padding: 6, maxRotation: 0},
                                 },
                                 y: {
                                     beginAtZero: false,
-                                    grid: {color: '#F2F2F7', drawBorder: false},
+                                    grid: {color: '#F5F5F8'},
                                     ticks: {
                                         font: {size: 11, family: 'inherit'},
                                         color: '#8E8E93',
