@@ -278,6 +278,35 @@
                             <h1 style="font-size:26px;font-weight:800" x-text="project.name || '(без названия)'"></h1>
                         </div>
                         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                            <!-- Bell notifications widget -->
+                            <div x-data="bellApp()" x-init="initBell()" style="position:relative">
+                                <button @click="toggleBell()" style="position:relative;background:white;border:1.5px solid #E5E5E5;border-radius:12px;padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:6px">
+                                    <i class="fas fa-bell" style="font-size:15px;color:#1C1C1E"></i>
+                                    <span x-show="unreadCount > 0" x-text="unreadCount > 9 ? '9+' : unreadCount"
+                                        style="position:absolute;top:-6px;right:-6px;background:#FF3B30;color:white;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center"></span>
+                                </button>
+                                <template x-if="open">
+                                    <div @click.outside="open=false"
+                                        style="position:absolute;right:0;top:calc(100% + 8px);width:320px;background:white;border-radius:20px;box-shadow:0 10px 40px rgba(0,0,0,0.12);z-index:500;overflow:hidden">
+                                        <div style="padding:14px 18px;border-bottom:1px solid #F2F2F7;display:flex;justify-content:space-between;align-items:center">
+                                            <span style="font-weight:700;font-size:13px">Уведомления</span>
+                                            <button @click="markAllRead()" style="font-size:12px;color:#5E5CE6;background:none;border:none;cursor:pointer">Прочитать все</button>
+                                        </div>
+                                        <div style="max-height:320px;overflow-y:auto">
+                                            <template x-if="notifications.length === 0">
+                                                <p style="padding:18px;text-align:center;color:#8E8E93;font-size:13px">Нет уведомлений</p>
+                                            </template>
+                                            <template x-for="n in notifications" :key="n.id">
+                                                <div @click="openNotification(n)" style="padding:12px 18px;border-bottom:1px solid #F8F7F3;cursor:pointer" :style="n.is_read ? '' : 'background:#F0EFFF'">
+                                                    <p style="font-size:13px;font-weight:600;margin-bottom:2px" x-text="n.title"></p>
+                                                    <p style="font-size:12px;color:#8E8E93" x-text="n.message"></p>
+                                                    <p style="font-size:11px;color:#C7C7CC;margin-top:3px" x-text="fmtBellDate(n.created_at)"></p>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
                             <div class="project-badge" :style="badgeStyle">
                                 <i :class="badgeIcon"></i>
                                 <span x-text="statusLabel"></span>
@@ -829,6 +858,252 @@
                             </section>
                         </div>
                     </div>
+
+                    <!-- ═══ ATTACHMENTS ═══════════════════════════════════════ -->
+                    <section class="card-block" style="margin-top:20px">
+                        <div class="block-title"><i class="fas fa-paperclip" style="color:var(--accent-purple)"></i> Инвестиционный контракт</div>
+                        <div x-data="attachmentsApp()" x-init="loadAttachments()">
+                            <div x-show="attachments.length > 0" style="margin-bottom:12px">
+                                <template x-for="a in attachments" :key="a.id">
+                                    <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#F8F7F3;border-radius:12px;margin-bottom:8px">
+                                        <i class="fas fa-file-alt" style="color:var(--accent-purple);font-size:18px;flex-shrink:0"></i>
+                                        <div style="flex:1;min-width:0">
+                                            <p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" x-text="a.original_name"></p>
+                                            <p style="font-size:11px;color:#8E8E93" x-text="fmtFileSize(a.file_size) + ' · ' + fmtDateShort(a.uploaded_at) + ' · ' + a.uploader_name"></p>
+                                        </div>
+                                        <button @click="downloadFile(a)" title="Скачать" style="background:#EEF0FF;border:none;border-radius:10px;padding:7px 12px;cursor:pointer;color:var(--accent-purple);font-size:13px">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                            <div x-show="!attachments.length && !uploading" style="color:#8E8E93;font-size:13px;margin-bottom:10px">Нет загруженных файлов</div>
+                            <div style="display:flex;gap:10px;align-items:center">
+                                <input type="file" x-ref="fileInput" accept=".pdf,.docx,.md" style="display:none" @change="uploadFile($event)">
+                                <button @click="$refs.fileInput.click()" :disabled="uploading"
+                                    style="background:#EEF0FF;border:1.5px solid #C7C9FF;color:var(--accent-purple);border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
+                                    <i class="fas" :class="uploading ? 'fa-spinner fa-spin' : 'fa-upload'"></i>
+                                    <span x-text="uploading ? 'Загружаем...' : 'Прикрепить файл'"></span>
+                                </button>
+                                <span style="font-size:11px;color:#8E8E93">PDF, DOCX, MD · до 25 МБ</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ═══ COMMENTS ══════════════════════════════════════════ -->
+                    <section class="card-block" style="margin-top:20px">
+                        <div class="block-title"><i class="fas fa-comments" style="color:var(--accent-purple)"></i> Комментарии</div>
+                        <div x-data="commentsApp()" x-init="loadComments()">
+                            <div style="margin-bottom:14px">
+                                <template x-for="c in comments" :key="c.id">
+                                    <div style="padding:12px 16px;background:#F8F7F3;border-radius:14px;margin-bottom:10px">
+                                        <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+                                            <span style="font-size:12px;font-weight:700;color:#5E5CE6" x-text="c.author_name"></span>
+                                            <span style="font-size:11px;color:#8E8E93" x-text="fmtDateShort(c.created_at)"></span>
+                                        </div>
+                                        <p style="font-size:13px;line-height:1.5;color:#1C1C1E;white-space:pre-wrap" x-text="c.text"></p>
+                                    </div>
+                                </template>
+                                <p x-show="!comments.length" style="font-size:13px;color:#8E8E93;margin-bottom:10px">Комментариев пока нет</p>
+                            </div>
+                            <div style="display:flex;gap:10px;align-items:flex-start">
+                                <textarea x-model="commentText" placeholder="Написать комментарий..."
+                                    style="flex:1;resize:vertical;min-height:70px;padding:10px 14px;border:1.5px solid #E5E5ED;border-radius:12px;font-size:13px;font-family:inherit;outline:none"
+                                    @keydown.ctrl.enter="submitComment()"></textarea>
+                                <button @click="submitComment()" :disabled="!commentText.trim() || submittingComment"
+                                    style="background:var(--accent-purple);color:white;border:none;border-radius:12px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                            <p style="font-size:11px;color:#8E8E93;margin-top:4px">Ctrl+Enter для отправки</p>
+                        </div>
+                    </section>
+
+                    <!-- ═══ TRANCHES ═══════════════════════════════════════════ -->
+                    <section class="card-block" style="margin-top:20px" x-show="project.project_type === 'investment'">
+                        <div x-data="tranchesApp()" x-init="loadTranches()">
+                        <div class="block-title"><i class="fas fa-layer-group" style="color:var(--accent-purple)"></i> Транши</div>
+                        <div>
+                            <!-- Summary -->
+                            <div style="display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap">
+                                <div style="background:#DDF0E1;border-radius:12px;padding:10px 18px;text-align:center">
+                                    <p style="font-size:11px;font-weight:700;color:#2D9B63">СОГЛАСОВАНО</p>
+                                    <p style="font-size:16px;font-weight:800;color:#2D9B63" x-text="fmtMoney(approvedTotal)"></p>
+                                </div>
+                                <div style="background:#FFF4E5;border-radius:12px;padding:10px 18px;text-align:center">
+                                    <p style="font-size:11px;font-weight:700;color:#FF9500">ЗАПРОШЕНО</p>
+                                    <p style="font-size:16px;font-weight:800;color:#FF9500" x-text="fmtMoney(requestedTotal)"></p>
+                                </div>
+                            </div>
+                            <!-- List -->
+                            <template x-for="t in tranches" :key="t.id">
+                                <div style="border:1.5px solid #E5E5ED;border-radius:16px;padding:16px;margin-bottom:12px">
+                                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+                                        <div>
+                                            <span style="font-size:12px;font-weight:700;color:#8E8E93">ТРАНШ #<span x-text="t.order_index+1"></span></span>
+                                            <p style="font-size:18px;font-weight:800;margin-top:2px" x-text="fmtMoney(t.amount)"></p>
+                                            <p style="font-size:12px;color:#8E8E93;margin-top:3px" x-text="t.planned_date ? ('Дата: ' + t.planned_date) : ''"></p>
+                                            <p style="font-size:12px;color:#555;margin-top:3px" x-text="t.description || ''"></p>
+                                        </div>
+                                        <span style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700"
+                                            :style="t.status==='paid' ? 'background:#DDF0E1;color:#2D9B63' : t.status==='approved' ? 'background:#FFF4E5;color:#FF9500' : 'background:#F0F0F0;color:#8E8E93'"
+                                            x-text="t.status==='paid' ? 'Выплачен' : t.status==='approved' ? 'Одобрен' : 'Запрошен'"></span>
+                                    </div>
+                                    <!-- Checklist -->
+                                    <div x-data="checklistApp(t.id)" x-init="loadChecklist()">
+                                        <template x-if="items.length > 0">
+                                            <div style="background:#F8F7F3;border-radius:12px;padding:12px;margin-bottom:8px">
+                                                <p style="font-size:11px;font-weight:700;color:#8E8E93;margin-bottom:8px">ЧЕК-ЛИСТ ТРИГГЕРОВ</p>
+                                                <template x-for="ci in items" :key="ci.id">
+                                                    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">
+                                                        <input type="checkbox" :checked="ci.is_met" @change="toggleItem(ci)" style="margin-top:2px;cursor:pointer">
+                                                        <div>
+                                                            <span style="font-size:12px;font-weight:600" x-text="ci.metric_name"></span>
+                                                            <span x-show="ci.target_value" style="font-size:11px;color:#8E8E93" x-text="' → цель: ' + ci.target_value"></span>
+                                                            <span x-show="ci.actual_value" style="font-size:11px;color:#2D9B63" x-text="' / факт: ' + ci.actual_value"></span>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <!-- Approve/Pay buttons (CFO/Manager only) -->
+                                        <div x-show="isCfoOrManager()" style="display:flex;gap:8px;flex-wrap:wrap">
+                                            <button x-show="t.status === 'requested'" @click="approveNextTranche(t, items)"
+                                                :disabled="items.length > 0 && !allMet(items)"
+                                                :title="items.length > 0 && !allMet(items) ? 'Не все триггеры выполнены' : 'Одобрить транш'"
+                                                style="background:#5E5CE6;color:white;border:none;border-radius:10px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;transition:.2s"
+                                                :style="(items.length > 0 && !allMet(items)) ? 'opacity:0.4;cursor:not-allowed' : ''">
+                                                <i class="fas fa-check"></i> Одобрить
+                                            </button>
+                                            <button x-show="t.status === 'approved'" @click="payTranche(t)"
+                                                style="background:#34C759;color:white;border:none;border-radius:10px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer">
+                                                <i class="fas fa-money-bill-wave"></i> Выплачен
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            <p x-show="!tranches.length" style="font-size:13px;color:#8E8E93;margin-bottom:10px">Транши не добавлены</p>
+                            <!-- Add tranche form -->
+                            <div x-show="showAddTranche" style="border:1.5px dashed #C7C9FF;border-radius:14px;padding:16px;margin-bottom:12px">
+                                <p style="font-size:13px;font-weight:700;margin-bottom:10px">Новый транш</p>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                                    <div>
+                                        <label style="font-size:11px;font-weight:700;color:#555">Сумма (₽)</label>
+                                        <input type="number" x-model.number="newTranche.amount" style="width:100%;padding:8px 12px;border:1.5px solid #E5E5ED;border-radius:10px;font-size:13px;margin-top:4px">
+                                    </div>
+                                    <div>
+                                        <label style="font-size:11px;font-weight:700;color:#555">Плановая дата</label>
+                                        <input type="date" x-model="newTranche.planned_date" style="width:100%;padding:8px 12px;border:1.5px solid #E5E5ED;border-radius:10px;font-size:13px;margin-top:4px">
+                                    </div>
+                                </div>
+                                <textarea x-model="newTranche.description" placeholder="Условия перехода (необязательно)"
+                                    style="width:100%;padding:8px 12px;border:1.5px solid #E5E5ED;border-radius:10px;font-size:13px;resize:vertical;min-height:60px;margin-bottom:10px"></textarea>
+                                <div style="display:flex;gap:8px">
+                                    <button @click="addTranche()" style="background:var(--accent-purple);color:white;border:none;border-radius:10px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">
+                                        Добавить
+                                    </button>
+                                    <button @click="showAddTranche=false;newTranche={amount:0,planned_date:'',description:''}" style="background:#F0F0F0;border:none;border-radius:10px;padding:8px 18px;font-size:13px;cursor:pointer">
+                                        Отмена
+                                    </button>
+                                </div>
+                            </div>
+                            <button @click="showAddTranche=true" x-show="!showAddTranche"
+                                style="background:#F0F0F0;border:none;border-radius:12px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">
+                                <i class="fas fa-plus"></i> Добавить транш
+                            </button>
+                        </div>
+                        </div>
+                    </section>
+
+                    <!-- ═══ PLAN VS FACT ═══════════════════════════════════════ -->
+                    <section class="card-block" style="margin-top:20px" x-show="project.project_type === 'investment'">
+                        <div x-data="factApp()" x-init="loadFact()">
+                        <div class="block-title" style="display:flex;justify-content:space-between;align-items:center">
+                            <span><i class="fas fa-chart-mixed" style="color:var(--accent-purple)"></i> План / Факт</span>
+                            <div style="display:flex;gap:8px">
+                                <input type="file" x-ref="factFileInput" accept=".csv,.xlsx,.xls" style="display:none" @change="importFact($event)">
+                                <button @click="$refs.factFileInput.click()" :disabled="factImporting"
+                                    style="background:#EEF0FF;border:1.5px solid #C7C9FF;color:var(--accent-purple);border-radius:10px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer">
+                                    <i class="fas fa-file-import"></i> <span x-text="factImporting ? 'Импорт...' : 'Импорт CSV/Excel'"></span>
+                                </button>
+                                <button @click="getAiFactCommentary()" :disabled="factAiLoading"
+                                    style="background:#EEF0FF;border:1.5px solid #C7C9FF;color:var(--accent-purple);border-radius:10px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer">
+                                    <i class="fas fa-wand-magic-sparkles"></i> AI-анализ
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <!-- AI commentary -->
+                            <template x-if="factAiComment">
+                                <div style="background:#F0EFFF;border-radius:12px;padding:14px 16px;margin-bottom:14px">
+                                    <p style="font-size:12px;font-weight:700;color:var(--accent-purple);margin-bottom:4px"><i class="fas fa-wand-magic-sparkles"></i> AI-комментарий</p>
+                                    <p style="font-size:13px;line-height:1.5;color:#1C1C1E" x-text="factAiComment"></p>
+                                </div>
+                            </template>
+                            <!-- Table -->
+                            <template x-if="factMetrics.length > 0">
+                                <div style="overflow-x:auto;margin-bottom:16px">
+                                    <table style="width:100%;border-collapse:collapse;font-size:12px">
+                                        <thead>
+                                            <tr style="background:#F8F7F3">
+                                                <th style="padding:8px 10px;text-align:left;font-weight:700;color:#8E8E93;border-bottom:1.5px solid #E5E5ED">Метрика</th>
+                                                <template x-for="period in factPeriods" :key="period">
+                                                    <th style="padding:8px 6px;text-align:center;font-weight:700;color:#8E8E93;border-bottom:1.5px solid #E5E5ED;white-space:nowrap" x-text="period"></th>
+                                                </template>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="metric in factMetrics" :key="metric">
+                                                <!-- Plan row -->
+                                                <tr>
+                                                    <td style="padding:6px 10px;font-weight:600;color:#555" x-text="metric + ' (план)'"></td>
+                                                    <template x-for="period in factPeriods" :key="period">
+                                                        <td style="padding:6px;text-align:center;color:#555" x-text="getPlanValue(metric, period) ?? '—'"></td>
+                                                    </template>
+                                                </tr>
+                                                <!-- Fact row (editable) -->
+                                                <tr style="background:#FAFAF8">
+                                                    <td style="padding:6px 10px;font-weight:600;color:#2D9B63" x-text="metric + ' (факт)'"></td>
+                                                    <template x-for="period in factPeriods" :key="period">
+                                                        <td style="padding:4px;text-align:center">
+                                                            <input type="number" step="any"
+                                                                :value="getFactValue(metric, period)"
+                                                                @change="setFactValue(metric, period, $event.target.value)"
+                                                                style="width:70px;padding:3px 6px;border:1px solid #E5E5ED;border-radius:6px;font-size:11px;text-align:center">
+                                                        </td>
+                                                    </template>
+                                                </tr>
+                                                <!-- Deviation row -->
+                                                <tr>
+                                                    <td style="padding:4px 10px;font-size:11px;color:#8E8E93">откл. %</td>
+                                                    <template x-for="period in factPeriods" :key="period">
+                                                        <td style="padding:4px;text-align:center;font-size:11px;font-weight:700"
+                                                            :style="getDeviation(metric,period) > 0 ? 'color:#2D9B63' : getDeviation(metric,period) < 0 ? 'color:#FF3B30' : 'color:#8E8E93'"
+                                                            x-text="getDeviation(metric, period) !== null ? getDeviation(metric, period) + '%' : '—'"></td>
+                                                    </template>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+                            <p x-show="!factEntries.length && !factLoading" style="font-size:13px;color:#8E8E93;margin-bottom:12px">Нет данных план/факт. Введите вручную или импортируйте из CSV/Excel.</p>
+                            <button @click="saveFact()" :disabled="factSaving || !factDirty"
+                                style="background:var(--accent-purple);color:white;border:none;border-radius:12px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:12px">
+                                <i class="fas" :class="factSaving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+                                <span x-text="factSaving ? 'Сохраняем...' : 'Сохранить факт'"></span>
+                            </button>
+                            <!-- Chart canvas -->
+                            <template x-if="factEntries.length > 0">
+                                <div style="margin-top:16px">
+                                    <canvas x-ref="factChart" style="max-height:280px"></canvas>
+                                </div>
+                            </template>
+                        </div>
+                        </div>
+                    </section>
+
                 </div>
             </template>
         </main>
@@ -836,6 +1111,7 @@
 
     <script src="/js/auth.js"></script>
     <script src="/js/finance.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
     <script>
         function toggleSidebar() {
@@ -1047,6 +1323,402 @@
                     } catch(e) {
                         alert('Ошибка соединения: ' + e.message);
                     }
+                },
+            };
+        }
+
+        // ── Shared helpers ─────────────────────────────────────────────────
+        function _projectId() {
+            return new URLSearchParams(location.search).get('id');
+        }
+        function _fmtMoney(v) {
+            if (v == null || isNaN(v)) return '—';
+            const s = v < 0 ? '-' : '', a = Math.abs(v);
+            if (a >= 1e9) return s + (a/1e9).toFixed(2) + ' млрд ₽';
+            if (a >= 1e6) return s + (a/1e6).toFixed(2) + ' млн ₽';
+            if (a >= 1e3) return s + Math.round(a/1e3) + ' тыс ₽';
+            return s + Math.round(a) + ' ₽';
+        }
+        function _fmtDateShort(iso) {
+            if (!iso) return '—';
+            return new Date(iso).toLocaleDateString('ru-RU', {day:'numeric', month:'short', year:'numeric'});
+        }
+
+        // ── Bell notifications ─────────────────────────────────────────────
+        function bellApp() {
+            return {
+                open: false,
+                notifications: [],
+                unreadCount: 0,
+                async initBell() {
+                    await this.loadNotifications();
+                    setInterval(() => this.loadNotifications(), 30000);
+                },
+                async loadNotifications() {
+                    try {
+                        const res = await authFetch('/api/v1/notifications');
+                        if (res.ok) {
+                            this.notifications = await res.json();
+                            this.unreadCount = this.notifications.filter(n => !n.is_read).length;
+                        }
+                    } catch(e) {}
+                },
+                toggleBell() { this.open = !this.open; },
+                async markAllRead() {
+                    await authFetch('/api/v1/notifications/read-all', {method:'PATCH'});
+                    this.notifications.forEach(n => n.is_read = true);
+                    this.unreadCount = 0;
+                },
+                async openNotification(n) {
+                    if (!n.is_read) {
+                        await authFetch(`/api/v1/notifications/${n.id}/read`, {method:'PATCH'});
+                        n.is_read = true;
+                        this.unreadCount = Math.max(0, this.unreadCount - 1);
+                    }
+                    this.open = false;
+                    if (n.link) window.location.href = n.link;
+                },
+                fmtBellDate(iso) {
+                    if (!iso) return '';
+                    return new Date(iso).toLocaleDateString('ru-RU', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+                },
+            };
+        }
+
+        // ── Comments ───────────────────────────────────────────────────────
+        function commentsApp() {
+            return {
+                comments: [],
+                commentText: '',
+                submittingComment: false,
+                async loadComments() {
+                    const id = _projectId();
+                    if (!id) return;
+                    try {
+                        const res = await authFetch('/api/v1/projects/' + id + '/comments');
+                        if (res.ok) this.comments = await res.json();
+                    } catch(e) {}
+                },
+                async submitComment() {
+                    if (!this.commentText.trim()) return;
+                    this.submittingComment = true;
+                    try {
+                        const res = await authFetch('/api/v1/projects/' + _projectId() + '/comments', {
+                            method: 'POST',
+                            body: JSON.stringify({text: this.commentText.trim()}),
+                        });
+                        if (res.ok) {
+                            const c = await res.json();
+                            this.comments.unshift(c);
+                            this.commentText = '';
+                        }
+                    } catch(e) {} finally { this.submittingComment = false; }
+                },
+                fmtDateShort: _fmtDateShort,
+            };
+        }
+
+        // ── Attachments ────────────────────────────────────────────────────
+        function attachmentsApp() {
+            return {
+                attachments: [],
+                uploading: false,
+                async loadAttachments() {
+                    const id = _projectId();
+                    if (!id) return;
+                    try {
+                        const res = await authFetch('/api/v1/projects/' + id + '/attachments');
+                        if (res.ok) this.attachments = await res.json();
+                    } catch(e) {}
+                },
+                async uploadFile(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    this.uploading = true;
+                    const fd = new FormData();
+                    fd.append('file', file);
+                    try {
+                        const res = await fetch('/api/v1/projects/' + _projectId() + '/attachments', {
+                            method: 'POST',
+                            headers: {Authorization: 'Bearer ' + localStorage.getItem('invest_token')},
+                            body: fd,
+                        });
+                        if (res.ok) {
+                            const a = await res.json();
+                            this.attachments.unshift(a);
+                        } else {
+                            const err = await res.json().catch(() => ({}));
+                            alert(err.detail || 'Ошибка загрузки файла');
+                        }
+                    } catch(e) { alert('Ошибка: ' + e.message); }
+                    finally { this.uploading = false; event.target.value = ''; }
+                },
+                async downloadFile(a) {
+                    try {
+                        const res = await authFetch('/api/v1/attachments/' + a.id + '/download');
+                        if (!res.ok) { alert('Ошибка скачивания'); return; }
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url; link.download = a.original_name;
+                        document.body.appendChild(link); link.click();
+                        document.body.removeChild(link);
+                        setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    } catch(e) { alert('Ошибка: ' + e.message); }
+                },
+                fmtFileSize(bytes) {
+                    if (bytes >= 1048576) return (bytes/1048576).toFixed(1) + ' МБ';
+                    if (bytes >= 1024) return Math.round(bytes/1024) + ' КБ';
+                    return bytes + ' Б';
+                },
+                fmtDateShort: _fmtDateShort,
+            };
+        }
+
+        // ── Tranches ───────────────────────────────────────────────────────
+        function tranchesApp() {
+            return {
+                tranches: [],
+                showAddTranche: false,
+                newTranche: {amount: 0, planned_date: '', description: ''},
+                async loadTranches() {
+                    const id = _projectId();
+                    if (!id) return;
+                    try {
+                        const res = await authFetch('/api/v1/projects/' + id + '/tranches');
+                        if (res.ok) this.tranches = await res.json();
+                    } catch(e) {}
+                },
+                get approvedTotal() {
+                    return this.tranches.filter(t => t.status === 'approved' || t.status === 'paid')
+                        .reduce((s, t) => s + t.amount, 0);
+                },
+                get requestedTotal() {
+                    return this.tranches.filter(t => t.status === 'requested')
+                        .reduce((s, t) => s + t.amount, 0);
+                },
+                async addTranche() {
+                    if (!this.newTranche.amount) return;
+                    const payload = {
+                        ...this.newTranche,
+                        order_index: this.tranches.length,
+                    };
+                    try {
+                        const res = await authFetch('/api/v1/projects/' + _projectId() + '/tranches', {
+                            method: 'POST', body: JSON.stringify(payload),
+                        });
+                        if (res.ok) {
+                            this.tranches.push(await res.json());
+                            this.newTranche = {amount: 0, planned_date: '', description: ''};
+                            this.showAddTranche = false;
+                        }
+                    } catch(e) { alert('Ошибка: ' + e.message); }
+                },
+                async approveNextTranche(t, items) {
+                    if (items.length > 0 && !items.every(i => i.is_met)) {
+                        alert('Не все триггеры выполнены'); return;
+                    }
+                    try {
+                        const res = await authFetch('/api/v1/tranches/' + t.id + '/status', {
+                            method: 'PATCH', body: JSON.stringify({status: 'approved'}),
+                        });
+                        if (res.ok) {
+                            const updated = await res.json();
+                            const idx = this.tranches.findIndex(x => x.id === t.id);
+                            if (idx >= 0) this.tranches[idx] = updated;
+                        } else {
+                            const e = await res.json().catch(()=>({}));
+                            alert(e.detail || 'Ошибка');
+                        }
+                    } catch(e) { alert('Ошибка: ' + e.message); }
+                },
+                async payTranche(t) {
+                    try {
+                        const res = await authFetch('/api/v1/tranches/' + t.id + '/status', {
+                            method: 'PATCH', body: JSON.stringify({status: 'paid'}),
+                        });
+                        if (res.ok) {
+                            const updated = await res.json();
+                            const idx = this.tranches.findIndex(x => x.id === t.id);
+                            if (idx >= 0) this.tranches[idx] = updated;
+                        }
+                    } catch(e) { alert('Ошибка: ' + e.message); }
+                },
+                isCfoOrManager() {
+                    const r = getUserRole();
+                    return r === 'cfo' || r === 'manager';
+                },
+                fmtMoney: _fmtMoney,
+            };
+        }
+
+        // ── Checklist (nested inside each tranche) ─────────────────────────
+        function checklistApp(trancheId) {
+            return {
+                trancheId,
+                items: [],
+                async loadChecklist() {
+                    try {
+                        const res = await authFetch('/api/v1/tranches/' + this.trancheId + '/triggers');
+                        if (res.ok) this.items = await res.json();
+                    } catch(e) {}
+                },
+                allMet(items) { return items.every(i => i.is_met); },
+                async toggleItem(ci) {
+                    ci.is_met = !ci.is_met;
+                    try {
+                        await authFetch('/api/v1/tranches/' + this.trancheId + '/triggers', {
+                            method: 'PUT',
+                            body: JSON.stringify(this.items),
+                        });
+                    } catch(e) { ci.is_met = !ci.is_met; }
+                },
+                isCfoOrManager() {
+                    const r = getUserRole();
+                    return r === 'cfo' || r === 'manager';
+                },
+            };
+        }
+
+        // ── Plan vs Fact ───────────────────────────────────────────────────
+        function factApp() {
+            return {
+                factEntries: [],
+                factDirty: false,
+                factSaving: false,
+                factLoading: false,
+                factImporting: false,
+                factAiLoading: false,
+                factAiComment: '',
+                _edits: {},  // key: "metric|year|month" -> value
+                _chart: null,
+
+                async loadFact() {
+                    const id = _projectId();
+                    if (!id) return;
+                    this.factLoading = true;
+                    try {
+                        const res = await authFetch('/api/v1/projects/' + id + '/fact');
+                        if (res.ok) {
+                            this.factEntries = await res.json();
+                            this.$nextTick(() => this._renderChart());
+                        }
+                    } catch(e) {} finally { this.factLoading = false; }
+                },
+
+                get factMetrics() {
+                    const s = new Set(this.factEntries.map(e => e.metric_name));
+                    return [...s].sort();
+                },
+
+                get factPeriods() {
+                    const s = new Set(this.factEntries.map(e => e.year + '/' + String(e.month).padStart(2,'0')));
+                    return [...s].sort();
+                },
+
+                _key(metric, period) { return metric + '|' + period; },
+                _entry(metric, period) {
+                    const [y, m] = period.split('/');
+                    return this.factEntries.find(e => e.metric_name === metric && e.year == y && e.month == m);
+                },
+                getPlanValue(metric, period) { return this._entry(metric, period)?.plan_value ?? null; },
+                getFactValue(metric, period) {
+                    const k = this._key(metric, period);
+                    if (k in this._edits) return this._edits[k];
+                    return this._entry(metric, period)?.fact_value ?? '';
+                },
+                getDeviation(metric, period) {
+                    const plan = this.getPlanValue(metric, period);
+                    const fact = parseFloat(this.getFactValue(metric, period));
+                    if (plan == null || isNaN(fact) || plan === 0) return null;
+                    return Math.round((fact - plan) / plan * 100 * 10) / 10;
+                },
+                setFactValue(metric, period, val) {
+                    this._edits[this._key(metric, period)] = val === '' ? null : parseFloat(val);
+                    this.factDirty = true;
+                },
+
+                async saveFact() {
+                    this.factSaving = true;
+                    const payload = [];
+                    for (const [k, val] of Object.entries(this._edits)) {
+                        const [metric, period] = k.split('|');
+                        const [y, m] = period.split('/');
+                        const plan = this.getPlanValue(metric, period);
+                        payload.push({year: parseInt(y), month: parseInt(m), metric_name: metric, plan_value: plan, fact_value: val});
+                    }
+                    try {
+                        const res = await authFetch('/api/v1/projects/' + _projectId() + '/fact', {
+                            method: 'PUT', body: JSON.stringify(payload),
+                        });
+                        if (res.ok) {
+                            const updated = await res.json();
+                            updated.forEach(u => {
+                                const idx = this.factEntries.findIndex(e => e.id === u.id);
+                                if (idx >= 0) this.factEntries[idx] = u;
+                                else this.factEntries.push(u);
+                            });
+                            this._edits = {};
+                            this.factDirty = false;
+                            this.$nextTick(() => this._renderChart());
+                        }
+                    } catch(e) { alert('Ошибка сохранения: ' + e.message); }
+                    finally { this.factSaving = false; }
+                },
+
+                async importFact(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    this.factImporting = true;
+                    const fd = new FormData();
+                    fd.append('file', file);
+                    try {
+                        const res = await fetch('/api/v1/projects/' + _projectId() + '/fact/import', {
+                            method: 'POST',
+                            headers: {Authorization: 'Bearer ' + localStorage.getItem('invest_token')},
+                            body: fd,
+                        });
+                        if (res.ok) {
+                            await this.loadFact();
+                        } else {
+                            const err = await res.json().catch(()=>({}));
+                            alert(err.detail || 'Ошибка импорта');
+                        }
+                    } catch(e) { alert('Ошибка: ' + e.message); }
+                    finally { this.factImporting = false; event.target.value = ''; }
+                },
+
+                async getAiFactCommentary() {
+                    this.factAiLoading = true;
+                    try {
+                        const res = await authFetch('/api/v1/projects/' + _projectId() + '/fact/ai-commentary', {method:'POST'});
+                        if (res.ok) {
+                            const d = await res.json();
+                            this.factAiComment = d.comment || JSON.stringify(d);
+                        }
+                    } catch(e) {} finally { this.factAiLoading = false; }
+                },
+
+                _renderChart() {
+                    if (!this.$refs.factChart || typeof Chart === 'undefined') return;
+                    if (this._chart) { this._chart.destroy(); this._chart = null; }
+                    const metrics = this.factMetrics;
+                    if (!metrics.length) return;
+                    const metric = metrics[0];
+                    const entries = this.factEntries.filter(e => e.metric_name === metric)
+                        .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month);
+                    const labels = entries.map(e => e.year + '/' + String(e.month).padStart(2,'0'));
+                    this._chart = new Chart(this.$refs.factChart, {
+                        type: 'line',
+                        data: {
+                            labels,
+                            datasets: [
+                                {label: metric + ' (план)', data: entries.map(e => e.plan_value), borderColor: '#5E5CE6', backgroundColor: 'rgba(94,92,230,0.1)', tension: 0.3},
+                                {label: metric + ' (факт)', data: entries.map(e => e.fact_value), borderColor: '#34C759', backgroundColor: 'rgba(52,199,89,0.1)', tension: 0.3},
+                            ],
+                        },
+                        options: {responsive: true, plugins: {legend: {position: 'top'}}, scales: {y: {beginAtZero: false}}},
+                    });
                 },
             };
         }

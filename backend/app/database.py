@@ -23,7 +23,7 @@ def get_db():
 
 
 def init_db():
-    from .models import user, project  # noqa: F401 — registers all models
+    from . import models  # noqa: F401 — imports __init__.py, registers all models
     Base.metadata.create_all(bind=engine)
 
     # Idempotent column migrations for existing databases
@@ -34,6 +34,7 @@ def init_db():
             "ALTER TABLE projects ADD COLUMN decision_route VARCHAR",
             "ALTER TABLE projects ADD COLUMN user_id INTEGER REFERENCES users(id)",
             "ALTER TABLE users ADD COLUMN avatar_url VARCHAR",
+            "ALTER TABLE projects ADD COLUMN status_history JSON",
         ]:
             try:
                 conn.execute(text(col_def))

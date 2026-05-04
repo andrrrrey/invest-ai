@@ -208,10 +208,9 @@
 
             <!-- AI Connection card -->
             <div class="settings-card">
-                <h2><i class="fas fa-wand-magic-sparkles"></i> Подключение к ChatGPT (OpenAI)</h2>
+                <h2><i class="fas fa-wand-magic-sparkles"></i> Подключение к AI</h2>
                 <p class="desc">
-                    Введите ваш API-ключ OpenAI для работы AI-функционала: генерации описаний, анализа рисков и оценки проектов.
-                    Получить ключ можно на <strong>platform.openai.com/api-keys</strong>.
+                    Выберите провайдера AI и введите API-ключ для работы функций: генерации описаний, анализа рисков и оценки проектов.
                 </p>
 
                 <!-- Status -->
@@ -223,7 +222,8 @@
                     </template>
                     <template x-if="!loading && apiKeySet">
                         <span class="status-badge status-ok">
-                            <span class="dot dot-green"></span> AI подключён — GPT-5.4
+                            <span class="dot dot-green"></span>
+                            <span x-text="'AI подключён — ' + (aiProvider === 'anthropic' ? 'Claude Sonnet 4.6' : 'GPT-5.4')"></span>
                         </span>
                     </template>
                     <template x-if="!loading && !apiKeySet">
@@ -233,23 +233,66 @@
                     </template>
                 </div>
 
+                <!-- Provider selector -->
                 <div class="field">
-                    <label>API Ключ OpenAI</label>
-                    <div class="input-row">
-                        <input
-                            :type="showKey ? 'text' : 'password'"
-                            x-model="apiKey"
-                            placeholder="sk-proj-..."
-                            autocomplete="off"
-                        >
-                        <button class="btn btn-outline" @click="showKey = !showKey" style="padding: 10px 14px;">
-                            <i class="fas" :class="showKey ? 'fa-eye-slash' : 'fa-eye'"></i>
-                        </button>
+                    <label>Провайдер AI</label>
+                    <div style="display:flex;gap:10px;margin-bottom:4px">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;padding:8px 16px;border-radius:10px;border:1.5px solid #E5E5ED;flex:1;justify-content:center"
+                               :style="aiProvider==='openai' ? 'border-color:var(--accent-purple);background:#F0EFFF;color:var(--accent-purple)' : 'background:white;color:#555'"
+                               @click="setProvider('openai')">
+                            <i class="fas fa-robot"></i> OpenAI
+                        </label>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;padding:8px 16px;border-radius:10px;border:1.5px solid #E5E5ED;flex:1;justify-content:center"
+                               :style="aiProvider==='anthropic' ? 'border-color:var(--accent-purple);background:#F0EFFF;color:var(--accent-purple)' : 'background:white;color:#555'"
+                               @click="setProvider('anthropic')">
+                            <i class="fas fa-brain"></i> Anthropic Claude
+                        </label>
                     </div>
-                    <p class="hint" x-show="maskedKey && !apiKey">
-                        Текущий ключ: <strong x-text="maskedKey"></strong>
-                    </p>
                 </div>
+
+                <!-- OpenAI key -->
+                <template x-if="aiProvider === 'openai'">
+                    <div class="field">
+                        <label>API Ключ OpenAI</label>
+                        <div class="input-row">
+                            <input
+                                :type="showKey ? 'text' : 'password'"
+                                x-model="apiKey"
+                                placeholder="sk-proj-..."
+                                autocomplete="off"
+                            >
+                            <button class="btn btn-outline" @click="showKey = !showKey" style="padding: 10px 14px;">
+                                <i class="fas" :class="showKey ? 'fa-eye-slash' : 'fa-eye'"></i>
+                            </button>
+                        </div>
+                        <p class="hint" x-show="maskedOpenaiKey && !apiKey">
+                            Текущий ключ: <strong x-text="maskedOpenaiKey"></strong>
+                        </p>
+                        <p class="hint" style="margin-top:4px">Получить ключ: <strong>platform.openai.com/api-keys</strong></p>
+                    </div>
+                </template>
+
+                <!-- Anthropic key -->
+                <template x-if="aiProvider === 'anthropic'">
+                    <div class="field">
+                        <label>API Ключ Anthropic</label>
+                        <div class="input-row">
+                            <input
+                                :type="showKey ? 'text' : 'password'"
+                                x-model="apiKey"
+                                placeholder="sk-ant-api03-..."
+                                autocomplete="off"
+                            >
+                            <button class="btn btn-outline" @click="showKey = !showKey" style="padding: 10px 14px;">
+                                <i class="fas" :class="showKey ? 'fa-eye-slash' : 'fa-eye'"></i>
+                            </button>
+                        </div>
+                        <p class="hint" x-show="maskedAnthropicKey && !apiKey">
+                            Текущий ключ: <strong x-text="maskedAnthropicKey"></strong>
+                        </p>
+                        <p class="hint" style="margin-top:4px">Получить ключ: <strong>console.anthropic.com/settings/keys</strong></p>
+                    </div>
+                </template>
 
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px;">
                     <button class="btn btn-primary" @click="saveKey()" :disabled="saving || !apiKey">
@@ -269,7 +312,7 @@
                         <p style="font-size: 13px; font-weight: 600;"
                            :style="testResult.success ? 'color:#2D9B63' : 'color:#9c1c15'"
                            x-text="testResult.success
-                               ? 'Соединение успешно. Модель: ' + (testResult.model || 'GPT-5.4')
+                               ? 'Соединение успешно. Модель: ' + (testResult.model || '')
                                : 'Ошибка: ' + testResult.error">
                         </p>
                     </div>
@@ -326,13 +369,20 @@
             </div>
 
             <!-- AI Model info -->
-            <div class="settings-card">
+            <div class="settings-card" x-data>
                 <h2><i class="fas fa-microchip"></i> Используемая модель</h2>
-                <p class="desc">Система использует последнюю версию GPT-5.4 для всех AI-функций.</p>
+                <p class="desc" x-text="$store.settingsState?.aiProvider === 'anthropic'
+                    ? 'Активный провайдер: Anthropic. Используется Claude Sonnet 4.6.'
+                    : 'Активный провайдер: OpenAI. Используется GPT-5.4.'">
+                </p>
 
                 <div class="info-row">
+                    <span class="label">Провайдер</span>
+                    <span class="value" x-text="$store.settingsState?.aiProvider === 'anthropic' ? 'Anthropic' : 'OpenAI'"></span>
+                </div>
+                <div class="info-row">
                     <span class="label">Модель</span>
-                    <span class="value">GPT-5.4 (OpenAI)</span>
+                    <span class="value" x-text="$store.settingsState?.aiProvider === 'anthropic' ? 'Claude Sonnet 4.6' : 'GPT-5.4'"></span>
                 </div>
                 <div class="info-row">
                     <span class="label">Функции AI</span>
@@ -415,7 +465,9 @@
             saving: false,
             testing: false,
             apiKeySet: false,
-            maskedKey: null,
+            maskedOpenaiKey: null,
+            maskedAnthropicKey: null,
+            aiProvider: 'openai',
             apiKey: '',
             showKey: false,
             testResult: null,
@@ -426,7 +478,6 @@
 
             async init() {
                 if (!redirectIfNotLoggedIn()) return;
-                // Only CFO can access settings
                 if (getUserRole() !== 'cfo') {
                     window.location.href = '/';
                     return;
@@ -435,15 +486,41 @@
                     const res = await authFetch('/api/v1/settings/');
                     if (res.ok) {
                         const data = await res.json();
-                        this.apiKeySet = data.openai_api_key_set;
-                        this.maskedKey = data.openai_api_key_masked;
+                        this.aiProvider = data.ai_provider || 'openai';
+                        this.maskedOpenaiKey = data.openai_api_key_masked;
+                        this.maskedAnthropicKey = data.anthropic_api_key_masked;
+                        this.apiKeySet = this.aiProvider === 'anthropic'
+                            ? data.anthropic_api_key_set
+                            : data.openai_api_key_set;
                         this.investmentBudget = data.investment_budget != null ? data.investment_budget : '';
                         this.registrationDomain = data.registration_domain || '';
+                        // share provider for the model info card
+                        Alpine.store('settingsState', { aiProvider: this.aiProvider });
                     }
                 } catch(e) {
                     if (e.message !== 'Unauthorized') console.error(e);
                 } finally {
                     this.loading = false;
+                }
+            },
+
+            async setProvider(p) {
+                if (this.aiProvider === p) return;
+                this.aiProvider = p;
+                this.apiKey = '';
+                this.testResult = null;
+                this.apiKeySet = p === 'anthropic'
+                    ? !!this.maskedAnthropicKey
+                    : !!this.maskedOpenaiKey;
+                Alpine.store('settingsState', { aiProvider: p });
+                try {
+                    await authFetch('/api/v1/settings/', {
+                        method: 'POST',
+                        body: JSON.stringify({ ai_provider: p }),
+                    });
+                    this._toast(`Провайдер переключён на ${p === 'anthropic' ? 'Anthropic Claude' : 'OpenAI'}`, 'success');
+                } catch(e) {
+                    this._toast('Ошибка: ' + e.message, 'error');
                 }
             },
 
@@ -469,13 +546,18 @@
                 if (!this.apiKey.trim()) return;
                 this.saving = true;
                 try {
+                    const payload = this.aiProvider === 'anthropic'
+                        ? { anthropic_api_key: this.apiKey.trim() }
+                        : { openai_api_key: this.apiKey.trim() };
                     const res = await authFetch('/api/v1/settings/', {
                         method: 'POST',
-                        body: JSON.stringify({ openai_api_key: this.apiKey.trim() }),
+                        body: JSON.stringify(payload),
                     });
                     if (!res.ok) throw new Error(await res.text());
                     this.apiKeySet = true;
-                    this.maskedKey = 'sk-...' + this.apiKey.slice(-4);
+                    const masked = 'sk-...' + this.apiKey.slice(-4);
+                    if (this.aiProvider === 'anthropic') this.maskedAnthropicKey = masked;
+                    else this.maskedOpenaiKey = masked;
                     this.apiKey = '';
                     this.testResult = null;
                     this._toast('API ключ сохранён', 'success');

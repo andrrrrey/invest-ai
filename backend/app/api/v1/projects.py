@@ -213,19 +213,40 @@ def change_status(
                 detail="Нет доступа к этому проекту",
             )
 
+    # Record status change in history
+    import datetime as dt
+    history = project.status_history or []
+    history = list(history)  # copy so SQLAlchemy detects mutation
+    history.append({
+        "status": new_status,
+        "changed_at": dt.datetime.utcnow().isoformat(),
+        "changed_by": current_user.full_name,
+        "changed_by_id": current_user.id,
+    })
     project.status = new_status
+    project.status_history = history
     db.commit()
     db.refresh(project)
 
-    # --- Email notifications (fire-and-forget, never block the response) ---
     import logging
-
     _log = logging.getLogger(__name__)
-    try:
-        project_name = project.name or "(без названия)"
+    project_name = project.name or "(без названия)"
 
+    # --- In-app notifications ---
+    try:
+        from ...services.notification_service import notify_approvers, notify_owner
         if new_status == "pending_approval":
-            # Notify all CFO and managers
+            notify_approvers(db, project.id, project_name, current_user.full_name)
+            db.commit()
+        elif new_status in ("approved", "rejected", "draft") and project.user_id:
+            notify_owner(db, project.user_id, project.id, project_name, new_status)
+            db.commit()
+    except Exception:
+        _log.exception("In-app notification failed for project %s", project_id)
+
+    # --- Email notifications (fire-and-forget, never block the response) ---
+    try:
+        if new_status == "pending_approval":
             approvers = (
                 db.query(User)
                 .filter(User.role.in_(["cfo", "manager"]), User.is_active == True)
@@ -240,7 +261,6 @@ def change_status(
                 )
 
         elif new_status in ("approved", "rejected", "draft"):
-            # Notify the project applicant
             owner = db.get(User, project.user_id) if project.user_id else None
             if owner and owner.email:
                 send_status_notification_email(

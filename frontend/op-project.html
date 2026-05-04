@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Операционный проект | Инвестиционный процессор</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+        :root { --bg-body:#F8F7F3; --sidebar-bg:#1C1C1E; --sidebar-hover:#2C2C2E; --text-main:#1C1C1E; --text-muted:#8E8E93; --accent-purple:#5E5CE6; --radius-lg:35px; --radius-md:24px; --danger:#FF3B30; --success:#34C759; }
+        * { box-sizing:border-box; margin:0; padding:0; font-family:'Plus Jakarta Sans',sans-serif; }
+        body { background:#E5E5E5; padding:20px; min-height:100vh; display:flex; align-items:center; justify-content:center; }
+        .mobile-menu-btn { display:none; position:fixed; top:20px; left:20px; z-index:1000; background:var(--sidebar-bg); color:white; border:none; padding:12px; border-radius:12px; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+        .app-window { width:100%; max-width:1400px; height:90vh; background:var(--bg-body); border-radius:var(--radius-lg); display:flex; overflow:hidden; box-shadow:0 50px 100px rgba(0,0,0,0.1); position:relative; }
+        .sidebar { width:260px; background:var(--sidebar-bg); padding:60px 25px 40px; display:flex; flex-direction:column; color:white; transition:all 0.4s cubic-bezier(0.4,0,0.2,1); flex-shrink:0; }
+        .profile-section { text-align:center; margin-bottom:50px; }
+        .profile-section p { font-size:13px; color:var(--text-muted); line-height:1.6; }
+        .profile-section h4 { font-size:16px; font-weight:600; margin-top:4px; }
+        .nav-menu { flex:1; }
+        .nav-link { display:flex; align-items:center; gap:15px; color:var(--text-muted); text-decoration:none; padding:14px 15px; border-radius:12px; font-size:14px; margin-bottom:8px; transition:0.3s; }
+        .nav-link.active, .nav-link:hover { background:var(--sidebar-hover); color:white; }
+        .nav-link i { font-size:18px; width:20px; text-align:center; }
+        .main-content { flex:1; padding:40px 50px; overflow-y:auto; background:var(--bg-body); }
+        .card-block { background:white; border-radius:var(--radius-md); padding:28px; box-shadow:0 4px 15px rgba(0,0,0,0.02); margin-bottom:20px; }
+        .block-title { font-size:13px; font-weight:700; color:var(--text-muted); margin-bottom:18px; text-transform:uppercase; letter-spacing:0.5px; }
+        .info-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #F2F2F7; font-size:13px; }
+        .info-row:last-child { border-bottom:none; }
+        .info-row .lbl { color:var(--text-muted); }
+        .info-row .val { font-weight:600; text-align:right; max-width:60%; word-break:break-word; }
+        .score-bar { display:flex; align-items:center; gap:10px; }
+        .score-dots { display:flex; gap:4px; }
+        .score-dot { width:10px; height:10px; border-radius:50%; background:#E5E5ED; }
+        .score-dot.filled { background:var(--accent-purple); }
+        .history-item { padding:10px 14px; background:#F8F7F3; border-radius:12px; margin-bottom:8px; font-size:13px; }
+        .chip { display:inline-block; background:#F0EFFF; color:var(--accent-purple); border-radius:20px; padding:4px 12px; font-size:12px; font-weight:600; margin:3px; }
+        .status-pill { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:99px; font-size:12px; font-weight:700; }
+        @media (max-width:992px) { body{padding:0;} .app-window{height:100vh;border-radius:0;} .mobile-menu-btn{display:block;} .sidebar{position:absolute;left:-260px;top:0;height:100%;z-index:1001;} .sidebar.active{left:0;} .main-content{padding:80px 20px 30px;} }
+    </style>
+</head>
+<body>
+
+<button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('active')">
+    <i class="fas fa-bars"></i>
+</button>
+
+<div class="app-window">
+    <aside class="sidebar" id="sidebar">
+        <div class="profile-section">
+            <div style="width:90px;height:90px;border-radius:50%;border:3px solid white;margin:0 auto 15px;background:#5E5CE6;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:white" id="sidebar-avatar"></div>
+            <p>С возвращением,</p>
+            <h4 id="sidebar-name">—</h4>
+            <div style="display:inline-block;background:rgba(94,92,230,0.3);color:#A8A6FF;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700;margin-top:6px" id="sidebar-role"></div>
+        </div>
+        <nav class="nav-menu">
+            <a href="/" class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
+            <a href="/project-list" class="nav-link active"><i class="fas fa-project-diagram"></i> Проекты</a>
+            <a href="/export" class="nav-link" id="nav-export"><i class="fas fa-chart-bar"></i> Отчетность</a>
+            <a href="/settings" class="nav-link" id="nav-settings"><i class="fas fa-cog"></i> Настройки</a>
+            <a href="/users" class="nav-link" id="nav-users" style="display:none"><i class="fas fa-users"></i> Пользователи</a>
+            <a href="/profile" class="nav-link"><i class="fas fa-user-circle"></i> Мой профиль</a>
+        </nav>
+        <a href="#" class="nav-link" id="sidebar-logout" style="margin-top:auto;color:#EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
+    </aside>
+
+    <main class="main-content" x-data="opProjectApp()" x-init="init()" x-cloak>
+
+        <template x-if="loading">
+            <p style="color:var(--text-muted);padding:40px">Загрузка...</p>
+        </template>
+
+        <template x-if="!loading && !project">
+            <div style="padding:40px;text-align:center">
+                <p style="color:var(--text-muted);margin-bottom:15px">Проект не найден.</p>
+                <a href="/project-list" style="color:var(--accent-purple)">← Вернуться к списку</a>
+            </div>
+        </template>
+
+        <template x-if="!loading && project">
+            <div>
+                <!-- Header -->
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+                    <div>
+                        <p style="font-size:13px;color:var(--text-muted);margin-bottom:4px">
+                            <a href="/project-list" style="color:var(--accent-purple);text-decoration:none">← Проекты</a>
+                            &nbsp;·&nbsp; Операционная заявка #<span x-text="project.id"></span>
+                        </p>
+                        <h1 style="font-size:24px;font-weight:800" x-text="project.name || '(без названия)'"></h1>
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:center">
+                        <!-- Bell widget -->
+                        <div x-data="bellApp()" x-init="initBell()" style="position:relative">
+                            <button @click="toggleBell()" style="position:relative;background:white;border:1.5px solid #E5E5E5;border-radius:12px;padding:8px 12px;cursor:pointer">
+                                <i class="fas fa-bell" style="font-size:15px;color:#1C1C1E"></i>
+                                <span x-show="unreadCount > 0" x-text="unreadCount > 9 ? '9+' : unreadCount"
+                                    style="position:absolute;top:-6px;right:-6px;background:#FF3B30;color:white;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center"></span>
+                            </button>
+                            <template x-if="open">
+                                <div @click.outside="open=false" style="position:absolute;right:0;top:calc(100% + 8px);width:300px;background:white;border-radius:18px;box-shadow:0 10px 40px rgba(0,0,0,0.12);z-index:500;overflow:hidden">
+                                    <div style="padding:12px 16px;border-bottom:1px solid #F2F2F7;display:flex;justify-content:space-between;align-items:center">
+                                        <span style="font-weight:700;font-size:13px">Уведомления</span>
+                                        <button @click="markAllRead()" style="font-size:12px;color:#5E5CE6;background:none;border:none;cursor:pointer">Прочитать все</button>
+                                    </div>
+                                    <div style="max-height:300px;overflow-y:auto">
+                                        <template x-if="notifications.length === 0">
+                                            <p style="padding:16px;text-align:center;color:#8E8E93;font-size:13px">Нет уведомлений</p>
+                                        </template>
+                                        <template x-for="n in notifications" :key="n.id">
+                                            <div @click="openNotification(n)" style="padding:12px 16px;border-bottom:1px solid #F8F7F3;cursor:pointer" :style="n.is_read ? '' : 'background:#F0EFFF'">
+                                                <p style="font-size:13px;font-weight:600;margin-bottom:2px" x-text="n.title"></p>
+                                                <p style="font-size:12px;color:#8E8E93" x-text="n.message"></p>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        <span class="status-pill" :style="statusStyle" x-text="statusLabel"></span>
+                        <span style="background:#EEF0FF;color:var(--accent-purple);padding:6px 14px;border-radius:12px;font-size:12px;font-weight:700" x-text="routeLabel(project.decision_route)"></span>
+                    </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 340px;gap:20px">
+                    <!-- Left column -->
+                    <div>
+
+                        <!-- Идентификация инициативы -->
+                        <div class="card-block">
+                            <div class="block-title">Идентификация инициативы</div>
+                            <div class="info-row"><span class="lbl">Категория</span><span class="val" x-text="fm.op_category || '—'"></span></div>
+                            <div class="info-row"><span class="lbl">МВЗ</span>
+                                <span class="val" x-text="[fm.op_mvz_main, fm.op_mvz_sub1, fm.op_mvz_sub2].filter(Boolean).join(' / ') || '—'"></span>
+                            </div>
+                            <div class="info-row"><span class="lbl">Тип инвестиции</span><span class="val" x-text="fm.op_investment_type || '—'"></span></div>
+                            <div class="info-row"><span class="lbl">Инициатор</span><span class="val" x-text="project.owner || '—'"></span></div>
+                            <div class="info-row"><span class="lbl">Дата подачи</span><span class="val" x-text="fmtDate(project.created_at)"></span></div>
+                        </div>
+
+                        <!-- Описание запроса -->
+                        <div class="card-block">
+                            <div class="block-title">Описание запроса</div>
+                            <div style="margin-bottom:14px" x-show="fm.op_requested_resource">
+                                <p style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px">ЗАПРАШИВАЕМЫЙ РЕСУРС</p>
+                                <p style="font-size:13px;line-height:1.6" x-text="fm.op_requested_resource || '—'"></p>
+                            </div>
+                            <div x-show="fm.op_investment_thesis">
+                                <p style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px">ИНВЕСТИЦИОННЫЙ ТЕЗИС</p>
+                                <p style="font-size:13px;line-height:1.6" x-text="fm.op_investment_thesis || '—'"></p>
+                            </div>
+                        </div>
+
+                        <!-- Драйверы ценности -->
+                        <div class="card-block">
+                            <div class="block-title">Драйверы ценности и метрики</div>
+                            <div style="margin-bottom:14px" x-show="fm.op_value_drivers && fm.op_value_drivers.length">
+                                <p style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px">DRIVERS</p>
+                                <template x-for="d in (fm.op_value_drivers || [])" :key="d">
+                                    <span class="chip" x-text="d"></span>
+                                </template>
+                            </div>
+                            <div class="info-row"><span class="lbl">Ключевая метрика</span><span class="val" x-text="fm.op_metrics || '—'"></span></div>
+                            <div class="info-row"><span class="lbl">Базовое значение</span><span class="val" x-text="fm.op_baseline || '—'"></span></div>
+                            <div class="info-row"><span class="lbl">Целевое значение</span><span class="val" x-text="fm.op_target || '—'"></span></div>
+                        </div>
+
+                        <!-- Экономика и контроль -->
+                        <div class="card-block">
+                            <div class="block-title">Экономика и контроль</div>
+                            <div class="info-row"><span class="lbl">Экономика / Payback</span><span class="val" x-text="fm.op_economics || '—'"></span></div>
+                            <div class="info-row"><span class="lbl">Stop-loss критерии</span><span class="val" x-text="fm.op_stop_loss || '—'"></span></div>
+                            <div class="info-row"><span class="lbl">Stage-gates</span><span class="val" x-text="fm.op_stage_gates || '—'"></span></div>
+                        </div>
+                    </div>
+
+                    <!-- Right column -->
+                    <div>
+
+                        <!-- Value Score -->
+                        <div class="card-block" x-show="vs && vs.total != null">
+                            <div class="block-title">Value Score</div>
+                            <div style="text-align:center;margin-bottom:18px">
+                                <p style="font-size:36px;font-weight:800;color:var(--accent-purple)" x-text="vs.total + ' / 50'"></p>
+                                <span style="padding:4px 16px;border-radius:20px;font-size:12px;font-weight:700"
+                                    :style="vs.band === 'fast_track' ? 'background:#DDF0E1;color:#2D9B63' : vs.band === 'backlog_stop' ? 'background:#FFE5E3;color:#FF3B30' : 'background:#FFF4E5;color:#FF9500'"
+                                    x-text="vs.band === 'fast_track' ? 'Fast Track' : vs.band === 'backlog_stop' ? 'Backlog / Stop' : 'Efficiency Play'"></span>
+                            </div>
+                            <div style="font-size:12px">
+                                <template x-for="[label, key, weight] in [['Влияние на EV','ev_impact','×3'],['Срочность','urgency','×2'],['Прогноз ROI','roi_predictability','×1'],['Масштабируемость','scalability','×2'],['Unit-экономика','unit_economics','×2']]">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #F2F2F7">
+                                        <span style="color:var(--text-muted)" x-text="label + ' ' + weight"></span>
+                                        <div class="score-dots">
+                                            <template x-for="i in [1,2,3,4,5]">
+                                                <div class="score-dot" :class="vs[key] >= i ? 'filled' : ''"></div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- AI Risk Score -->
+                        <div class="card-block" x-show="risks && risks.overall_risk">
+                            <div class="block-title">AI Risk Score</div>
+                            <div style="margin-bottom:12px">
+                                <span style="padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700"
+                                    :style="risks.overall_risk === 'высокий' ? 'background:#FFE5E3;color:#FF3B30' : risks.overall_risk === 'низкий' ? 'background:#DDF0E1;color:#2D9B63' : 'background:#FFF4E5;color:#FF9500'"
+                                    x-text="'Риск: ' + risks.overall_risk"></span>
+                            </div>
+                            <template x-if="risks.risk_reasons && risks.risk_reasons.length">
+                                <div>
+                                    <p style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px">ПРИЧИНЫ РИСКА</p>
+                                    <template x-for="r in risks.risk_reasons">
+                                        <p style="font-size:12px;color:#555;padding:4px 0;border-bottom:1px solid #F2F2F7" x-text="'• ' + r"></p>
+                                    </template>
+                                </div>
+                            </template>
+                            <p x-show="risks.commentary" style="font-size:13px;color:#555;margin-top:10px;line-height:1.5" x-text="risks.commentary"></p>
+                        </div>
+
+                        <!-- История статусов -->
+                        <div class="card-block">
+                            <div class="block-title">История статусов</div>
+                            <template x-if="project.status_history && project.status_history.length">
+                                <div>
+                                    <template x-for="h in project.status_history.slice().reverse()" :key="h.changed_at">
+                                        <div class="history-item">
+                                            <p style="font-weight:600" x-text="statusLabelMap[h.status] || h.status"></p>
+                                            <p style="color:var(--text-muted);font-size:12px" x-text="h.changed_by + ' · ' + fmtDate(h.changed_at)"></p>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            <template x-if="!project.status_history || !project.status_history.length">
+                                <div class="history-item">
+                                    <p style="font-weight:600" x-text="statusLabelMap[project.status] || project.status"></p>
+                                    <p style="color:var(--text-muted);font-size:12px" x-text="fmtDate(project.created_at)"></p>
+                                </div>
+                            </template>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </template>
+    </main>
+</div>
+
+<script src="/js/auth.js"></script>
+<script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        patchSidebar();
+        if (getUserRole() !== 'cfo') {
+            const ns = document.getElementById('nav-settings');
+            if (ns) ns.style.display = 'none';
+        }
+        if (getUserRole() === 'cfo') {
+            const nu = document.getElementById('nav-users');
+            if (nu) nu.style.display = '';
+        }
+        if (getUserRole() === 'owner') {
+            const ne = document.getElementById('nav-export');
+            if (ne) ne.style.display = 'none';
+        }
+    });
+
+    function bellApp() {
+        return {
+            open: false, notifications: [], unreadCount: 0,
+            async initBell() { await this.loadNotifications(); setInterval(() => this.loadNotifications(), 30000); },
+            async loadNotifications() {
+                try { const r = await authFetch('/api/v1/notifications'); if (r.ok) { this.notifications = await r.json(); this.unreadCount = this.notifications.filter(n => !n.is_read).length; } } catch(e) {}
+            },
+            toggleBell() { this.open = !this.open; },
+            async markAllRead() { await authFetch('/api/v1/notifications/read-all', {method:'PATCH'}); this.notifications.forEach(n => n.is_read = true); this.unreadCount = 0; },
+            async openNotification(n) { if (!n.is_read) { await authFetch(`/api/v1/notifications/${n.id}/read`, {method:'PATCH'}); n.is_read = true; this.unreadCount = Math.max(0, this.unreadCount-1); } this.open = false; if (n.link) window.location.href = n.link; },
+        };
+    }
+
+    function opProjectApp() {
+        return {
+            ...authMixin(),
+            project: null,
+            loading: true,
+            statusLabelMap: {
+                draft: 'Черновик',
+                pending_approval: 'На согласовании',
+                approved: 'Утверждён',
+                rejected: 'Отклонён',
+            },
+
+            async init() {
+                if (!redirectIfNotLoggedIn()) return;
+                const id = new URLSearchParams(location.search).get('id');
+                if (!id) { this.loading = false; return; }
+                try {
+                    const res = await authFetch('/api/v1/projects/' + id);
+                    if (res.ok) {
+                        const p = await res.json();
+                        if (p.project_type !== 'operational') {
+                            window.location.href = '/project?id=' + id;
+                            return;
+                        }
+                        this.project = p;
+                    }
+                } catch(e) {
+                    if (e.message !== 'Unauthorized') console.error(e);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            get fm() { return this.project?.financial_model || {}; },
+            get vs() { return this.project?.value_score_data || {}; },
+            get risks() { return this.project?.risks_data || {}; },
+
+            get statusLabel() {
+                return this.statusLabelMap[this.project?.status] || this.project?.status || '—';
+            },
+            get statusStyle() {
+                const s = this.project?.status;
+                if (s === 'approved') return 'background:#DDF0E1;color:#2D9B63';
+                if (s === 'rejected') return 'background:#FFE5E5;color:#EB5757';
+                if (s === 'pending_approval') return 'background:#FFF4E5;color:#FF9500';
+                return 'background:#F0F0F0;color:#8E8E93';
+            },
+            routeLabel(route) {
+                const map = { fast_track: 'Fast Track ✅', efficiency_play: 'Efficiency Play 🟡', backlog_stop: 'Backlog / Stop 🔴', manual_review: 'Ручной разбор 🔍' };
+                return map[route] || route || '—';
+            },
+            fmtDate(iso) {
+                if (!iso) return '—';
+                return new Date(iso).toLocaleDateString('ru-RU', {day:'numeric', month:'long', year:'numeric'});
+            },
+        };
+    }
+</script>
+</body>
+</html>
