@@ -26,7 +26,7 @@
         .info-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #F2F2F7; font-size:13px; }
         .info-row:last-child { border-bottom:none; }
         .info-row .lbl { color:var(--text-muted); }
-        .info-row .val { font-weight:600; text-align:right; max-width:60%; word-break:break-word; }
+        .info-row .val { font-weight:600; text-align:left; max-width:70%; word-break:break-word; }
         .score-bar { display:flex; align-items:center; gap:10px; }
         .score-dots { display:flex; gap:4px; }
         .score-dot { width:10px; height:10px; border-radius:50%; background:#E5E5ED; }
@@ -155,7 +155,7 @@
                                     <span class="chip" x-text="d"></span>
                                 </template>
                             </div>
-                            <div class="info-row"><span class="lbl">Ключевая метрика</span><span class="val" x-text="fm.op_metrics || '—'"></span></div>
+                            <div class="info-row"><span class="lbl">Ключевая метрика</span><span class="val" x-text="fm.op_metrics && fm.op_metrics !== '__custom__' ? fm.op_metrics : (fm.op_metrics_custom || '—')"></span></div>
                             <div class="info-row"><span class="lbl">Базовое значение</span><span class="val" x-text="fm.op_baseline || '—'"></span></div>
                             <div class="info-row"><span class="lbl">Целевое значение</span><span class="val" x-text="fm.op_target || '—'"></span></div>
                         </div>
