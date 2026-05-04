@@ -269,21 +269,22 @@ def ai_commentary(
         .all()
     )
 
-    fact_summary = "\n".join(
-        f"  {e.metric_name} {e.year}/{e.month:02d}: план={e.plan_value}, факт={e.fact_value}, "
-        f"откл={round(e.fact_value - e.plan_value, 2) if e.plan_value and e.fact_value else 'н/д'}"
+    fact_rows = [
+        {
+            "metric_name": e.metric_name,
+            "year": e.year,
+            "month": e.month,
+            "plan_value": e.plan_value,
+            "fact_value": e.fact_value,
+        }
         for e in rows
-        if e.fact_value is not None
-    ) or "Фактических данных нет."
+    ]
 
     try:
-        result = ai_service.analyze_project(
-            project={
-                "name": project.name,
-                "status": project.status,
-                "project_type": project.project_type,
-                "fact_summary": fact_summary,
-            },
+        result = ai_service.analyze_fact_vs_plan(
+            project_name=project.name or "(без названия)",
+            fact_rows=fact_rows,
+            financial_model=project.financial_model or {},
             metrics=project.metrics or {},
         )
         return result
