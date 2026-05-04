@@ -285,27 +285,25 @@
                                     <span x-show="unreadCount > 0" x-text="unreadCount > 9 ? '9+' : unreadCount"
                                         style="position:absolute;top:-6px;right:-6px;background:#FF3B30;color:white;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center"></span>
                                 </button>
-                                <template x-if="open">
-                                    <div @click.outside="open=false"
-                                        style="position:absolute;right:0;top:calc(100% + 8px);width:320px;background:white;border-radius:20px;box-shadow:0 10px 40px rgba(0,0,0,0.12);z-index:500;overflow:hidden">
-                                        <div style="padding:14px 18px;border-bottom:1px solid #F2F2F7;display:flex;justify-content:space-between;align-items:center">
-                                            <span style="font-weight:700;font-size:13px">Уведомления</span>
-                                            <button @click="markAllRead()" style="font-size:12px;color:#5E5CE6;background:none;border:none;cursor:pointer">Прочитать все</button>
-                                        </div>
-                                        <div style="max-height:320px;overflow-y:auto">
-                                            <template x-if="notifications.length === 0">
-                                                <p style="padding:18px;text-align:center;color:#8E8E93;font-size:13px">Нет уведомлений</p>
-                                            </template>
-                                            <template x-for="n in notifications" :key="n.id">
-                                                <div @click="openNotification(n)" style="padding:12px 18px;border-bottom:1px solid #F8F7F3;cursor:pointer" :style="n.is_read ? '' : 'background:#F0EFFF'">
-                                                    <p style="font-size:13px;font-weight:600;margin-bottom:2px" x-text="n.title"></p>
-                                                    <p style="font-size:12px;color:#8E8E93" x-text="n.message"></p>
-                                                    <p style="font-size:11px;color:#C7C7CC;margin-top:3px" x-text="fmtBellDate(n.created_at)"></p>
-                                                </div>
-                                            </template>
-                                        </div>
+                                <div x-show="open" @click.outside="open=false"
+                                    style="position:absolute;right:0;top:calc(100% + 8px);width:320px;background:white;border-radius:20px;box-shadow:0 10px 40px rgba(0,0,0,0.12);z-index:500;overflow:hidden">
+                                    <div style="padding:14px 18px;border-bottom:1px solid #F2F2F7;display:flex;justify-content:space-between;align-items:center">
+                                        <span style="font-weight:700;font-size:13px">Уведомления</span>
+                                        <button @click="markAllRead()" style="font-size:12px;color:#5E5CE6;background:none;border:none;cursor:pointer">Прочитать все</button>
                                     </div>
-                                </template>
+                                    <div style="max-height:320px;overflow-y:auto">
+                                        <template x-if="notifications.length === 0">
+                                            <p style="padding:18px;text-align:center;color:#8E8E93;font-size:13px">Нет уведомлений</p>
+                                        </template>
+                                        <template x-for="n in notifications" :key="n.id">
+                                            <div @click="openNotification(n)" style="padding:12px 18px;border-bottom:1px solid #F8F7F3;cursor:pointer" :style="n.is_read ? '' : 'background:#F0EFFF'">
+                                                <p style="font-size:13px;font-weight:600;margin-bottom:2px" x-text="n.title"></p>
+                                                <p style="font-size:12px;color:#8E8E93" x-text="n.message"></p>
+                                                <p style="font-size:11px;color:#C7C7CC;margin-top:3px" x-text="fmtBellDate(n.created_at)"></p>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
                             </div>
                             <div class="project-badge" :style="badgeStyle">
                                 <i :class="badgeIcon"></i>
@@ -1021,15 +1019,43 @@
                         <div x-data="factApp()" x-init="loadFact()">
                         <div class="block-title" style="display:flex;justify-content:space-between;align-items:center">
                             <span><i class="fas fa-chart-mixed" style="color:var(--accent-purple)"></i> План / Факт</span>
-                            <div style="display:flex;gap:8px">
-                                <input type="file" x-ref="factFileInput" accept=".csv,.xlsx,.xls" style="display:none" @change="importFact($event)">
-                                <button @click="$refs.factFileInput.click()" :disabled="factImporting"
-                                    style="background:#EEF0FF;border:1.5px solid #C7C9FF;color:var(--accent-purple);border-radius:10px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer">
-                                    <i class="fas fa-file-import"></i> <span x-text="factImporting ? 'Импорт...' : 'Импорт CSV/Excel'"></span>
-                                </button>
-                                <button @click="getAiFactCommentary()" :disabled="factAiLoading"
-                                    style="background:#EEF0FF;border:1.5px solid #C7C9FF;color:var(--accent-purple);border-radius:10px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer">
-                                    <i class="fas fa-wand-magic-sparkles"></i> AI-анализ
+                            <button @click="getAiFactCommentary()" :disabled="factAiLoading"
+                                style="background:#EEF0FF;border:1.5px solid #C7C9FF;color:var(--accent-purple);border-radius:10px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer">
+                                <i class="fas fa-wand-magic-sparkles"></i> <span x-text="factAiLoading ? 'Анализ...' : 'AI-анализ'"></span>
+                            </button>
+                        </div>
+                        <!-- Add row form -->
+                        <div style="background:#F8F7F3;border-radius:12px;padding:12px 14px;margin-bottom:14px">
+                            <p style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px">ДОБАВИТЬ СТРОКУ</p>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+                                <div>
+                                    <p style="font-size:11px;color:#8E8E93;margin-bottom:3px">Метрика</p>
+                                    <input type="text" x-model="newFact.metric_name" placeholder="Название метрики"
+                                        style="padding:6px 10px;border:1.5px solid #E5E5ED;border-radius:8px;font-size:12px;width:160px">
+                                </div>
+                                <div>
+                                    <p style="font-size:11px;color:#8E8E93;margin-bottom:3px">Год</p>
+                                    <input type="number" x-model.number="newFact.year" min="2020" max="2040"
+                                        style="padding:6px 8px;border:1.5px solid #E5E5ED;border-radius:8px;font-size:12px;width:72px">
+                                </div>
+                                <div>
+                                    <p style="font-size:11px;color:#8E8E93;margin-bottom:3px">Месяц</p>
+                                    <input type="number" x-model.number="newFact.month" min="1" max="12"
+                                        style="padding:6px 8px;border:1.5px solid #E5E5ED;border-radius:8px;font-size:12px;width:60px">
+                                </div>
+                                <div>
+                                    <p style="font-size:11px;color:#8E8E93;margin-bottom:3px">План</p>
+                                    <input type="number" step="any" x-model.number="newFact.plan_value" placeholder="0"
+                                        style="padding:6px 8px;border:1.5px solid #E5E5ED;border-radius:8px;font-size:12px;width:80px">
+                                </div>
+                                <div>
+                                    <p style="font-size:11px;color:#8E8E93;margin-bottom:3px">Факт</p>
+                                    <input type="number" step="any" x-model.number="newFact.fact_value" placeholder="0"
+                                        style="padding:6px 8px;border:1.5px solid #E5E5ED;border-radius:8px;font-size:12px;width:80px">
+                                </div>
+                                <button @click="addFactRow()" :disabled="!newFact.metric_name"
+                                    style="padding:6px 14px;background:var(--accent-purple);color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">
+                                    + Добавить
                                 </button>
                             </div>
                         </div>
@@ -1590,8 +1616,29 @@
                 factImporting: false,
                 factAiLoading: false,
                 factAiComment: '',
-                _edits: {},  // key: "metric|year|month" -> value
+                _edits: {},
                 _chart: null,
+                newFact: { metric_name: '', year: new Date().getFullYear(), month: new Date().getMonth() + 1, plan_value: '', fact_value: '' },
+
+                addFactRow() {
+                    if (!this.newFact.metric_name.trim()) return;
+                    const entry = {
+                        id: null,
+                        metric_name: this.newFact.metric_name.trim(),
+                        year: this.newFact.year,
+                        month: this.newFact.month,
+                        plan_value: this.newFact.plan_value !== '' ? Number(this.newFact.plan_value) : null,
+                        fact_value: this.newFact.fact_value !== '' ? Number(this.newFact.fact_value) : null,
+                        deviation_abs: null,
+                        deviation_pct: null,
+                    };
+                    this.factEntries = this.factEntries.filter(e =>
+                        !(e.metric_name === entry.metric_name && e.year == entry.year && e.month == entry.month)
+                    );
+                    this.factEntries.push(entry);
+                    this.factDirty = true;
+                    this.newFact = { metric_name: '', year: new Date().getFullYear(), month: new Date().getMonth() + 1, plan_value: '', fact_value: '' };
+                },
 
                 async loadFact() {
                     const id = _projectId();
