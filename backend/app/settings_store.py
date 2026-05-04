@@ -8,7 +8,7 @@ import json
 import os
 from pathlib import Path
 
-_SETTINGS_FILE = Path(os.getenv("SETTINGS_PATH", "settings.json"))
+_SETTINGS_FILE = Path(os.getenv("SETTINGS_PATH", "/data/settings.json"))
 
 
 def _load() -> dict:
