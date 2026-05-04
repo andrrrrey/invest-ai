@@ -1158,7 +1158,7 @@
                                 </div>
                             </template>
                             <p x-show="!factEntries.length && !factLoading" style="font-size:13px;color:#8E8E93;margin-bottom:12px">Нет данных план/факт. Введите вручную или импортируйте из CSV/Excel.</p>
-                            <button @click="saveFact()" :disabled="factSaving || !factDirty"
+                            <button @click="saveFact()" :disabled="factSaving || !factEntries.length"
                                 style="background:var(--accent-purple);color:white;border:none;border-radius:12px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:12px">
                                 <i class="fas" :class="factSaving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
                                 <span x-text="factSaving ? 'Сохраняем...' : 'Сохранить факт'"></span>
@@ -1665,22 +1665,27 @@
 
                 addFactRow() {
                     if (!this.newFact.metric_name.trim()) return;
+                    // x-model.number yields NaN for empty inputs — guard explicitly
+                    const pv = parseFloat(this.newFact.plan_value);
+                    const fv = parseFloat(this.newFact.fact_value);
                     const entry = {
                         id: null,
                         metric_name: this.newFact.metric_name.trim(),
-                        year: this.newFact.year,
-                        month: this.newFact.month,
-                        plan_value: this.newFact.plan_value !== '' ? Number(this.newFact.plan_value) : null,
-                        fact_value: this.newFact.fact_value !== '' ? Number(this.newFact.fact_value) : null,
+                        year: parseInt(this.newFact.year) || new Date().getFullYear(),
+                        month: parseInt(this.newFact.month) || 1,
+                        plan_value: isNaN(pv) ? null : pv,
+                        fact_value: isNaN(fv) ? null : fv,
                         deviation_abs: null,
                         deviation_pct: null,
                     };
+                    // replace existing entry for same metric+period if any
                     this.factEntries = this.factEntries.filter(e =>
-                        !(e.metric_name === entry.metric_name && e.year == entry.year && e.month == entry.month)
+                        !(e.metric_name === entry.metric_name && Number(e.year) === entry.year && Number(e.month) === entry.month)
                     );
                     this.factEntries.push(entry);
                     this.factDirty = true;
                     this.newFact = { metric_name: '', year: new Date().getFullYear(), month: new Date().getMonth() + 1, plan_value: '', fact_value: '' };
+                    this.$nextTick(() => this._renderChart());
                 },
 
                 async loadFact() {
@@ -1729,28 +1734,28 @@
                 },
 
                 async saveFact() {
+                    if (!this.factEntries.length) return;
                     this.factSaving = true;
-                    const payload = [];
-                    for (const [k, val] of Object.entries(this._edits)) {
-                        const [metric, period] = k.split('|');
-                        const [y, m] = period.split('/');
-                        const plan = this.getPlanValue(metric, period);
-                        payload.push({year: parseInt(y), month: parseInt(m), metric_name: metric, plan_value: plan, fact_value: val});
-                    }
+                    // save ALL entries (not just _edits) — add-row form writes directly to factEntries
+                    const payload = this.factEntries.map(e => ({
+                        year: parseInt(e.year),
+                        month: parseInt(e.month),
+                        metric_name: e.metric_name,
+                        plan_value: (e.plan_value != null && !isNaN(e.plan_value)) ? e.plan_value : null,
+                        fact_value: (e.fact_value != null && !isNaN(e.fact_value)) ? e.fact_value : null,
+                    }));
                     try {
                         const res = await authFetch('/api/v1/projects/' + _projectId() + '/fact', {
                             method: 'PUT', body: JSON.stringify(payload),
                         });
                         if (res.ok) {
-                            const updated = await res.json();
-                            updated.forEach(u => {
-                                const idx = this.factEntries.findIndex(e => e.id === u.id);
-                                if (idx >= 0) this.factEntries[idx] = u;
-                                else this.factEntries.push(u);
-                            });
+                            this.factEntries = await res.json();
                             this._edits = {};
                             this.factDirty = false;
                             this.$nextTick(() => this._renderChart());
+                        } else {
+                            const err = await res.json().catch(() => ({}));
+                            alert(err.detail || 'Ошибка сохранения');
                         }
                     } catch(e) { alert('Ошибка сохранения: ' + e.message); }
                     finally { this.factSaving = false; }
