@@ -120,8 +120,8 @@
                         </div>
                         <span class="status-pill" :style="statusStyle" x-text="statusLabel"></span>
                         <span style="background:#EEF0FF;color:var(--accent-purple);padding:6px 14px;border-radius:12px;font-size:12px;font-weight:700" x-text="routeLabel(project.decision_route)"></span>
-                        <!-- Edit button for manager/CFO on draft projects -->
-                        <template x-if="canApprove && project.status === 'draft' && !isEditing">
+                        <!-- Edit button for manager/CFO/owner on draft projects -->
+                        <template x-if="canEditDraft && project.status === 'draft' && !isEditing">
                             <button @click="startEdit()"
                                 style="padding:8px 18px;border-radius:12px;border:1.5px solid var(--accent-purple);background:white;color:var(--accent-purple);font-weight:700;font-size:13px;cursor:pointer">
                                 <i class="fas fa-pen" style="font-size:12px"></i> Редактировать
@@ -478,6 +478,12 @@
 
             get canApprove() {
                 return this.authRole === 'cfo' || this.authRole === 'manager';
+            },
+
+            get canEditDraft() {
+                if (!this.project) return false;
+                if (this.canApprove) return true;
+                return this.project.user_id === this.authUserId;
             },
 
             async init() {
