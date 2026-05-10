@@ -21,6 +21,11 @@
         .nav-link.active, .nav-link:hover { background:var(--sidebar-hover); color:white; }
         .nav-link i { font-size:18px; width:20px; text-align:center; }
         .main-content { flex:1; padding:40px 50px; overflow-y:auto; background:var(--bg-body); }
+        .edit-input { width:100%; padding:8px 12px; border:1.5px solid #EBEBF2; border-radius:10px; font-size:13px; font-family:inherit; outline:none; transition:.2s; background:white; }
+        .edit-input:focus { border-color:var(--accent-purple); }
+        .edit-textarea { width:100%; padding:10px 12px; border:1.5px solid #EBEBF2; border-radius:10px; font-size:13px; font-family:inherit; outline:none; resize:vertical; min-height:70px; transition:.2s; background:white; }
+        .edit-textarea:focus { border-color:var(--accent-purple); }
+        .edit-select { width:100%; padding:8px 12px; border:1.5px solid #EBEBF2; border-radius:10px; font-size:13px; font-family:inherit; outline:none; background:white; cursor:pointer; }
         .card-block { background:white; border-radius:var(--radius-md); padding:28px; box-shadow:0 4px 15px rgba(0,0,0,0.02); margin-bottom:20px; }
         .block-title { font-size:13px; font-weight:700; color:var(--text-muted); margin-bottom:18px; text-transform:uppercase; letter-spacing:0.5px; }
         .info-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #F2F2F7; font-size:13px; }
@@ -115,6 +120,26 @@
                         </div>
                         <span class="status-pill" :style="statusStyle" x-text="statusLabel"></span>
                         <span style="background:#EEF0FF;color:var(--accent-purple);padding:6px 14px;border-radius:12px;font-size:12px;font-weight:700" x-text="routeLabel(project.decision_route)"></span>
+                        <!-- Edit button for manager/CFO on draft projects -->
+                        <template x-if="canApprove && project.status === 'draft' && !isEditing">
+                            <button @click="startEdit()"
+                                style="padding:8px 18px;border-radius:12px;border:1.5px solid var(--accent-purple);background:white;color:var(--accent-purple);font-weight:700;font-size:13px;cursor:pointer">
+                                <i class="fas fa-pen" style="font-size:12px"></i> Редактировать
+                            </button>
+                        </template>
+                        <template x-if="isEditing">
+                            <div style="display:flex;gap:8px">
+                                <button @click="saveEdit()" :disabled="editSaving"
+                                    style="padding:8px 18px;border-radius:12px;border:none;background:var(--accent-purple);color:white;font-weight:700;font-size:13px;cursor:pointer">
+                                    <i class="fas fa-check" style="font-size:12px"></i>
+                                    <span x-text="editSaving ? 'Сохранение...' : 'Сохранить'"></span>
+                                </button>
+                                <button @click="cancelEdit()"
+                                    style="padding:8px 14px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-weight:600;font-size:13px;cursor:pointer">
+                                    Отмена
+                                </button>
+                            </div>
+                        </template>
                     </div>
                 </div>
 
@@ -125,11 +150,45 @@
                         <!-- Идентификация инициативы -->
                         <div class="card-block">
                             <div class="block-title">Идентификация инициативы</div>
-                            <div class="info-row"><span class="lbl">Категория</span><span class="val" x-text="fm.op_category || '—'"></span></div>
+                            <div class="info-row">
+                                <span class="lbl">Название</span>
+                                <span class="val">
+                                    <template x-if="!isEditing"><span x-text="project.name || '—'"></span></template>
+                                    <template x-if="isEditing"><input class="edit-input" x-model="editData.name"></template>
+                                </span>
+                            </div>
+                            <div class="info-row">
+                                <span class="lbl">Категория</span>
+                                <span class="val">
+                                    <template x-if="!isEditing"><span x-text="fm.op_category || '—'"></span></template>
+                                    <template x-if="isEditing">
+                                        <select class="edit-select" x-model="editData.op_category">
+                                            <option value="">— Выберите —</option>
+                                            <option>Marketing</option><option>Sales</option><option>R&amp;D</option>
+                                            <option>HR</option><option>Infra</option><option>CS</option>
+                                            <option>Ops</option><option>Finance</option><option>Legal</option><option>Other</option>
+                                        </select>
+                                    </template>
+                                </span>
+                            </div>
                             <div class="info-row"><span class="lbl">МВЗ</span>
                                 <span class="val" x-text="[fm.op_mvz_main, fm.op_mvz_sub1, fm.op_mvz_sub2].filter(Boolean).join(' / ') || '—'"></span>
                             </div>
-                            <div class="info-row"><span class="lbl">Тип инвестиции</span><span class="val" x-text="fm.op_investment_type || '—'"></span></div>
+                            <div class="info-row">
+                                <span class="lbl">Тип инвестиции</span>
+                                <span class="val">
+                                    <template x-if="!isEditing"><span x-text="fm.op_investment_type || '—'"></span></template>
+                                    <template x-if="isEditing">
+                                        <select class="edit-select" x-model="editData.op_investment_type">
+                                            <option value="">— Выберите —</option>
+                                            <option>Рост и развитие</option>
+                                            <option>Платформы и технологии</option>
+                                            <option>Защита и устойчивость</option>
+                                            <option>Эффективность и ресурсы</option>
+                                        </select>
+                                    </template>
+                                </span>
+                            </div>
                             <div class="info-row"><span class="lbl">Инициатор</span><span class="val" x-text="project.owner || '—'"></span></div>
                             <div class="info-row"><span class="lbl">Дата подачи</span><span class="val" x-text="fmtDate(project.created_at)"></span></div>
                         </div>
@@ -137,13 +196,15 @@
                         <!-- Описание запроса -->
                         <div class="card-block">
                             <div class="block-title">Описание запроса</div>
-                            <div style="margin-bottom:14px" x-show="fm.op_requested_resource">
+                            <div style="margin-bottom:14px">
                                 <p style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px">ЗАПРАШИВАЕМЫЙ РЕСУРС</p>
-                                <p style="font-size:13px;line-height:1.6" x-text="fm.op_requested_resource || '—'"></p>
+                                <template x-if="!isEditing"><p style="font-size:13px;line-height:1.6" x-text="fm.op_requested_resource || '—'"></p></template>
+                                <template x-if="isEditing"><textarea class="edit-textarea" x-model="editData.op_requested_resource"></textarea></template>
                             </div>
-                            <div x-show="fm.op_investment_thesis">
+                            <div>
                                 <p style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px">ИНВЕСТИЦИОННЫЙ ТЕЗИС</p>
-                                <p style="font-size:13px;line-height:1.6" x-text="fm.op_investment_thesis || '—'"></p>
+                                <template x-if="!isEditing"><p style="font-size:13px;line-height:1.6" x-text="fm.op_investment_thesis || '—'"></p></template>
+                                <template x-if="isEditing"><textarea class="edit-textarea" x-model="editData.op_investment_thesis"></textarea></template>
                             </div>
                         </div>
 
@@ -156,17 +217,82 @@
                                     <span class="chip" x-text="d"></span>
                                 </template>
                             </div>
-                            <div class="info-row"><span class="lbl">Ключевая метрика</span><span class="val" x-text="fm.op_metrics && fm.op_metrics !== '__custom__' ? fm.op_metrics : (fm.op_metrics_custom || '—')"></span></div>
-                            <div class="info-row"><span class="lbl">Базовое значение</span><span class="val" x-text="fm.op_baseline || '—'"></span></div>
-                            <div class="info-row"><span class="lbl">Целевое значение</span><span class="val" x-text="fm.op_target || '—'"></span></div>
+                            <div class="info-row">
+                                <span class="lbl">Ключевая метрика</span>
+                                <span class="val">
+                                    <template x-if="!isEditing"><span x-text="fm.op_metrics && fm.op_metrics !== '__custom__' ? fm.op_metrics : (fm.op_metrics_custom || '—')"></span></template>
+                                    <template x-if="isEditing"><input class="edit-input" x-model="editData.op_metrics"></template>
+                                </span>
+                            </div>
+                            <div class="info-row">
+                                <span class="lbl">Базовое значение</span>
+                                <span class="val">
+                                    <template x-if="!isEditing"><span x-text="fm.op_baseline || '—'"></span></template>
+                                    <template x-if="isEditing"><input class="edit-input" x-model="editData.op_baseline"></template>
+                                </span>
+                            </div>
+                            <div class="info-row">
+                                <span class="lbl">Целевое значение</span>
+                                <span class="val">
+                                    <template x-if="!isEditing"><span x-text="fm.op_target || '—'"></span></template>
+                                    <template x-if="isEditing"><input class="edit-input" x-model="editData.op_target"></template>
+                                </span>
+                            </div>
                         </div>
 
                         <!-- Экономика и контроль -->
                         <div class="card-block">
                             <div class="block-title">Экономика и контроль</div>
-                            <div class="info-row"><span class="lbl">Экономика / Payback</span><span class="val" x-text="fm.op_economics || '—'"></span></div>
-                            <div class="info-row"><span class="lbl">Stop-loss критерии</span><span class="val" x-text="fm.op_stop_loss || '—'"></span></div>
-                            <div class="info-row"><span class="lbl">Stage-gates</span><span class="val" x-text="fm.op_stage_gates || '—'"></span></div>
+                            <div class="info-row">
+                                <span class="lbl">Экономика / Payback</span>
+                                <span class="val">
+                                    <template x-if="!isEditing"><span x-text="fm.op_economics || '—'"></span></template>
+                                    <template x-if="isEditing"><textarea class="edit-textarea" style="min-height:50px" x-model="editData.op_economics"></textarea></template>
+                                </span>
+                            </div>
+                            <div class="info-row">
+                                <span class="lbl">Stop-loss критерии</span>
+                                <span class="val">
+                                    <template x-if="!isEditing"><span x-text="fm.op_stop_loss || '—'"></span></template>
+                                    <template x-if="isEditing"><textarea class="edit-textarea" style="min-height:50px" x-model="editData.op_stop_loss"></textarea></template>
+                                </span>
+                            </div>
+                            <div class="info-row">
+                                <span class="lbl">Stage-gates</span>
+                                <span class="val">
+                                    <template x-if="!isEditing"><span x-text="fm.op_stage_gates || '—'"></span></template>
+                                    <template x-if="isEditing"><textarea class="edit-textarea" style="min-height:50px" x-model="editData.op_stage_gates"></textarea></template>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Бюджет по статьям -->
+                        <div class="card-block" x-show="fm.op_budget_rows && fm.op_budget_rows.length">
+                            <div class="block-title">Бюджет по статьям</div>
+                            <div style="overflow-x:auto">
+                                <table style="width:100%;border-collapse:collapse;font-size:12px">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #F2F2F7;color:#8E8E93;font-size:11px;text-transform:uppercase">Категория</th>
+                                            <template x-for="(_, yi) in Array.from({length: fm.op_budget_numYears || 1})" :key="yi">
+                                                <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #F2F2F7;color:#8E8E93;font-size:11px;text-transform:uppercase;white-space:nowrap"
+                                                    x-text="'Год ' + (yi + 1)"></th>
+                                            </template>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="(row, ri) in (fm.op_budget_rows || [])" :key="ri">
+                                            <tr>
+                                                <td style="padding:6px 8px;border-bottom:1px solid #F2F2F7;font-weight:600" x-text="row.category || '—'"></td>
+                                                <template x-for="(_, yi) in Array.from({length: fm.op_budget_numYears || 1})" :key="yi">
+                                                    <td style="padding:6px 8px;border-bottom:1px solid #F2F2F7;text-align:right;color:#5E5CE6;font-weight:600"
+                                                        x-text="new Intl.NumberFormat('ru-RU').format(((row.monthlyValues || [])[yi] || []).reduce((a,b)=>a+b,0)) + ' ₽'"></td>
+                                                </template>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
 
@@ -340,6 +466,9 @@
             loading: true,
             statusMsg: '',
             statusMsgType: 'ok',
+            isEditing: false,
+            editSaving: false,
+            editData: {},
             statusLabelMap: {
                 draft: 'Черновик',
                 pending_approval: 'На согласовании',
@@ -393,6 +522,74 @@
             fmtDate(iso) {
                 if (!iso) return '—';
                 return new Date(iso).toLocaleDateString('ru-RU', {day:'numeric', month:'long', year:'numeric'});
+            },
+
+            startEdit() {
+                const fm = this.project?.financial_model || {};
+                this.editData = {
+                    name: this.project.name || '',
+                    op_category: fm.op_category || '',
+                    op_investment_type: fm.op_investment_type || '',
+                    op_requested_resource: fm.op_requested_resource || '',
+                    op_investment_thesis: fm.op_investment_thesis || '',
+                    op_metrics: fm.op_metrics && fm.op_metrics !== '__custom__' ? fm.op_metrics : (fm.op_metrics_custom || ''),
+                    op_baseline: fm.op_baseline || '',
+                    op_target: fm.op_target || '',
+                    op_economics: fm.op_economics || '',
+                    op_stop_loss: fm.op_stop_loss || '',
+                    op_stage_gates: fm.op_stage_gates || '',
+                };
+                this.isEditing = true;
+            },
+
+            cancelEdit() {
+                this.isEditing = false;
+                this.editData = {};
+            },
+
+            async saveEdit() {
+                if (!this.project) return;
+                this.editSaving = true;
+                try {
+                    const updatedFm = {
+                        ...(this.project.financial_model || {}),
+                        op_category: this.editData.op_category,
+                        op_investment_type: this.editData.op_investment_type,
+                        op_requested_resource: this.editData.op_requested_resource,
+                        op_investment_thesis: this.editData.op_investment_thesis,
+                        op_metrics: this.editData.op_metrics,
+                        op_metrics_custom: this.editData.op_metrics,
+                        op_baseline: this.editData.op_baseline,
+                        op_target: this.editData.op_target,
+                        op_economics: this.editData.op_economics,
+                        op_stop_loss: this.editData.op_stop_loss,
+                        op_stage_gates: this.editData.op_stage_gates,
+                    };
+                    const payload = {
+                        ...this.project,
+                        name: this.editData.name,
+                        financial_model: updatedFm,
+                    };
+                    const res = await authFetch('/api/v1/projects/' + this.project.id, {
+                        method: 'PUT',
+                        body: JSON.stringify(payload),
+                    });
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        throw new Error(err.detail || 'Ошибка сохранения');
+                    }
+                    this.project = await res.json();
+                    this.isEditing = false;
+                    this.editData = {};
+                    this.statusMsg = 'Изменения сохранены';
+                    this.statusMsgType = 'ok';
+                } catch(e) {
+                    this.statusMsg = e.message || 'Ошибка сети';
+                    this.statusMsgType = 'err';
+                } finally {
+                    this.editSaving = false;
+                    setTimeout(() => this.statusMsg = '', 3000);
+                }
             },
 
             async changeStatus(newStatus) {
