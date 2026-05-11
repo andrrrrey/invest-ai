@@ -143,6 +143,17 @@ def generate_risk_score(application: dict) -> dict:
         f"Экономика/Payback: {application.get('op_economics', '—')}\n"
         f"Stop-loss критерии: {application.get('op_stop_loss', '—')}\n"
         f"Stage-gates: {application.get('op_stage_gates', '—')}\n\n"
+    )
+    budget_rows = application.get("op_budget_rows", [])
+    if budget_rows:
+        budget_lines = []
+        for row in budget_rows:
+            cat = row.get("category") or "—"
+            totals = row.get("annual_totals", [])
+            totals_str = ", ".join(f"Год {i+1}: {v:,.0f} ₽" for i, v in enumerate(totals))
+            budget_lines.append(f"  {cat}: {totals_str}")
+        prompt += "Бюджет по статьям:\n" + "\n".join(budget_lines) + "\n\n"
+    prompt += (
         f"Value Score: {vs.get('total', '—')} / 50 (зона: {vs.get('band', '—')})\n"
         f"  - Влияние на EV (x3): {vs.get('ev_impact', '—')}\n"
         f"  - Срочность (x2): {vs.get('urgency', '—')}\n"

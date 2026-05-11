@@ -533,6 +533,92 @@
                                 placeholder="Опишите, что произойдёт через 12 месяцев, если эта инвестиция не будет сделана."
                                 style="min-height:90px"></textarea>
                         </div>
+
+                        <!-- Бюджет по статьям -->
+                        <div>
+                            <label style="font-size:13px;font-weight:600;color:#444;display:block;margin-bottom:8px">
+                                Бюджет по статьям
+                                <span style="font-size:12px;font-weight:400;color:var(--muted);margin-left:6px">— введите суммы по месяцам, разворачивая год</span>
+                            </label>
+                            <div class="tbl-wrap">
+                                <table style="min-width:400px">
+                                    <thead><tr>
+                                        <th style="min-width:140px">Категория</th>
+                                        <template x-for="col in visibleOpBudgetCols()" :key="'obh_' + col.type + '_' + col.yi + '_' + (col.mi ?? '')">
+                                            <th style="white-space:nowrap;font-size:11px">
+                                                <template x-if="col.type === 'year'">
+                                                    <span style="display:inline-flex;align-items:center;gap:4px">
+                                                        <button @click="toggleOpBudgetYear(col.yi)"
+                                                            title="Развернуть/свернуть месяцы"
+                                                            style="background:none;border:none;cursor:pointer;color:#8E8E93;padding:0 2px;font-size:11px">
+                                                            <i class="fas" :class="opBudgetYearExpanded[col.yi] ? 'fa-compress-alt' : 'fa-expand-alt'"></i>
+                                                        </button>
+                                                        Год <span x-text="col.yi + 1"></span>
+                                                    </span>
+                                                </template>
+                                                <template x-if="col.type === 'month'">
+                                                    <span style="display:inline-flex;align-items:center;gap:2px">
+                                                        <template x-if="col.mi === 0">
+                                                            <button @click="toggleOpBudgetYear(col.yi)" title="Свернуть"
+                                                                style="background:none;border:none;cursor:pointer;color:#8E8E93;padding:0 2px;font-size:10px">
+                                                                <i class="fas fa-compress-alt"></i>
+                                                            </button>
+                                                        </template>
+                                                        <span x-text="'М' + (col.mi + 1)" style="color:#5E5CE6;font-weight:600"></span>
+                                                    </span>
+                                                </template>
+                                            </th>
+                                        </template>
+                                        <th></th>
+                                    </tr></thead>
+                                    <tbody>
+                                        <template x-for="(row, ri) in form.op_budget_rows" :key="ri">
+                                            <tr>
+                                                <td>
+                                                    <input type="text" x-model="form.op_budget_rows[ri].category"
+                                                        placeholder="Статья затрат"
+                                                        style="width:130px">
+                                                </td>
+                                                <template x-for="col in visibleOpBudgetCols()" :key="'obr_' + ri + '_' + col.type + '_' + col.yi + '_' + (col.mi ?? '')">
+                                                    <td>
+                                                        <template x-if="col.type === 'year'">
+                                                            <div>
+                                                                <div style="font-size:12px;font-weight:600;text-align:center;padding:4px 2px"
+                                                                    x-text="new Intl.NumberFormat('ru-RU').format(opBudgetAnnual(ri, col.yi)) + '\u00a0₽'"></div>
+                                                            </div>
+                                                        </template>
+                                                        <template x-if="col.type === 'month'">
+                                                            <div>
+                                                                <input type="number" min="0"
+                                                                    :value="(form.op_budget_rows[ri].monthlyValues || [])[col.yi]?.[col.mi] || 0"
+                                                                    @focus="$event.target.select()"
+                                                                    @input="setOpBudgetVal(ri, col.yi, col.mi, $event.target.value)"
+                                                                    style="width:70px">
+                                                                <div style="font-size:10px;color:#888;margin-top:2px;text-align:center"
+                                                                    x-text="new Intl.NumberFormat('ru-RU').format(((form.op_budget_rows[ri].monthlyValues || [])[col.yi]?.[col.mi]) || 0) + '\u00a0₽'"></div>
+                                                            </div>
+                                                        </template>
+                                                    </td>
+                                                </template>
+                                                <td>
+                                                    <button class="row-del" @click="form.op_budget_rows.splice(ri, 1)" title="Удалить строку">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+                                <button class="btn btn-outline" type="button" @click="addOpBudgetYear()">
+                                    <i class="fas fa-plus"></i> Добавить год
+                                </button>
+                                <button class="btn btn-outline" type="button" @click="addOpBudgetRow()">
+                                    <i class="fas fa-plus"></i> Добавить статью
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Блок 3: Драйверы роста стоимости компании & Метрики -->
@@ -1341,13 +1427,33 @@
                     <table style="min-width:600px">
                         <thead><tr>
                             <th>Категория</th><th>Режим</th><th>Параметр</th>
-                            <template x-for="yi in form.numYears" :key="yi">
-                                <th style="white-space:nowrap">
-                                    Год <span x-text="yi"></span>
-                                    <button class="row-del" x-show="form.numYears>1"
-                                        @click="removeYear(yi-1)" title="Удалить год">
-                                        <i class="fas fa-times"></i>
-                                    </button>
+                            <template x-for="col in visibleCostCols()" :key="'ch_' + col.type + '_' + col.yi + '_' + (col.mi ?? '')">
+                                <th style="white-space:nowrap;font-size:11px">
+                                    <template x-if="col.type === 'year'">
+                                        <span style="display:inline-flex;align-items:center;gap:4px">
+                                            <button @click="toggleCostYear(col.yi)"
+                                                title="Развернуть/свернуть месяцы"
+                                                style="background:none;border:none;cursor:pointer;color:#8E8E93;padding:0 2px;font-size:11px">
+                                                <i class="fas" :class="costYearExpanded[col.yi] ? 'fa-compress-alt' : 'fa-expand-alt'"></i>
+                                            </button>
+                                            Год <span x-text="col.yi + 1"></span>
+                                            <button class="row-del" x-show="form.numYears > 1"
+                                                @click="removeYear(col.yi)" title="Удалить год" style="margin-left:2px">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </span>
+                                    </template>
+                                    <template x-if="col.type === 'month'">
+                                        <span style="display:inline-flex;align-items:center;gap:2px">
+                                            <template x-if="col.mi === 0">
+                                                <button @click="toggleCostYear(col.yi)" title="Свернуть"
+                                                    style="background:none;border:none;cursor:pointer;color:#8E8E93;padding:0 2px;font-size:10px">
+                                                    <i class="fas fa-compress-alt"></i>
+                                                </button>
+                                            </template>
+                                            <span x-text="'М' + (col.mi + 1)" style="color:#5E5CE6;font-weight:600"></span>
+                                        </span>
+                                    </template>
                                 </th>
                             </template>
                             <th></th>
@@ -1376,22 +1482,43 @@
                                             :placeholder="(c.mode==='percent_revenue'||c.mode==='percent_costs')?'%':'₽'"
                                             @focus="$event.target.select()">
                                     </td>
-                                    <template x-for="(_, yi) in Array.from({length:form.numYears})" :key="yi">
+                                    <template x-for="col in visibleCostCols()" :key="'cr_' + ci + '_' + col.type + '_' + col.yi + '_' + (col.mi ?? '')">
                                         <td>
-                                            <template x-if="c.mode==='manual'">
+                                            <template x-if="col.type === 'year'">
                                                 <div>
-                                                    <input type="number" min="0"
-                                                        :value="form.costs[ci].values[yi]"
-                                                        @focus="$event.target.select()"
-                                                        @input="setCostVal(ci,yi,$event.target.value)">
-                                                    <div style="font-size:11px;color:#888;margin-top:2px;text-align:center"
-                                                        x-text="new Intl.NumberFormat('ru-RU').format(form.costs[ci].values[yi] || 0) + '\u00a0₽'"></div>
+                                                    <template x-if="c.mode === 'manual'">
+                                                        <div>
+                                                            <input type="number" min="0"
+                                                                :value="form.costs[ci].values[col.yi] || 0"
+                                                                @focus="$event.target.select()"
+                                                                @input="setCostVal(ci, col.yi, $event.target.value)"
+                                                                style="width:80px">
+                                                            <div style="font-size:10px;color:#888;margin-top:2px;text-align:center"
+                                                                x-text="new Intl.NumberFormat('ru-RU').format(form.costs[ci].values[col.yi] || 0) + '\u00a0₽'"></div>
+                                                        </div>
+                                                    </template>
+                                                    <template x-if="c.mode !== 'manual'">
+                                                        <span class="cell-comp" x-text="Finance.fmtShort(Math.abs(costForYear(ci, col.yi)))"></span>
+                                                    </template>
                                                 </div>
                                             </template>
-                                            <template x-if="c.mode!=='manual'">
-                                                <span class="cell-comp"
-                                                    x-text="Finance.fmtShort(Math.abs(costForYear(ci,yi)))">
-                                                </span>
+                                            <template x-if="col.type === 'month'">
+                                                <div>
+                                                    <template x-if="c.mode === 'manual'">
+                                                        <div>
+                                                            <input type="number" min="0"
+                                                                :value="(form.costs[ci].monthlyValues || [])[col.yi]?.[col.mi] || 0"
+                                                                @focus="$event.target.select()"
+                                                                @input="setMonthCostVal(ci, col.yi, col.mi, $event.target.value)"
+                                                                style="width:70px">
+                                                            <div style="font-size:10px;color:#888;margin-top:2px;text-align:center"
+                                                                x-text="new Intl.NumberFormat('ru-RU').format(((form.costs[ci].monthlyValues || [])[col.yi]?.[col.mi]) || 0) + '\u00a0₽'"></div>
+                                                        </div>
+                                                    </template>
+                                                    <template x-if="c.mode !== 'manual'">
+                                                        <span class="cell-comp" x-text="Finance.fmtShort(Math.abs(costForYear(ci, col.yi)) / 12)"></span>
+                                                    </template>
+                                                </div>
                                             </template>
                                         </td>
                                     </template>
@@ -1404,7 +1531,7 @@
                             </template>
                         </tbody>
                     </table>
-                </div>
+                </div></div>
                 <div class="table-actions" style="display:flex;gap:8px;flex-wrap:wrap">
                     <button class="btn btn-outline" @click="addYear()">
                         <i class="fas fa-plus"></i> Добавить год
@@ -2173,6 +2300,8 @@ function wizardApp() {
         metrics: _emptyMetrics(),
         showIndexModal: false,
         indexModalRates: [],
+        costYearExpanded: [false, false, false, false, false],
+        opBudgetYearExpanded: [false],
 
         form: {
             projectType: 'investment',
@@ -2197,6 +2326,12 @@ function wizardApp() {
             op_economics: '',
             op_stop_loss: '',
             op_stage_gates: '',
+
+            // ── Бюджет операционного запроса ─────────────────────────────────
+            op_budget_numYears: 1,
+            op_budget_rows: [
+                { category: '', monthlyValues: [Array(12).fill(0)] }
+            ],
 
             // ── Value Score ───────────────────────────────────────────────
             vs_ev_impact: null,
@@ -2249,11 +2384,11 @@ function wizardApp() {
 
             // Cost rows
             costs: [
-                { category: 'COGS',      mode: 'percent_revenue', param: 11,   values: [0,0,0,0,0] },
-                { category: 'R&D',       mode: 'percent_revenue', param: 28,   values: [0,0,0,0,0] },
-                { category: 'G&A',       mode: 'percent_revenue', param: 20,   values: [0,0,0,0,0] },
-                { category: 'Маркетинг', mode: 'cac',             param: 3000, values: [0,0,0,0,0] },
-                { category: 'Support',   mode: 'percent_revenue', param: 5,    values: [0,0,0,0,0] },
+                { category: 'COGS',      mode: 'percent_revenue', param: 11,   values: [0,0,0,0,0], monthlyValues: [Array(12).fill(0),Array(12).fill(0),Array(12).fill(0),Array(12).fill(0),Array(12).fill(0)] },
+                { category: 'R&D',       mode: 'percent_revenue', param: 28,   values: [0,0,0,0,0], monthlyValues: [Array(12).fill(0),Array(12).fill(0),Array(12).fill(0),Array(12).fill(0),Array(12).fill(0)] },
+                { category: 'G&A',       mode: 'percent_revenue', param: 20,   values: [0,0,0,0,0], monthlyValues: [Array(12).fill(0),Array(12).fill(0),Array(12).fill(0),Array(12).fill(0),Array(12).fill(0)] },
+                { category: 'Маркетинг', mode: 'cac',             param: 3000, values: [0,0,0,0,0], monthlyValues: [Array(12).fill(0),Array(12).fill(0),Array(12).fill(0),Array(12).fill(0),Array(12).fill(0)] },
+                { category: 'Support',   mode: 'percent_revenue', param: 5,    values: [0,0,0,0,0], monthlyValues: [Array(12).fill(0),Array(12).fill(0),Array(12).fill(0),Array(12).fill(0),Array(12).fill(0)] },
             ],
 
             // Discount
@@ -2346,6 +2481,21 @@ function wizardApp() {
                     await this.$nextTick();
                     this.form.op_mvz_sub2 = mvzSub2;
                 }
+                // Sync expansion state arrays to match loaded year counts
+                const loadedNumYears = this.form.numYears || 5;
+                this.costYearExpanded = Array(loadedNumYears).fill(false);
+                const loadedBudgetYears = this.form.op_budget_numYears || 1;
+                this.opBudgetYearExpanded = Array(loadedBudgetYears).fill(false);
+                // Ensure monthlyValues exist on all cost rows
+                this.form.costs = (this.form.costs || []).map(c => ({
+                    ...c,
+                    monthlyValues: c.monthlyValues || Array.from({length: loadedNumYears}, () => Array(12).fill(0)),
+                }));
+                // Ensure op_budget_rows has monthlyValues
+                this.form.op_budget_rows = (this.form.op_budget_rows || [{ category: '', monthlyValues: [Array(12).fill(0)] }]).map(r => ({
+                    ...r,
+                    monthlyValues: r.monthlyValues || Array.from({length: loadedBudgetYears}, () => Array(12).fill(0)),
+                }));
                 // Override with top-level fields (authoritative source for display fields)
                 if (p.project_type) this.form.projectType = p.project_type;
                 if (p.name) this.form.name = p.name;
@@ -2393,8 +2543,95 @@ function wizardApp() {
         setCostVal(ci, yi, val) {
             const costs = this.form.costs.map(c => ({ ...c, values: [...(c.values||[])] }));
             while (costs[ci].values.length <= yi) costs[ci].values.push(0);
-            costs[ci].values[yi] = parseFloat(val) || 0;
+            const v = parseFloat(val) || 0;
+            costs[ci].values[yi] = v;
+            // Distribute evenly to months when editing annual total
+            if (!costs[ci].monthlyValues) costs[ci].monthlyValues = Array.from({length: costs[ci].values.length}, () => Array(12).fill(0));
+            const perMonth = Math.round(v / 12);
+            costs[ci].monthlyValues[yi] = Array(12).fill(perMonth);
+            if (perMonth * 12 !== v) costs[ci].monthlyValues[yi][11] += v - perMonth * 12;
             this.form.costs = costs;
+        },
+
+        setMonthCostVal(ci, yi, mi, val) {
+            const costs = this.form.costs.map(c => ({
+                ...c,
+                values: [...(c.values||[])],
+                monthlyValues: (c.monthlyValues||[]).map(yr => [...yr]),
+            }));
+            if (!costs[ci].monthlyValues[yi]) costs[ci].monthlyValues[yi] = Array(12).fill(0);
+            costs[ci].monthlyValues[yi][mi] = parseFloat(val) || 0;
+            costs[ci].values[yi] = costs[ci].monthlyValues[yi].reduce((a, b) => a + b, 0);
+            this.form.costs = costs;
+        },
+
+        toggleCostYear(yi) {
+            this.costYearExpanded = this.costYearExpanded.map((v, i) => i === yi ? !v : v);
+        },
+
+        visibleCostCols() {
+            const cols = [];
+            for (let yi = 0; yi < this.form.numYears; yi++) {
+                if (this.costYearExpanded[yi]) {
+                    for (let mi = 0; mi < 12; mi++) {
+                        cols.push({ type: 'month', yi, mi });
+                    }
+                } else {
+                    cols.push({ type: 'year', yi });
+                }
+            }
+            return cols;
+        },
+
+        // ── Op Budget helpers ──────────────────────────────────────────────
+        addOpBudgetYear() {
+            this.form.op_budget_numYears += 1;
+            this.form.op_budget_rows = this.form.op_budget_rows.map(r => ({
+                ...r,
+                monthlyValues: [...(r.monthlyValues||[]).map(yr=>[...yr]), Array(12).fill(0)],
+            }));
+            this.opBudgetYearExpanded = [...this.opBudgetYearExpanded, false];
+        },
+
+        addOpBudgetRow() {
+            const ny = this.form.op_budget_numYears;
+            this.form.op_budget_rows = [...this.form.op_budget_rows, {
+                category: '',
+                monthlyValues: Array.from({length: ny}, () => Array(12).fill(0)),
+            }];
+        },
+
+        setOpBudgetVal(ri, yi, mi, val) {
+            const rows = this.form.op_budget_rows.map(r => ({
+                ...r,
+                monthlyValues: (r.monthlyValues||[]).map(yr => [...yr]),
+            }));
+            if (!rows[ri].monthlyValues[yi]) rows[ri].monthlyValues[yi] = Array(12).fill(0);
+            rows[ri].monthlyValues[yi][mi] = parseFloat(val) || 0;
+            this.form.op_budget_rows = rows;
+        },
+
+        toggleOpBudgetYear(yi) {
+            this.opBudgetYearExpanded = this.opBudgetYearExpanded.map((v, i) => i === yi ? !v : v);
+        },
+
+        visibleOpBudgetCols() {
+            const cols = [];
+            for (let yi = 0; yi < this.form.op_budget_numYears; yi++) {
+                if (this.opBudgetYearExpanded[yi]) {
+                    for (let mi = 0; mi < 12; mi++) {
+                        cols.push({ type: 'month', yi, mi });
+                    }
+                } else {
+                    cols.push({ type: 'year', yi });
+                }
+            }
+            return cols;
+        },
+
+        opBudgetAnnual(ri, yi) {
+            const mv = (this.form.op_budget_rows[ri]?.monthlyValues || [])[yi] || [];
+            return mv.reduce((a, b) => a + b, 0);
         },
 
         // Cost preview for auto-computed cells
@@ -2489,8 +2726,11 @@ function wizardApp() {
                 prod.usersMonthly = [...(prod.usersMonthly || []).map(r=>[...r]), Array(12).fill(0)];
             });
             this.form.costs = this.form.costs.map(c => ({
-                ...c, values: [...(c.values||[]), 0]
+                ...c,
+                values: [...(c.values||[]), 0],
+                monthlyValues: [...(c.monthlyValues||[]).map(yr=>[...yr]), Array(12).fill(0)],
             }));
+            this.costYearExpanded = [...this.costYearExpanded, false];
             this.form.numYears = ny;
         },
 
@@ -2510,8 +2750,11 @@ function wizardApp() {
                 prod.usersMonthly = (prod.usersMonthly || []).filter((_, i) => i !== yi);
             });
             this.form.costs = this.form.costs.map(c => ({
-                ...c, values: (c.values||[]).filter((_, i) => i !== yi)
+                ...c,
+                values: (c.values||[]).filter((_, i) => i !== yi),
+                monthlyValues: (c.monthlyValues||[]).filter((_, i) => i !== yi),
             }));
+            this.costYearExpanded = this.costYearExpanded.filter((_, i) => i !== yi);
             this.form.numYears = this.form.numYears - 1;
         },
 
@@ -2522,9 +2765,11 @@ function wizardApp() {
         },
 
         addCost() {
+            const ny = this.form.numYears;
             this.form.costs = [...this.form.costs,
-                { category: 'Новая статья', mode: 'percent_revenue', param: 0,
-                  values: Array(this.form.numYears).fill(0) }
+                { category: 'Новая статья', mode: 'manual', param: 0,
+                  values: Array(ny).fill(0),
+                  monthlyValues: Array.from({length: ny}, () => Array(12).fill(0)) }
             ];
         },
 
@@ -2915,6 +3160,11 @@ function wizardApp() {
                     op_economics: this.form.op_economics,
                     op_stop_loss: this.form.op_stop_loss,
                     op_stage_gates: this.form.op_stage_gates,
+                    op_budget_rows: (this.form.op_budget_rows || []).map(r => ({
+                        category: r.category,
+                        annual_totals: (r.monthlyValues || []).map(yr => yr.reduce((a, b) => a + b, 0)),
+                    })),
+                    op_budget_numYears: this.form.op_budget_numYears,
                     value_score_data: {
                         ev_impact: this.form.vs_ev_impact,
                         urgency: this.form.vs_urgency,
