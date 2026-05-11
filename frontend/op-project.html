@@ -34,6 +34,7 @@
         .history-item { padding:10px 14px; background:#F8F7F3; border-radius:12px; margin-bottom:8px; font-size:13px; }
         .chip { display:inline-block; background:#F0EFFF; color:var(--accent-purple); border-radius:20px; padding:4px 12px; font-size:12px; font-weight:600; margin:3px; }
         .status-pill { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:99px; font-size:12px; font-weight:700; }
+        .tab-btn { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:99px; font-size:12px; font-weight:700; border:1.5px solid; cursor:pointer; transition:all .2s; font-family:inherit; background:none; }
         @media (max-width:992px) { body{padding:0;} .app-window{height:100vh;border-radius:0;} .mobile-menu-btn{display:block;} .sidebar{position:absolute;left:-260px;top:0;height:100%;z-index:1001;} .sidebar.active{left:0;} .main-content{padding:80px 20px 30px;} }
     </style>
 </head>
@@ -127,14 +128,12 @@
 
                 <!-- Tab navigation -->
                 <div style="display:flex;gap:8px;margin-bottom:20px">
-                    <button @click="activeTab='main'"
-                        :style="activeTab==='main' ? 'background:#EEF0FF;border-color:#C7C9FF;color:#5E5CE6;font-weight:700' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93;font-weight:600'"
-                        style="border:1.5px solid;border-radius:99px;padding:6px 14px;font-size:12px;cursor:pointer;transition:all .2s;font-family:inherit;display:inline-flex;align-items:center;gap:6px">
+                    <button class="tab-btn" @click="activeTab='main'"
+                        :style="activeTab==='main' ? 'background:#EEF0FF;border-color:#C7C9FF;color:#5E5CE6' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93'">
                         Основное
                     </button>
-                    <button x-show="project.status === 'approved'" @click="activeTab='fact'"
-                        :style="activeTab==='fact' ? 'background:#DDF0E1;border-color:#A8DDB5;color:#2D9B63;font-weight:700' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93;font-weight:600'"
-                        style="border:1.5px solid;border-radius:99px;padding:6px 14px;font-size:12px;cursor:pointer;transition:all .2s;font-family:inherit;display:inline-flex;align-items:center;gap:6px">
+                    <button class="tab-btn" x-show="project.status === 'approved'" @click="activeTab='fact'"
+                        :style="activeTab==='fact' ? 'background:#DDF0E1;border-color:#A8DDB5;color:#2D9B63' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93'">
                         Факт
                     </button>
                 </div>

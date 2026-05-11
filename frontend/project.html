@@ -105,6 +105,21 @@
             align-items: center;
         }
 
+        .tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 99px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 1.5px solid;
+            cursor: pointer;
+            transition: all .2s;
+            font-family: inherit;
+            background: none;
+        }
+
         .project-badge {
             background: #FFE5E5;
             color: var(--danger);
@@ -415,14 +430,12 @@
 
                     <!-- ═══ TAB NAVIGATION ════════════════════════════════════ -->
                     <div style="display:flex;gap:8px;margin-bottom:20px">
-                        <button @click="activeTab='main'"
-                            :style="activeTab==='main' ? 'background:#EEF0FF;border-color:#C7C9FF;color:#5E5CE6;font-weight:700' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93;font-weight:600'"
-                            style="border:1.5px solid;border-radius:99px;padding:6px 14px;font-size:12px;cursor:pointer;transition:all .2s;font-family:inherit;display:inline-flex;align-items:center;gap:6px">
+                        <button class="tab-btn" @click="activeTab='main'"
+                            :style="activeTab==='main' ? 'background:#EEF0FF;border-color:#C7C9FF;color:#5E5CE6' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93'">
                             Основное
                         </button>
-                        <button x-show="project.status === 'approved'" @click="activeTab='fact'"
-                            :style="activeTab==='fact' ? 'background:#DDF0E1;border-color:#A8DDB5;color:#2D9B63;font-weight:700' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93;font-weight:600'"
-                            style="border:1.5px solid;border-radius:99px;padding:6px 14px;font-size:12px;cursor:pointer;transition:all .2s;font-family:inherit;display:inline-flex;align-items:center;gap:6px">
+                        <button class="tab-btn" x-show="project.status === 'approved'" @click="activeTab='fact'"
+                            :style="activeTab==='fact' ? 'background:#DDF0E1;border-color:#A8DDB5;color:#2D9B63' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93'">
                             Факт
                         </button>
                     </div>
