@@ -296,6 +296,44 @@ def recalculate_project(
     return project
 
 
+@router.post("/{project_id}/copy", response_model=ProjectRead, status_code=201)
+def copy_project(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Create a draft copy of an existing project."""
+    if current_user.role == "ceo":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="CEO не может создавать проекты",
+        )
+
+    source = _get_project_or_404(project_id, db)
+    _check_project_access(source, current_user)
+
+    import copy as _copy
+    new_project = Project(
+        name="Копия: " + (source.name or ""),
+        project_type=source.project_type,
+        status="draft",
+        description=source.description,
+        owner=current_user.full_name or source.owner,
+        start_date=source.start_date,
+        platform=source.platform,
+        stage=source.stage,
+        business_unit=source.business_unit,
+        financial_model=_copy.deepcopy(source.financial_model) if source.financial_model else None,
+        user_id=current_user.id,
+    )
+    db.add(new_project)
+    db.flush()
+    _recalc_and_save(new_project, db)
+    db.commit()
+    db.refresh(new_project)
+    return new_project
+
+
 @router.delete("/{project_id}", status_code=204)
 def delete_project(
     project_id: int,
