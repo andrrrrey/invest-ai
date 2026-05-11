@@ -119,15 +119,15 @@
                 </div>
 
                 <!-- Tab navigation -->
-                <div style="display:flex;gap:8px;margin-bottom:16px">
+                <div style="display:inline-flex;background:#F2F2F7;border-radius:16px;padding:3px;margin-bottom:20px">
                     <button @click="activeTab='main'"
-                        :style="activeTab==='main' ? 'background:#5E5CE6;color:white;border-color:#5E5CE6' : 'background:white;color:#555;border-color:#E5E5ED'"
-                        style="border:1.5px solid;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;transition:.2s">
+                        :style="activeTab==='main' ? 'background:white;color:#1C1C1E;box-shadow:0 1px 6px rgba(0,0,0,0.1)' : 'background:transparent;color:#8E8E93'"
+                        style="border:none;border-radius:13px;padding:8px 24px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit">
                         Основное
                     </button>
                     <button @click="activeTab='fact'"
-                        :style="activeTab==='fact' ? 'background:#5E5CE6;color:white;border-color:#5E5CE6' : 'background:white;color:#555;border-color:#E5E5ED'"
-                        style="border:1.5px solid;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;transition:.2s">
+                        :style="activeTab==='fact' ? 'background:white;color:#1C1C1E;box-shadow:0 1px 6px rgba(0,0,0,0.1)' : 'background:transparent;color:#8E8E93'"
+                        style="border:none;border-radius:13px;padding:8px 24px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit">
                         Факт
                     </button>
                 </div>
@@ -339,13 +339,8 @@
 
                     </div>
                 </div>
-                </div><!-- /activeTab main -->
-
-                <!-- ═══ FACT TAB ══════════════════════════════════════════════ -->
-                <div x-show="activeTab==='fact'">
-
                     <!-- Comments -->
-                    <div class="card-block" style="margin-top:0">
+                    <div class="card-block" style="margin-top:20px">
                         <div class="block-title" style="display:flex;justify-content:space-between;align-items:center">
                             Комментарии <i class="fas fa-comments" style="color:var(--accent-purple)"></i>
                         </div>
@@ -374,6 +369,11 @@
                             <p style="font-size:11px;color:#8E8E93;margin-top:4px">Ctrl+Enter для отправки</p>
                         </div>
                     </div>
+
+                </div><!-- /activeTab main -->
+
+                <!-- ═══ FACT TAB ══════════════════════════════════════════════ -->
+                <div x-show="activeTab==='fact'">
 
                     <!-- Tranches -->
                     <div class="card-block" style="margin-top:20px">
@@ -408,6 +408,10 @@
                                             style="background:#34C759;color:white;border:none;border-radius:10px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer">
                                             <i class="fas fa-check"></i> Одобрить
                                         </button>
+                                        <button @click="deleteTranche(t)"
+                                            style="background:#FFE5E5;color:#FF3B30;border:none;border-radius:10px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
                                     </div>
                                 </div>
                             </template>
@@ -417,7 +421,10 @@
                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
                                     <div>
                                         <label style="font-size:11px;font-weight:700;color:#555">Сумма (₽)</label>
-                                        <input type="number" x-model.number="newTranche.amount" style="width:100%;padding:8px 12px;border:1.5px solid #E5E5ED;border-radius:10px;font-size:13px;margin-top:4px">
+                                        <input type="text" inputmode="decimal"
+                                            :value="newTranche.amount ? Number(newTranche.amount).toLocaleString('ru-RU') : ''"
+                                            @change="newTranche.amount = parseFloat($event.target.value.replace(/\s/g,'').replace(',','.')) || 0"
+                                            placeholder="0" style="width:100%;padding:8px 12px;border:1.5px solid #E5E5ED;border-radius:10px;font-size:13px;margin-top:4px">
                                     </div>
                                     <div>
                                         <label style="font-size:11px;font-weight:700;color:#555">Плановая дата</label>
@@ -468,7 +475,7 @@
                                             </td>
                                             <template x-for="p in periods" :key="periodKey(p)">
                                                 <td style="padding:4px;border-bottom:1px solid #F0F0F8;background:#F8F8FF">
-                                                    <input type="number" step="any" :value="getPlan(metric,p)" @change="setPlan(metric,p,$event.target.value)"
+                                                    <input type="text" inputmode="decimal" :value="fmtNum(getPlan(metric,p))" @change="setPlan(metric,p,parseNum($event.target.value))"
                                                         style="width:82px;padding:4px 6px;border:1.5px solid #E0E0F0;border-radius:6px;font-size:12px;text-align:right;background:white;color:#333;outline:none" placeholder="—">
                                                 </td>
                                             </template>
@@ -480,7 +487,7 @@
                                             </td>
                                             <template x-for="p in periods" :key="periodKey(p)">
                                                 <td style="padding:4px;border-bottom:1px solid #EAFAF0;background:white">
-                                                    <input type="number" step="any" :value="getFact(metric,p)" @change="setFact(metric,p,$event.target.value)"
+                                                    <input type="text" inputmode="decimal" :value="fmtNum(getFact(metric,p))" @change="setFact(metric,p,parseNum($event.target.value))"
                                                         style="width:82px;padding:4px 6px;border:1.5px solid #D0EDD9;border-radius:6px;font-size:12px;text-align:right;background:white;color:#2D9B63;font-weight:600;outline:none" placeholder="—">
                                                 </td>
                                             </template>
@@ -669,6 +676,18 @@
                     }
                 } catch(e) { alert('Ошибка: ' + e.message); }
             },
+            async deleteTranche(t) {
+                if (!confirm('Удалить транш? Это действие нельзя отменить.')) return;
+                try {
+                    const res = await authFetch('/api/v1/tranches/' + t.id, { method: 'DELETE' });
+                    if (res.ok || res.status === 204) {
+                        this.tranches = this.tranches.filter(x => x.id !== t.id);
+                    } else {
+                        const e = await res.json().catch(()=>({}));
+                        alert(e.detail || 'Ошибка удаления');
+                    }
+                } catch(e) { alert('Ошибка: ' + e.message); }
+            },
             opIsCfoOrManager() {
                 const r = getUserRole();
                 return r === 'cfo' || r === 'manager';
@@ -713,6 +732,8 @@
             },
             getPlan(metric,p) { return this._gridPlan[this._cellKey(metric,p)] ?? null; },
             getFact(metric,p) { return this._gridFact[this._cellKey(metric,p)] ?? null; },
+            fmtNum(v) { if (v == null || v === '') return ''; return Number(v).toLocaleString('ru-RU'); },
+            parseNum(s) { if (!s && s !== 0) return null; const n = parseFloat(String(s).replace(/\s/g,'').replace(',','.')); return isNaN(n) ? null : n; },
             setPlan(metric,p,val) {
                 const k = this._cellKey(metric,p);
                 const v = val===''||val===null ? null : parseFloat(val);
