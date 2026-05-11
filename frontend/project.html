@@ -273,7 +273,8 @@
                     <header class="header-row" style="margin-bottom:25px">
                         <div>
                             <p style="color:var(--text-muted);font-size:14px;margin-bottom:4px">
-                                Проект #<span x-text="project.id"></span> · <span x-text="project.project_type === 'investment' ? 'Инвестиционный' : 'Операционный'"></span>
+                                <a href="/project-list" style="color:var(--accent-purple);text-decoration:none;font-weight:600">← Проекты</a>
+                                &nbsp;·&nbsp; Проект #<span x-text="project.id"></span> · <span x-text="project.project_type === 'investment' ? 'Инвестиционный' : 'Операционный'"></span>
                             </p>
                             <h1 style="font-size:26px;font-weight:800" x-text="project.name || '(без названия)'"></h1>
                         </div>
@@ -406,15 +407,15 @@
                     </header>
 
                     <!-- ═══ TAB NAVIGATION ════════════════════════════════════ -->
-                    <div style="display:inline-flex;background:#F2F2F7;border-radius:16px;padding:3px;margin-bottom:20px">
+                    <div style="display:flex;gap:8px;margin-bottom:20px">
                         <button @click="activeTab='main'"
-                            :style="activeTab==='main' ? 'background:white;color:#1C1C1E;box-shadow:0 1px 6px rgba(0,0,0,0.1)' : 'background:transparent;color:#8E8E93'"
-                            style="border:none;border-radius:13px;padding:8px 24px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit">
+                            :style="activeTab==='main' ? 'background:#EEF0FF;border-color:#5E5CE6;color:#5E5CE6;font-weight:700' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93;font-weight:600'"
+                            style="border:1.5px solid;border-radius:20px;padding:8px 20px;font-size:13px;cursor:pointer;transition:all .2s;font-family:inherit">
                             Основное
                         </button>
-                        <button @click="activeTab='fact'"
-                            :style="activeTab==='fact' ? 'background:white;color:#1C1C1E;box-shadow:0 1px 6px rgba(0,0,0,0.1)' : 'background:transparent;color:#8E8E93'"
-                            style="border:none;border-radius:13px;padding:8px 24px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit">
+                        <button x-show="project.status === 'approved'" @click="activeTab='fact'"
+                            :style="activeTab==='fact' ? 'background:#DDF0E1;border-color:#2D9B63;color:#2D9B63;font-weight:700' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93;font-weight:600'"
+                            style="border:1.5px solid;border-radius:20px;padding:8px 20px;font-size:13px;cursor:pointer;transition:all .2s;font-family:inherit">
                             Факт
                         </button>
                     </div>
@@ -937,7 +938,7 @@
                     </div><!-- /activeTab main -->
 
                     <!-- ═══ FACT TAB CONTENT ══════════════════════════════════ -->
-                    <div x-show="activeTab==='fact'">
+                    <div x-show="activeTab==='fact' && project.status === 'approved'">
 
                     <!-- ═══ TRANCHES ═══════════════════════════════════════════ -->
                     <section class="card-block" style="margin-top:20px" x-show="project.project_type === 'investment'">
@@ -991,7 +992,7 @@
                                             <button x-show="t.status === 'requested'" @click="approveNextTranche(t, items)"
                                                 :disabled="items.length > 0 && !allMet(items)"
                                                 :title="items.length > 0 && !allMet(items) ? 'Не все триггеры выполнены' : 'Одобрить транш'"
-                                                style="background:#34C759;color:white;border:none;border-radius:10px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;transition:.2s"
+                                                style="background:#DDF0E1;border:1.5px solid #2D9B63;color:#2D9B63;border-radius:20px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;transition:.2s"
                                                 :style="(items.length > 0 && !allMet(items)) ? 'opacity:0.4;cursor:not-allowed' : ''">
                                                 <i class="fas fa-check"></i> Одобрить
                                             </button>
@@ -1794,6 +1795,53 @@
                     const now = new Date();
                     this.initPeriods(now.getFullYear(), 1, 12);
                     try {
+                        // Always fetch project first to get categories from financial model
+                        const projRes = await authFetch('/api/v1/projects/' + id);
+                        if (projRes.ok) {
+                            const proj = await projRes.json();
+                            const fm = proj.financial_model || {};
+                            let categories = [];
+                            if (proj.project_type === 'investment') {
+                                categories = (fm.costs || []).map(c => c.category).filter(Boolean);
+                                if (categories.length) {
+                                    const startYear = proj.start_date ? parseInt(proj.start_date.slice(0,4)) : now.getFullYear();
+                                    const numMonths = Math.max(12, (fm.numYears || 1) * 12);
+                                    this.initPeriods(startYear, 1, numMonths);
+                                    const newPlan = {};
+                                    (fm.costs || []).forEach(row => {
+                                        if (!row.category || row.mode !== 'manual' || !row.param) return;
+                                        const monthlyVal = row.param / numMonths;
+                                        for (let i = 0; i < numMonths; i++) {
+                                            const yr = startYear + Math.floor(i / 12);
+                                            const mo = (i % 12) + 1;
+                                            newPlan[this._cellKey(row.category, {year: yr, month: mo})] = monthlyVal;
+                                        }
+                                    });
+                                    this._gridPlan = newPlan;
+                                }
+                            } else {
+                                categories = (fm.op_budget_rows || []).map(r => r.category).filter(Boolean);
+                                if (categories.length) {
+                                    const startYear = proj.start_date ? parseInt(proj.start_date.slice(0,4)) : now.getFullYear();
+                                    const numYears = fm.op_budget_numYears || 1;
+                                    this.initPeriods(startYear, 1, numYears * 12);
+                                    const newPlan = {};
+                                    (fm.op_budget_rows || []).forEach(row => {
+                                        if (!row.category) return;
+                                        (row.monthlyValues || []).forEach((yearVals, yi) => {
+                                            (yearVals || []).forEach((val, mi) => {
+                                                if (val) {
+                                                    newPlan[this._cellKey(row.category, {year: startYear + yi, month: mi + 1})] = val;
+                                                }
+                                            });
+                                        });
+                                    });
+                                    this._gridPlan = newPlan;
+                                }
+                            }
+                            if (categories.length) this.metricNames = categories;
+                        }
+                        // Overlay saved entries on top of pre-populated values
                         const res = await authFetch('/api/v1/projects/' + id + '/fact');
                         if (res.ok) {
                             const entries = await res.json();
@@ -1806,13 +1854,18 @@
                                 total = Math.max(12, Math.ceil(total / 12) * 12);
                                 this.initPeriods(minYear, 1, total);
 
-                                const seen = [];
+                                const savedMetrics = [];
                                 for (const e of entries) {
-                                    if (!seen.includes(e.metric_name)) seen.push(e.metric_name);
+                                    if (!savedMetrics.includes(e.metric_name)) savedMetrics.push(e.metric_name);
                                 }
-                                this.metricNames = seen;
+                                const merged = [...this.metricNames];
+                                for (const m of savedMetrics) {
+                                    if (!merged.includes(m)) merged.push(m);
+                                }
+                                this.metricNames = merged;
 
-                                const newPlan = {}, newFact = {};
+                                const newPlan = {...this._gridPlan};
+                                const newFact = {};
                                 for (const e of entries) {
                                     const k = this._cellKey(e.metric_name, {year: e.year, month: e.month});
                                     if (e.plan_value != null) newPlan[k] = e.plan_value;
@@ -1820,61 +1873,9 @@
                                 }
                                 this._gridPlan = newPlan;
                                 this._gridFact = newFact;
-                                this.$nextTick(() => this._renderChart());
-                            } else {
-                                // No saved data — pre-populate metric names from project cost categories
-                                try {
-                                    const projRes = await authFetch('/api/v1/projects/' + id);
-                                    if (projRes.ok) {
-                                        const proj = await projRes.json();
-                                        const fm = proj.financial_model || {};
-                                        let categories = [];
-                                        if (proj.project_type === 'investment') {
-                                            categories = (fm.costs || []).map(c => c.category).filter(Boolean);
-                                            // Pre-populate plan values from manual-mode costs
-                                            if (categories.length && fm.costs) {
-                                                const startYear = proj.start_date ? parseInt(proj.start_date.slice(0,4)) : now.getFullYear();
-                                                const numMonths = Math.max(12, (fm.numYears || 1) * 12);
-                                                this.initPeriods(startYear, 1, numMonths);
-                                                const newPlan = {};
-                                                fm.costs.forEach(row => {
-                                                    if (!row.category || row.mode !== 'manual' || !row.param) return;
-                                                    const monthlyVal = row.param / numMonths;
-                                                    for (let i = 0; i < numMonths; i++) {
-                                                        const yr = startYear + Math.floor(i / 12);
-                                                        const mo = (i % 12) + 1;
-                                                        newPlan[this._cellKey(row.category, {year: yr, month: mo})] = monthlyVal;
-                                                    }
-                                                });
-                                                this._gridPlan = newPlan;
-                                            }
-                                        } else {
-                                            categories = (fm.op_budget_rows || []).map(r => r.category).filter(Boolean);
-                                            // Pre-populate plan values from budget data
-                                            if (categories.length && fm.op_budget_rows) {
-                                                const startYear = proj.start_date ? parseInt(proj.start_date.slice(0,4)) : now.getFullYear();
-                                                const numYears = fm.op_budget_numYears || 1;
-                                                this.initPeriods(startYear, 1, numYears * 12);
-                                                const newPlan = {};
-                                                fm.op_budget_rows.forEach(row => {
-                                                    if (!row.category) return;
-                                                    (row.monthlyValues || []).forEach((yearVals, yi) => {
-                                                        (yearVals || []).forEach((val, mi) => {
-                                                            if (val) {
-                                                                const p = {year: startYear + yi, month: mi + 1};
-                                                                newPlan[this._cellKey(row.category, p)] = val;
-                                                            }
-                                                        });
-                                                    });
-                                                });
-                                                this._gridPlan = newPlan;
-                                            }
-                                        }
-                                        if (categories.length) this.metricNames = categories;
-                                    }
-                                } catch(e) {}
                             }
                         }
+                        this.$nextTick(() => this._renderChart());
                     } catch(e) {}
                     finally { this.factLoading = false; }
                 },
