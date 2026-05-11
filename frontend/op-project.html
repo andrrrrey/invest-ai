@@ -115,18 +115,25 @@
                         </div>
                         <span class="status-pill" :style="statusStyle" x-text="statusLabel"></span>
                         <span style="background:#EEF0FF;color:var(--accent-purple);padding:6px 14px;border-radius:12px;font-size:12px;font-weight:700" x-text="routeLabel(project.decision_route)"></span>
+                        <button
+                            style="background:#F0EFFF;border:1.5px solid #C7C9FF;color:#5E5CE6;border-radius:12px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.2s;"
+                            onmouseover="this.style.background='#5E5CE6';this.style.color='white'"
+                            onmouseout="this.style.background='#F0EFFF';this.style.color='#5E5CE6'"
+                            @click="copyProject()">
+                            <i class="fas fa-copy"></i> Копировать
+                        </button>
                     </div>
                 </div>
 
                 <!-- Tab navigation -->
                 <div style="display:flex;gap:8px;margin-bottom:20px">
                     <button @click="activeTab='main'"
-                        :style="activeTab==='main' ? 'background:#EEF0FF;border-color:#5E5CE6;color:#5E5CE6;font-weight:700' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93;font-weight:600'"
+                        :style="activeTab==='main' ? 'background:#EEF0FF;border-color:#C7C9FF;color:#5E5CE6;font-weight:700' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93;font-weight:600'"
                         style="border:1.5px solid;border-radius:20px;padding:8px 20px;font-size:13px;cursor:pointer;transition:all .2s;font-family:inherit">
                         Основное
                     </button>
                     <button x-show="project.status === 'approved'" @click="activeTab='fact'"
-                        :style="activeTab==='fact' ? 'background:#DDF0E1;border-color:#2D9B63;color:#2D9B63;font-weight:700' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93;font-weight:600'"
+                        :style="activeTab==='fact' ? 'background:#DDF0E1;border-color:#A8DDB5;color:#2D9B63;font-weight:700' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93;font-weight:600'"
                         style="border:1.5px solid;border-radius:20px;padding:8px 20px;font-size:13px;cursor:pointer;transition:all .2s;font-family:inherit">
                         Факт
                     </button>
@@ -405,7 +412,7 @@
                                     </div>
                                     <div x-show="opIsCfoOrManager()" style="display:flex;gap:8px;flex-wrap:wrap">
                                         <button x-show="t.status === 'requested'" @click="approveTranche(t)"
-                                            style="background:#DDF0E1;border:1.5px solid #2D9B63;color:#2D9B63;border-radius:20px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer">
+                                            style="background:#DDF0E1;border:1.5px solid #A8DDB5;color:#2D9B63;border-radius:20px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer">
                                             <i class="fas fa-check"></i> Одобрить
                                         </button>
                                         <button @click="deleteTranche(t)"
@@ -451,10 +458,6 @@
                         <div x-data="opFactApp()" x-init="loadFact()">
                         <div class="block-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
                             <span>План / Факт <i class="fas fa-chart-mixed" style="color:var(--accent-purple)"></i></span>
-                            <button @click="extendPeriods()"
-                                style="background:#F8F7F3;border:1.5px solid #E5E5ED;color:#555;border-radius:10px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer">
-                                + 12 мес.
-                            </button>
                         </div>
                         <div style="overflow-x:auto;margin-bottom:14px;border:1.5px solid #E5E5ED;border-radius:12px">
                             <table style="border-collapse:collapse;font-size:12px;min-width:max-content;width:100%">
@@ -475,8 +478,8 @@
                                             </td>
                                             <template x-for="p in periods" :key="periodKey(p)">
                                                 <td style="padding:4px;border-bottom:1px solid #F0F0F8;background:#F8F8FF">
-                                                    <input type="text" inputmode="decimal" :value="fmtNum(getPlan(metric,p))" @change="setPlan(metric,p,parseNum($event.target.value))"
-                                                        style="width:82px;padding:4px 6px;border:1.5px solid #E0E0F0;border-radius:6px;font-size:12px;text-align:right;background:white;color:#333;outline:none" placeholder="—">
+                                                    <span style="display:block;width:82px;padding:4px 6px;font-size:12px;text-align:right;color:#333"
+                                                        x-text="fmtNum(getPlan(metric,p)) || '—'"></span>
                                                 </td>
                                             </template>
                                         </tr>
@@ -502,22 +505,6 @@
                                         </tr>
                                     </tbody>
                                 </template>
-                                <tbody>
-                                    <tr>
-                                        <td :colspan="periods.length + 1" style="padding:10px 14px">
-                                            <div style="display:flex;gap:8px;align-items:center">
-                                                <input type="text" x-model="newMetricName" placeholder="Название новой метрики..."
-                                                    @keydown.enter="addMetric()"
-                                                    style="padding:6px 10px;border:1.5px dashed #C7C7CC;border-radius:8px;font-size:12px;width:220px;color:#333;background:white;outline:none">
-                                                <button @click="addMetric()" :disabled="!newMetricName.trim()"
-                                                    style="padding:6px 16px;background:var(--accent-purple);color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer"
-                                                    :style="newMetricName.trim() ? 'opacity:1' : 'opacity:0.45;cursor:default'">
-                                                    + Метрика
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
                             </table>
                         </div>
                         <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
@@ -956,6 +943,23 @@
                     this.statusMsgType = 'err';
                 }
                 setTimeout(() => this.statusMsg = '', 3000);
+            },
+
+            async copyProject() {
+                if (!this.project) return;
+                if (!confirm(`Создать копию проекта «${this.project.name || 'без названия'}»?`)) return;
+                try {
+                    const res = await authFetch('/api/v1/projects/' + this.project.id + '/copy', { method: 'POST' });
+                    if (res.ok) {
+                        const copy = await res.json();
+                        window.location.href = '/project?id=' + copy.id;
+                    } else {
+                        const err = await res.json().catch(() => ({}));
+                        alert(err.detail || 'Ошибка копирования проекта');
+                    }
+                } catch(e) {
+                    alert('Ошибка соединения: ' + e.message);
+                }
             },
         };
     }
