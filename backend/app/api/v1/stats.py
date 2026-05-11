@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from ...database import get_db
 from ...models.project import Project
+from ...models.tranche import Tranche
 from ...models.user import User
 from ...auth import get_current_user
 from ... import settings_store
@@ -56,17 +57,17 @@ def get_stats(
 
     avg_irr = round(sum(irr_values) / len(irr_values), 2) if irr_values else None
 
-    # Investment budget and approved amount
+    # Investment budget: use approved tranches as committed investment
     investment_budget = settings_store.get_investment_budget()
+    project_ids = [p.id for p in projects]
     approved_investment = 0.0
-    for p in projects:
-        if p.status == "approved":
-            fm = p.financial_model or {}
-            try:
-                capex = abs(float(fm.get("initialInvestment") or 0))
-                approved_investment += capex
-            except (TypeError, ValueError):
-                pass
+    if project_ids:
+        approved_tranches = (
+            db.query(Tranche)
+            .filter(Tranche.project_id.in_(project_ids), Tranche.status == "approved")
+            .all()
+        )
+        approved_investment = sum(t.amount for t in approved_tranches)
     available_for_investment = (investment_budget - approved_investment) if investment_budget is not None else None
 
     return {

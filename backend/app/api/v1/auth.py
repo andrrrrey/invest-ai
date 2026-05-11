@@ -2,9 +2,9 @@ import os
 import secrets
 import string
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Request, status, UploadFile, File
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -14,7 +14,7 @@ from ...models.user import User
 from ...auth import verify_password, hash_password, create_access_token, get_current_user
 from ...schemas.user import Token, UserRead, UserProfileUpdate, ChangePasswordRequest
 from ... import settings_store
-from ...services.email_service import send_registration_email
+from ...services.email_service import send_registration_email, send_password_reset_email
 
 AVATARS_DIR = os.environ.get("AVATARS_DIR", "/data/avatars")
 
@@ -180,6 +180,63 @@ def delete_me(
     current_user.updated_at = datetime.utcnow()
     db.commit()
     return {"detail": "Аккаунт удалён."}
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+@router.post("/forgot-password", status_code=200)
+def forgot_password(body: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
+    """Send password reset email. Always returns 200 to avoid email enumeration."""
+    email = body.email.strip().lower()
+    user = db.query(User).filter(User.email == email).first()
+    if not user or not user.is_active:
+        return {"detail": "Если этот email зарегистрирован, вы получите письмо со ссылкой для сброса пароля."}
+
+    token = secrets.token_urlsafe(32)
+    user.password_reset_token = token
+    user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
+    db.commit()
+
+    base_url = str(request.base_url).rstrip("/")
+    reset_url = f"{base_url}/reset-password.html?token={token}"
+
+    try:
+        send_password_reset_email(email, user.full_name, reset_url)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Не удалось отправить письмо: {exc}")
+
+    return {"detail": "Если этот email зарегистрирован, вы получите письмо со ссылкой для сброса пароля."}
+
+
+@router.post("/reset-password", status_code=200)
+def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Reset password using a valid token."""
+    if len(body.new_password) < 6:
+        raise HTTPException(status_code=422, detail="Пароль должен содержать не менее 6 символов.")
+
+    user = db.query(User).filter(User.password_reset_token == body.token).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Недействительная или истёкшая ссылка сброса пароля.")
+
+    if user.password_reset_expires is None or datetime.now(timezone.utc) > user.password_reset_expires:
+        user.password_reset_token = None
+        user.password_reset_expires = None
+        db.commit()
+        raise HTTPException(status_code=400, detail="Ссылка для сброса пароля истекла. Запросите новую.")
+
+    user.hashed_password = hash_password(body.new_password)
+    user.password_reset_token = None
+    user.password_reset_expires = None
+    user.updated_at = datetime.utcnow()
+    db.commit()
+    return {"detail": "Пароль успешно изменён. Войдите с новым паролем."}
 
 
 @router.post("/avatar", response_model=UserRead)
