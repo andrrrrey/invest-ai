@@ -123,6 +123,63 @@ _STATUS_LABELS = {
 }
 
 
+def send_password_reset_email(to_email: str, full_name: str, reset_url: str) -> None:
+    """Send password reset link to the user."""
+    subject = "Восстановление пароля | Инвестиционный процессор"
+
+    html_body = f"""
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"></head>
+<body style="font-family: 'Segoe UI', Arial, sans-serif; background: #f5f5f5; padding: 40px 0;">
+  <div style="max-width: 480px; margin: 0 auto; background: white; border-radius: 16px;
+              padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 32px;">
+      <div style="width: 44px; height: 44px; background: #5E5CE6; border-radius: 12px;
+                  display: flex; align-items: center; justify-content: center; font-size: 22px;">
+        📈
+      </div>
+      <div>
+        <div style="font-size: 16px; font-weight: 700; color: #1C1C1E;">Инвестиционный процессор</div>
+        <div style="font-size: 12px; color: #8E8E93;">Платформа управления проектами</div>
+      </div>
+    </div>
+
+    <h1 style="font-size: 22px; font-weight: 800; color: #1C1C1E; margin: 0 0 8px;">
+      Восстановление пароля
+    </h1>
+    <p style="font-size: 14px; color: #8E8E93; margin: 0 0 24px;">
+      Здравствуйте, {full_name}! Вы запросили сброс пароля.
+    </p>
+
+    <a href="{reset_url}"
+       style="display: block; text-align: center; background: #5E5CE6; color: white;
+              padding: 14px 28px; border-radius: 12px; font-size: 15px; font-weight: 700;
+              text-decoration: none; margin-bottom: 20px;">
+      Установить новый пароль
+    </a>
+
+    <p style="font-size: 13px; color: #FF9500; margin: 0 0 16px;">
+      ⚠️ Ссылка действительна 1 час. Если вы не запрашивали сброс — проигнорируйте письмо.
+    </p>
+    <p style="font-size: 12px; color: #C7C7CC; margin: 0; text-align: center;">
+      Это письмо отправлено автоматически. Не отвечайте на него.
+    </p>
+  </div>
+</body>
+</html>
+"""
+
+    text_body = (
+        f"Здравствуйте, {full_name}!\n\n"
+        f"Вы запросили сброс пароля в Инвестиционном процессоре.\n\n"
+        f"Перейдите по ссылке для установки нового пароля:\n{reset_url}\n\n"
+        f"Ссылка действительна 1 час. Если вы не запрашивали сброс — проигнорируйте письмо."
+    )
+
+    _send_email(to_email, subject, html_body, text_body)
+
+
 def send_approval_request_emails(
     recipients: List[dict], project_name: str, applicant_name: str
 ) -> None:

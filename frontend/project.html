@@ -857,9 +857,26 @@
                         </div>
                     </div>
 
+                    <!-- ═══ TAB NAVIGATION ════════════════════════════════════ -->
+                    <div style="display:flex;gap:8px;margin-bottom:4px">
+                        <button @click="activeTab='main'"
+                            :style="activeTab==='main' ? 'background:#5E5CE6;color:white;border-color:#5E5CE6' : 'background:white;color:#555;border-color:#E5E5ED'"
+                            style="border:1.5px solid;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;transition:.2s">
+                            Основное
+                        </button>
+                        <button @click="activeTab='fact'"
+                            :style="activeTab==='fact' ? 'background:#5E5CE6;color:white;border-color:#5E5CE6' : 'background:white;color:#555;border-color:#E5E5ED'"
+                            style="border:1.5px solid;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;transition:.2s">
+                            Факт
+                        </button>
+                    </div>
+
+                    <!-- ═══ MAIN TAB CONTENT ═══════════════════════════════════ -->
+                    <div x-show="activeTab==='main'">
+
                     <!-- ═══ ATTACHMENTS ═══════════════════════════════════════ -->
                     <section class="card-block" style="margin-top:20px">
-                        <div class="block-title"><i class="fas fa-paperclip" style="color:var(--accent-purple)"></i> Инвестиционный контракт</div>
+                        <div class="block-title">Инвестиционный контракт <i class="fas fa-paperclip" style="color:var(--accent-purple)"></i></div>
                         <div x-data="attachmentsApp()" x-init="loadAttachments()">
                             <div x-show="attachments.length > 0" style="margin-bottom:12px">
                                 <template x-for="a in attachments" :key="a.id">
@@ -890,7 +907,7 @@
 
                     <!-- ═══ COMMENTS ══════════════════════════════════════════ -->
                     <section class="card-block" style="margin-top:20px">
-                        <div class="block-title"><i class="fas fa-comments" style="color:var(--accent-purple)"></i> Комментарии</div>
+                        <div class="block-title">Комментарии <i class="fas fa-comments" style="color:var(--accent-purple)"></i></div>
                         <div x-data="commentsApp()" x-init="loadComments()">
                             <div style="margin-bottom:14px">
                                 <template x-for="c in comments" :key="c.id">
@@ -917,10 +934,15 @@
                         </div>
                     </section>
 
+                    </div><!-- /activeTab main -->
+
+                    <!-- ═══ FACT TAB CONTENT ══════════════════════════════════ -->
+                    <div x-show="activeTab==='fact'">
+
                     <!-- ═══ TRANCHES ═══════════════════════════════════════════ -->
                     <section class="card-block" style="margin-top:20px" x-show="project.project_type === 'investment'">
                         <div x-data="tranchesApp()" x-init="loadTranches()">
-                        <div class="block-title"><i class="fas fa-layer-group" style="color:var(--accent-purple)"></i> Транши</div>
+                        <div class="block-title">Транши <i class="fas fa-layer-group" style="color:var(--accent-purple)"></i></div>
                         <div>
                             <!-- Summary -->
                             <div style="display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap">
@@ -944,8 +966,8 @@
                                             <p style="font-size:12px;color:#555;margin-top:3px" x-text="t.description || ''"></p>
                                         </div>
                                         <span style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700"
-                                            :style="t.status==='paid' ? 'background:#DDF0E1;color:#2D9B63' : t.status==='approved' ? 'background:#FFF4E5;color:#FF9500' : 'background:#F0F0F0;color:#8E8E93'"
-                                            x-text="t.status==='paid' ? 'Выплачен' : t.status==='approved' ? 'Одобрен' : 'Запрошен'"></span>
+                                            :style="t.status==='approved' ? 'background:#DDF0E1;color:#2D9B63' : 'background:#F0F0F0;color:#8E8E93'"
+                                            x-text="t.status==='approved' ? 'Одобрен' : 'Запрошен'"></span>
                                     </div>
                                     <!-- Checklist -->
                                     <div x-data="checklistApp(t.id)" x-init="loadChecklist()">
@@ -969,13 +991,9 @@
                                             <button x-show="t.status === 'requested'" @click="approveNextTranche(t, items)"
                                                 :disabled="items.length > 0 && !allMet(items)"
                                                 :title="items.length > 0 && !allMet(items) ? 'Не все триггеры выполнены' : 'Одобрить транш'"
-                                                style="background:#5E5CE6;color:white;border:none;border-radius:10px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;transition:.2s"
+                                                style="background:#34C759;color:white;border:none;border-radius:10px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;transition:.2s"
                                                 :style="(items.length > 0 && !allMet(items)) ? 'opacity:0.4;cursor:not-allowed' : ''">
                                                 <i class="fas fa-check"></i> Одобрить
-                                            </button>
-                                            <button x-show="t.status === 'approved'" @click="payTranche(t)"
-                                                style="background:#34C759;color:white;border:none;border-radius:10px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer">
-                                                <i class="fas fa-money-bill-wave"></i> Выплачен
                                             </button>
                                         </div>
                                     </div>
@@ -1181,6 +1199,8 @@
                         </div>
                     </section>
 
+                    </div><!-- /activeTab fact -->
+
                 </div>
             </template>
         </main>
@@ -1221,6 +1241,7 @@
                 aiLoading: false,
                 statusMsg: '',
                 statusMsgType: 'ok',
+                activeTab: 'main',
                 showExtraTimeModal: false,
                 extraTime: { hoursPerMonth: 0, hourCost: 0, cycleDays: 0, months: 12, comment: '' },
                 customMetrics: [],
@@ -1577,7 +1598,7 @@
                     } catch(e) {}
                 },
                 get approvedTotal() {
-                    return this.tranches.filter(t => t.status === 'approved' || t.status === 'paid')
+                    return this.tranches.filter(t => t.status === 'approved')
                         .reduce((s, t) => s + t.amount, 0);
                 },
                 get requestedTotal() {
@@ -1779,6 +1800,41 @@
                                 this._gridPlan = newPlan;
                                 this._gridFact = newFact;
                                 this.$nextTick(() => this._renderChart());
+                            } else {
+                                // No saved data — pre-populate metric names from project cost categories
+                                try {
+                                    const projRes = await authFetch('/api/v1/projects/' + id);
+                                    if (projRes.ok) {
+                                        const proj = await projRes.json();
+                                        const fm = proj.financial_model || {};
+                                        let categories = [];
+                                        if (proj.project_type === 'investment') {
+                                            categories = (fm.costs || []).map(c => c.category).filter(Boolean);
+                                        } else {
+                                            categories = (fm.op_budget_rows || []).map(r => r.category).filter(Boolean);
+                                            // Pre-populate plan values from budget data
+                                            if (categories.length && fm.op_budget_rows) {
+                                                const startYear = proj.start_date ? parseInt(proj.start_date.slice(0,4)) : now.getFullYear();
+                                                const numYears = fm.op_budget_numYears || 1;
+                                                this.initPeriods(startYear, 1, numYears * 12);
+                                                const newPlan = {};
+                                                fm.op_budget_rows.forEach(row => {
+                                                    if (!row.category) return;
+                                                    (row.monthlyValues || []).forEach((yearVals, yi) => {
+                                                        (yearVals || []).forEach((val, mi) => {
+                                                            if (val) {
+                                                                const p = {year: startYear + yi, month: mi + 1};
+                                                                newPlan[this._cellKey(row.category, p)] = val;
+                                                            }
+                                                        });
+                                                    });
+                                                });
+                                                this._gridPlan = newPlan;
+                                            }
+                                        }
+                                        if (categories.length) this.metricNames = categories;
+                                    }
+                                } catch(e) {}
                             }
                         }
                     } catch(e) {}

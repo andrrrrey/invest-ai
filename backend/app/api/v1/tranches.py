@@ -9,7 +9,6 @@ from ...database import get_db
 from ...models.project import Project
 from ...models.tranche import Tranche, TriggerChecklistItem, TrancheHistory
 from ...auth import get_current_user, require_approver
-from ...services.notification_service import notify_approvers
 
 router = APIRouter(tags=["tranches"])
 
@@ -66,7 +65,7 @@ class ChecklistItemRead(BaseModel):
 
 
 class StatusChange(BaseModel):
-    status: str  # approved | paid
+    status: str  # approved
     comment: Optional[str] = None
 
 
@@ -161,16 +160,15 @@ def change_tranche_status(
 ):
     t = _get_tranche_or_404(db, tranche_id)
 
-    if body.status not in ("approved", "paid"):
-        raise HTTPException(status_code=400, detail="Допустимые статусы: approved, paid")
+    if body.status != "approved":
+        raise HTTPException(status_code=400, detail="Допустимый статус: approved")
 
-    if body.status == "approved":
-        items = t.checklist
-        if items and not all(item.is_met for item in items):
-            raise HTTPException(
-                status_code=400,
-                detail="Не все триггеры выполнены. Отметьте выполнение всех метрик перед одобрением транша.",
-            )
+    items = t.checklist
+    if items and not all(item.is_met for item in items):
+        raise HTTPException(
+            status_code=400,
+            detail="Не все триггеры выполнены. Отметьте выполнение всех метрик перед одобрением транша.",
+        )
 
     t.status = body.status
     db.add(TrancheHistory(
@@ -178,29 +176,6 @@ def change_tranche_status(
         event_type="status_changed",
         comment=body.comment or f"Статус изменён на «{body.status}»",
     ))
-    db.flush()
-
-    # If paid — notify approvers about the next requested tranche
-    if body.status == "paid":
-        next_tranche = (
-            db.query(Tranche)
-            .filter(
-                Tranche.project_id == t.project_id,
-                Tranche.order_index > t.order_index,
-                Tranche.status == "requested",
-            )
-            .order_by(Tranche.order_index)
-            .first()
-        )
-        if next_tranche:
-            project = db.get(Project, t.project_id)
-            notify_approvers(
-                db,
-                project_id=t.project_id,
-                project_name=project.name or f"Проект #{t.project_id}",
-                applicant_name=f"следующий транш #{next_tranche.order_index + 1}",
-            )
-
     db.commit()
     db.refresh(t)
     return t

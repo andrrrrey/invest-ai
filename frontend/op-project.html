@@ -118,6 +118,21 @@
                     </div>
                 </div>
 
+                <!-- Tab navigation -->
+                <div style="display:flex;gap:8px;margin-bottom:16px">
+                    <button @click="activeTab='main'"
+                        :style="activeTab==='main' ? 'background:#5E5CE6;color:white;border-color:#5E5CE6' : 'background:white;color:#555;border-color:#E5E5ED'"
+                        style="border:1.5px solid;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;transition:.2s">
+                        Основное
+                    </button>
+                    <button @click="activeTab='fact'"
+                        :style="activeTab==='fact' ? 'background:#5E5CE6;color:white;border-color:#5E5CE6' : 'background:white;color:#555;border-color:#E5E5ED'"
+                        style="border:1.5px solid;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;transition:.2s">
+                        Факт
+                    </button>
+                </div>
+
+                <div x-show="activeTab==='main'">
                 <div style="display:grid;grid-template-columns:1fr 340px;gap:20px">
                     <!-- Left column -->
                     <div>
@@ -324,12 +339,202 @@
 
                     </div>
                 </div>
+                </div><!-- /activeTab main -->
+
+                <!-- ═══ FACT TAB ══════════════════════════════════════════════ -->
+                <div x-show="activeTab==='fact'">
+
+                    <!-- Comments -->
+                    <div class="card-block" style="margin-top:0">
+                        <div class="block-title" style="display:flex;justify-content:space-between;align-items:center">
+                            Комментарии <i class="fas fa-comments" style="color:var(--accent-purple)"></i>
+                        </div>
+                        <div x-data="opCommentsApp()" x-init="loadComments()">
+                            <div style="margin-bottom:14px">
+                                <template x-for="c in comments" :key="c.id">
+                                    <div style="padding:12px 16px;background:#F8F7F3;border-radius:14px;margin-bottom:10px">
+                                        <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+                                            <span style="font-size:12px;font-weight:700;color:#5E5CE6" x-text="c.author_name"></span>
+                                            <span style="font-size:11px;color:#8E8E93" x-text="opFmtDateShort(c.created_at)"></span>
+                                        </div>
+                                        <p style="font-size:13px;line-height:1.5;color:#1C1C1E;white-space:pre-wrap" x-text="c.text"></p>
+                                    </div>
+                                </template>
+                                <p x-show="!comments.length" style="font-size:13px;color:#8E8E93;margin-bottom:10px">Комментариев пока нет</p>
+                            </div>
+                            <div style="display:flex;gap:10px;align-items:flex-start">
+                                <textarea x-model="commentText" placeholder="Написать комментарий..."
+                                    style="flex:1;resize:vertical;min-height:70px;padding:10px 14px;border:1.5px solid #E5E5ED;border-radius:12px;font-size:13px;font-family:inherit;outline:none"
+                                    @keydown.ctrl.enter="submitComment()"></textarea>
+                                <button @click="submitComment()" :disabled="!commentText.trim() || submittingComment"
+                                    style="background:var(--accent-purple);color:white;border:none;border-radius:12px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                            <p style="font-size:11px;color:#8E8E93;margin-top:4px">Ctrl+Enter для отправки</p>
+                        </div>
+                    </div>
+
+                    <!-- Tranches -->
+                    <div class="card-block" style="margin-top:20px">
+                        <div x-data="opTranchesApp()" x-init="loadTranches()">
+                        <div class="block-title">Транши <i class="fas fa-layer-group" style="color:var(--accent-purple)"></i></div>
+                        <div>
+                            <div style="display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap">
+                                <div style="background:#DDF0E1;border-radius:12px;padding:10px 18px;text-align:center">
+                                    <p style="font-size:11px;font-weight:700;color:#2D9B63">СОГЛАСОВАНО</p>
+                                    <p style="font-size:16px;font-weight:800;color:#2D9B63" x-text="opFmtMoney(approvedTotal)"></p>
+                                </div>
+                                <div style="background:#FFF4E5;border-radius:12px;padding:10px 18px;text-align:center">
+                                    <p style="font-size:11px;font-weight:700;color:#FF9500">ЗАПРОШЕНО</p>
+                                    <p style="font-size:16px;font-weight:800;color:#FF9500" x-text="opFmtMoney(requestedTotal)"></p>
+                                </div>
+                            </div>
+                            <template x-for="t in tranches" :key="t.id">
+                                <div style="border:1.5px solid #E5E5ED;border-radius:16px;padding:16px;margin-bottom:12px">
+                                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+                                        <div>
+                                            <span style="font-size:12px;font-weight:700;color:#8E8E93">ТРАНШ #<span x-text="t.order_index+1"></span></span>
+                                            <p style="font-size:18px;font-weight:800;margin-top:2px" x-text="opFmtMoney(t.amount)"></p>
+                                            <p style="font-size:12px;color:#8E8E93;margin-top:3px" x-text="t.planned_date ? ('Дата: ' + t.planned_date) : ''"></p>
+                                            <p style="font-size:12px;color:#555;margin-top:3px" x-text="t.description || ''"></p>
+                                        </div>
+                                        <span style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700"
+                                            :style="t.status==='approved' ? 'background:#DDF0E1;color:#2D9B63' : 'background:#F0F0F0;color:#8E8E93'"
+                                            x-text="t.status==='approved' ? 'Одобрен' : 'Запрошен'"></span>
+                                    </div>
+                                    <div x-show="opIsCfoOrManager()" style="display:flex;gap:8px;flex-wrap:wrap">
+                                        <button x-show="t.status === 'requested'" @click="approveTranche(t)"
+                                            style="background:#34C759;color:white;border:none;border-radius:10px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer">
+                                            <i class="fas fa-check"></i> Одобрить
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                            <p x-show="!tranches.length" style="font-size:13px;color:#8E8E93;margin-bottom:10px">Транши не добавлены</p>
+                            <div x-show="showAddTranche" style="border:1.5px dashed #C7C9FF;border-radius:14px;padding:16px;margin-bottom:12px">
+                                <p style="font-size:13px;font-weight:700;margin-bottom:10px">Новый транш</p>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                                    <div>
+                                        <label style="font-size:11px;font-weight:700;color:#555">Сумма (₽)</label>
+                                        <input type="number" x-model.number="newTranche.amount" style="width:100%;padding:8px 12px;border:1.5px solid #E5E5ED;border-radius:10px;font-size:13px;margin-top:4px">
+                                    </div>
+                                    <div>
+                                        <label style="font-size:11px;font-weight:700;color:#555">Плановая дата</label>
+                                        <input type="date" x-model="newTranche.planned_date" style="width:100%;padding:8px 12px;border:1.5px solid #E5E5ED;border-radius:10px;font-size:13px;margin-top:4px">
+                                    </div>
+                                </div>
+                                <textarea x-model="newTranche.description" placeholder="Условия перехода (необязательно)"
+                                    style="width:100%;padding:8px 12px;border:1.5px solid #E5E5ED;border-radius:10px;font-size:13px;resize:vertical;min-height:60px;margin-bottom:10px"></textarea>
+                                <div style="display:flex;gap:8px">
+                                    <button @click="addTranche()" style="background:var(--accent-purple);color:white;border:none;border-radius:10px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Добавить</button>
+                                    <button @click="showAddTranche=false" style="background:#F0F0F0;border:none;border-radius:10px;padding:8px 18px;font-size:13px;cursor:pointer">Отмена</button>
+                                </div>
+                            </div>
+                            <button @click="showAddTranche=true" x-show="!showAddTranche"
+                                style="background:#F0F0F0;border:none;border-radius:12px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">
+                                <i class="fas fa-plus"></i> Добавить транш
+                            </button>
+                        </div>
+                        </div>
+                    </div>
+
+                    <!-- Plan / Fact -->
+                    <div class="card-block" style="margin-top:20px">
+                        <div x-data="opFactApp()" x-init="loadFact()">
+                        <div class="block-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                            <span>План / Факт <i class="fas fa-chart-mixed" style="color:var(--accent-purple)"></i></span>
+                            <button @click="extendPeriods()"
+                                style="background:#F8F7F3;border:1.5px solid #E5E5ED;color:#555;border-radius:10px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer">
+                                + 12 мес.
+                            </button>
+                        </div>
+                        <div style="overflow-x:auto;margin-bottom:14px;border:1.5px solid #E5E5ED;border-radius:12px">
+                            <table style="border-collapse:collapse;font-size:12px;min-width:max-content;width:100%">
+                                <thead>
+                                    <tr style="background:#F8F7F3">
+                                        <th style="position:sticky;left:0;z-index:2;background:#F8F7F3;padding:8px 14px;text-align:left;font-weight:700;color:#8E8E93;border-bottom:2px solid #E5E5ED;white-space:nowrap;min-width:160px">Метрика</th>
+                                        <template x-for="p in periods" :key="periodKey(p)">
+                                            <th style="padding:8px 6px;text-align:center;font-weight:700;color:#8E8E93;border-bottom:2px solid #E5E5ED;white-space:nowrap;min-width:90px" x-text="formatPeriodLabel(p)"></th>
+                                        </template>
+                                    </tr>
+                                </thead>
+                                <template x-for="metric in metricNames" :key="metric">
+                                    <tbody>
+                                        <tr>
+                                            <td style="position:sticky;left:0;z-index:1;background:#F8F8FF;padding:5px 14px;font-weight:600;color:#5E5CE6;border-bottom:1px solid #F0F0F8;white-space:nowrap;font-size:11px">
+                                                <span x-text="metric"></span>
+                                                <span style="font-size:9px;font-weight:400;color:#8E8E93;margin-left:4px;text-transform:uppercase;letter-spacing:0.4px">план</span>
+                                            </td>
+                                            <template x-for="p in periods" :key="periodKey(p)">
+                                                <td style="padding:4px;border-bottom:1px solid #F0F0F8;background:#F8F8FF">
+                                                    <input type="number" step="any" :value="getPlan(metric,p)" @change="setPlan(metric,p,$event.target.value)"
+                                                        style="width:82px;padding:4px 6px;border:1.5px solid #E0E0F0;border-radius:6px;font-size:12px;text-align:right;background:white;color:#333;outline:none" placeholder="—">
+                                                </td>
+                                            </template>
+                                        </tr>
+                                        <tr>
+                                            <td style="position:sticky;left:0;z-index:1;background:white;padding:5px 14px;font-weight:600;color:#2D9B63;border-bottom:1px solid #EAFAF0;white-space:nowrap;font-size:11px">
+                                                <span x-text="metric"></span>
+                                                <span style="font-size:9px;font-weight:400;color:#8E8E93;margin-left:4px;text-transform:uppercase;letter-spacing:0.4px">факт</span>
+                                            </td>
+                                            <template x-for="p in periods" :key="periodKey(p)">
+                                                <td style="padding:4px;border-bottom:1px solid #EAFAF0;background:white">
+                                                    <input type="number" step="any" :value="getFact(metric,p)" @change="setFact(metric,p,$event.target.value)"
+                                                        style="width:82px;padding:4px 6px;border:1.5px solid #D0EDD9;border-radius:6px;font-size:12px;text-align:right;background:white;color:#2D9B63;font-weight:600;outline:none" placeholder="—">
+                                                </td>
+                                            </template>
+                                        </tr>
+                                        <tr>
+                                            <td style="position:sticky;left:0;z-index:1;background:#FAFAF8;padding:3px 14px;font-size:10px;color:#8E8E93;border-bottom:2px solid #E5E5ED;letter-spacing:0.3px">ОТКЛ. %</td>
+                                            <template x-for="p in periods" :key="periodKey(p)">
+                                                <td style="padding:3px 4px;text-align:center;font-size:10px;font-weight:700;border-bottom:2px solid #E5E5ED;background:#FAFAF8"
+                                                    :style="getDeviation(metric,p) > 0 ? 'color:#2D9B63' : getDeviation(metric,p) < 0 ? 'color:#FF3B30' : 'color:#C7C7CC'"
+                                                    x-text="getDeviation(metric,p) !== null ? (getDeviation(metric,p) > 0 ? '+' : '') + getDeviation(metric,p) + '%' : '—'"></td>
+                                            </template>
+                                        </tr>
+                                    </tbody>
+                                </template>
+                                <tbody>
+                                    <tr>
+                                        <td :colspan="periods.length + 1" style="padding:10px 14px">
+                                            <div style="display:flex;gap:8px;align-items:center">
+                                                <input type="text" x-model="newMetricName" placeholder="Название новой метрики..."
+                                                    @keydown.enter="addMetric()"
+                                                    style="padding:6px 10px;border:1.5px dashed #C7C7CC;border-radius:8px;font-size:12px;width:220px;color:#333;background:white;outline:none">
+                                                <button @click="addMetric()" :disabled="!newMetricName.trim()"
+                                                    style="padding:6px 16px;background:var(--accent-purple);color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer"
+                                                    :style="newMetricName.trim() ? 'opacity:1' : 'opacity:0.45;cursor:default'">
+                                                    + Метрика
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+                            <button @click="saveFact()" :disabled="factSaving"
+                                style="background:var(--accent-purple);color:white;border:none;border-radius:12px;padding:8px 24px;font-size:13px;font-weight:600;cursor:pointer">
+                                <i class="fas" :class="factSaving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+                                <span x-text="factSaving ? 'Сохраняем...' : 'Сохранить'"></span>
+                            </button>
+                        </div>
+                        <div x-show="hasData" style="background:white;border-radius:14px;padding:16px 20px;border:1.5px solid #E5E5ED">
+                            <canvas x-ref="factChart" style="max-height:300px"></canvas>
+                        </div>
+                        </div>
+                    </div>
+
+                </div><!-- /activeTab fact -->
+
             </div>
         </template>
     </main>
 </div>
 
 <script src="/js/auth.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -369,6 +574,272 @@
         };
     }
 
+    function _opProjectId() {
+        return new URLSearchParams(location.search).get('id');
+    }
+    function opFmtMoney(v) {
+        if (v == null || isNaN(v)) return '—';
+        const s = v < 0 ? '-' : '', a = Math.abs(v);
+        if (a >= 1e9) return s + (a/1e9).toFixed(2) + ' млрд ₽';
+        if (a >= 1e6) return s + (a/1e6).toFixed(2) + ' млн ₽';
+        if (a >= 1e3) return s + Math.round(a/1e3) + ' тыс ₽';
+        return s + Math.round(a) + ' ₽';
+    }
+    function opFmtDateShort(iso) {
+        if (!iso) return '—';
+        return new Date(iso).toLocaleDateString('ru-RU', {day:'numeric', month:'short', year:'numeric'});
+    }
+
+    function opCommentsApp() {
+        return {
+            comments: [],
+            commentText: '',
+            submittingComment: false,
+            async loadComments() {
+                const id = _opProjectId();
+                if (!id) return;
+                try {
+                    const res = await authFetch('/api/v1/projects/' + id + '/comments');
+                    if (res.ok) this.comments = await res.json();
+                } catch(e) {}
+            },
+            async submitComment() {
+                if (!this.commentText.trim()) return;
+                this.submittingComment = true;
+                try {
+                    const res = await authFetch('/api/v1/projects/' + _opProjectId() + '/comments', {
+                        method: 'POST',
+                        body: JSON.stringify({text: this.commentText.trim()}),
+                    });
+                    if (res.ok) {
+                        const c = await res.json();
+                        this.comments.unshift(c);
+                        this.commentText = '';
+                    }
+                } catch(e) {} finally { this.submittingComment = false; }
+            },
+        };
+    }
+
+    function opTranchesApp() {
+        return {
+            tranches: [],
+            showAddTranche: false,
+            newTranche: {amount: 0, planned_date: '', description: ''},
+            async loadTranches() {
+                const id = _opProjectId();
+                if (!id) return;
+                try {
+                    const res = await authFetch('/api/v1/projects/' + id + '/tranches');
+                    if (res.ok) this.tranches = await res.json();
+                } catch(e) {}
+            },
+            get approvedTotal() {
+                return this.tranches.filter(t => t.status === 'approved').reduce((s,t) => s+t.amount, 0);
+            },
+            get requestedTotal() {
+                return this.tranches.filter(t => t.status === 'requested').reduce((s,t) => s+t.amount, 0);
+            },
+            async addTranche() {
+                if (!this.newTranche.amount) return;
+                const payload = {...this.newTranche, order_index: this.tranches.length};
+                try {
+                    const res = await authFetch('/api/v1/projects/' + _opProjectId() + '/tranches', {
+                        method: 'POST', body: JSON.stringify(payload),
+                    });
+                    if (res.ok) {
+                        this.tranches.push(await res.json());
+                        this.newTranche = {amount: 0, planned_date: '', description: ''};
+                        this.showAddTranche = false;
+                    }
+                } catch(e) { alert('Ошибка: ' + e.message); }
+            },
+            async approveTranche(t) {
+                try {
+                    const res = await authFetch('/api/v1/tranches/' + t.id + '/status', {
+                        method: 'PATCH', body: JSON.stringify({status: 'approved'}),
+                    });
+                    if (res.ok) {
+                        const updated = await res.json();
+                        const idx = this.tranches.findIndex(x => x.id === t.id);
+                        if (idx >= 0) this.tranches[idx] = updated;
+                    } else {
+                        const e = await res.json().catch(()=>({}));
+                        alert(e.detail || 'Ошибка');
+                    }
+                } catch(e) { alert('Ошибка: ' + e.message); }
+            },
+            opIsCfoOrManager() {
+                const r = getUserRole();
+                return r === 'cfo' || r === 'manager';
+            },
+            opFmtMoney,
+        };
+    }
+
+    function opFactApp() {
+        return {
+            metricNames: [],
+            periods: [],
+            _gridPlan: {},
+            _gridFact: {},
+            newMetricName: '',
+            factDirty: false,
+            factSaving: false,
+            _chart: null,
+
+            periodKey(p) { return p.year + '/' + String(p.month).padStart(2,'0'); },
+            _cellKey(metric, p) { return metric + '||' + this.periodKey(p); },
+            formatPeriodLabel(p) {
+                const M = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+                return M[p.month-1] + ' ' + p.year;
+            },
+            initPeriods(startYear, startMonth, count) {
+                this.periods = [];
+                let y = startYear, m = startMonth;
+                for (let i = 0; i < count; i++) {
+                    this.periods.push({year:y, month:m});
+                    if (++m > 12) { m=1; y++; }
+                }
+            },
+            extendPeriods() {
+                const last = this.periods[this.periods.length-1] || {year:new Date().getFullYear(), month:12};
+                let y = last.year, m = last.month+1;
+                if (m > 12) { m=1; y++; }
+                for (let i=0; i<12; i++) {
+                    this.periods.push({year:y, month:m});
+                    if (++m > 12) { m=1; y++; }
+                }
+            },
+            getPlan(metric,p) { return this._gridPlan[this._cellKey(metric,p)] ?? null; },
+            getFact(metric,p) { return this._gridFact[this._cellKey(metric,p)] ?? null; },
+            setPlan(metric,p,val) {
+                const k = this._cellKey(metric,p);
+                const v = val===''||val===null ? null : parseFloat(val);
+                this._gridPlan = {...this._gridPlan, [k]: isNaN(v)?null:v};
+                this.factDirty = true;
+                this.$nextTick(() => this._renderChart());
+            },
+            setFact(metric,p,val) {
+                const k = this._cellKey(metric,p);
+                const v = val===''||val===null ? null : parseFloat(val);
+                this._gridFact = {...this._gridFact, [k]: isNaN(v)?null:v};
+                this.factDirty = true;
+                this.$nextTick(() => this._renderChart());
+            },
+            getDeviation(metric,p) {
+                const plan = this.getPlan(metric,p), fact = this.getFact(metric,p);
+                if (plan==null||fact==null||plan===0) return null;
+                return Math.round((fact-plan)/plan*1000)/10;
+            },
+            addMetric() {
+                const name = this.newMetricName.trim();
+                if (!name || this.metricNames.includes(name)) return;
+                this.metricNames = [...this.metricNames, name];
+                this.newMetricName = '';
+                this.factDirty = true;
+            },
+            get hasData() {
+                return Object.values(this._gridPlan).some(v=>v!==null) ||
+                       Object.values(this._gridFact).some(v=>v!==null);
+            },
+            async loadFact() {
+                const id = _opProjectId();
+                if (!id) return;
+                const now = new Date();
+                this.initPeriods(now.getFullYear(), 1, 12);
+                try {
+                    const res = await authFetch('/api/v1/projects/' + id + '/fact');
+                    if (res.ok) {
+                        const entries = await res.json();
+                        if (entries.length) {
+                            const years = entries.map(e=>e.year);
+                            const minYear = Math.min(...years), maxYear = Math.max(...years);
+                            const maxMonth = Math.max(...entries.filter(e=>e.year===maxYear).map(e=>e.month));
+                            let total = (maxYear-minYear)*12+maxMonth;
+                            total = Math.max(12, Math.ceil(total/12)*12);
+                            this.initPeriods(minYear, 1, total);
+                            const seen = [];
+                            for (const e of entries) if (!seen.includes(e.metric_name)) seen.push(e.metric_name);
+                            this.metricNames = seen;
+                            const newPlan={}, newFact={};
+                            for (const e of entries) {
+                                const k = this._cellKey(e.metric_name, {year:e.year, month:e.month});
+                                if (e.plan_value!=null) newPlan[k]=e.plan_value;
+                                if (e.fact_value!=null) newFact[k]=e.fact_value;
+                            }
+                            this._gridPlan=newPlan; this._gridFact=newFact;
+                            this.$nextTick(() => this._renderChart());
+                        } else {
+                            try {
+                                const projRes = await authFetch('/api/v1/projects/' + id);
+                                if (projRes.ok) {
+                                    const proj = await projRes.json();
+                                    const fm = proj.financial_model || {};
+                                    const categories = (fm.op_budget_rows || []).map(r=>r.category).filter(Boolean);
+                                    if (categories.length) {
+                                        this.metricNames = categories;
+                                        const startYear = proj.start_date ? parseInt(proj.start_date.slice(0,4)) : now.getFullYear();
+                                        const numYears = fm.op_budget_numYears || 1;
+                                        this.initPeriods(startYear, 1, numYears*12);
+                                        const newPlan = {};
+                                        (fm.op_budget_rows||[]).forEach(row => {
+                                            if (!row.category) return;
+                                            (row.monthlyValues||[]).forEach((yearVals,yi) => {
+                                                (yearVals||[]).forEach((val,mi) => {
+                                                    if (val) newPlan[this._cellKey(row.category, {year:startYear+yi, month:mi+1})] = val;
+                                                });
+                                            });
+                                        });
+                                        this._gridPlan = newPlan;
+                                    }
+                                }
+                            } catch(e) {}
+                        }
+                    }
+                } catch(e) {}
+            },
+            async saveFact() {
+                this.factSaving = true;
+                const payload = [];
+                for (const metric of this.metricNames) {
+                    for (const p of this.periods) {
+                        const plan = this.getPlan(metric,p), fact = this.getFact(metric,p);
+                        if (plan!==null||fact!==null) payload.push({year:p.year,month:p.month,metric_name:metric,plan_value:plan,fact_value:fact});
+                    }
+                }
+                if (!payload.length) { this.factSaving=false; return; }
+                try {
+                    const res = await authFetch('/api/v1/projects/' + _opProjectId() + '/fact', {
+                        method:'PUT', body:JSON.stringify(payload),
+                    });
+                    if (res.ok) this.factDirty=false;
+                    else { const err=await res.json().catch(()=>({})); alert(err.detail||'Ошибка сохранения'); }
+                } catch(e) { alert('Ошибка: '+e.message); }
+                finally { this.factSaving=false; }
+            },
+            _renderChart() {
+                if (!this.$refs.factChart || typeof Chart==='undefined') return;
+                if (this._chart) { this._chart.destroy(); this._chart=null; }
+                if (!this.metricNames.length||!this.hasData) return;
+                const M=['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+                const labels = this.periods.map(p=>M[p.month-1]+'\''+String(p.year).slice(2));
+                const PALETTE=[
+                    {plan:'#5E5CE6',fact:'#34C759'},
+                    {plan:'#0A84FF',fact:'#FF9500'},
+                    {plan:'#FF2D55',fact:'#5AC8FA'},
+                ];
+                const datasets=[];
+                this.metricNames.forEach((metric,i) => {
+                    const c=PALETTE[i%PALETTE.length];
+                    datasets.push({label:metric+' (план)',data:this.periods.map(p=>this.getPlan(metric,p)),borderColor:c.plan,backgroundColor:'rgba(94,92,230,0.07)',borderDash:[7,4],borderWidth:2,fill:true,tension:0.35,pointRadius:4,spanGaps:true});
+                    datasets.push({label:metric+' (факт)',data:this.periods.map(p=>this.getFact(metric,p)),borderColor:c.fact,backgroundColor:'rgba(52,199,89,0.09)',borderWidth:2.5,fill:true,tension:0.35,pointRadius:5,spanGaps:true});
+                });
+                this._chart = new Chart(this.$refs.factChart, {type:'line',data:{labels,datasets},options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'bottom'}},scales:{x:{grid:{color:'#F5F5F8'}},y:{beginAtZero:false,grid:{color:'#F5F5F8'}}}}});
+            },
+        };
+    }
+
     function opProjectApp() {
         return {
             ...authMixin(),
@@ -376,6 +847,7 @@
             loading: true,
             statusMsg: '',
             statusMsgType: 'ok',
+            activeTab: 'main',
             statusLabelMap: {
                 draft: 'Черновик',
                 pending_approval: 'На согласовании',
