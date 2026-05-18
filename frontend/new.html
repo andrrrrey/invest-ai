@@ -454,7 +454,6 @@
                     <div class="field">
                         <label>Краткое описание (1–3 абзаца)</label>
                         <div x-data="richEditor(form, 'description', 'Опишите идею и бизнес-эффект.')"
-                             x-init="init()"
                              class="rich-editor-field rich-editor-field-tall"></div>
                     </div>
                     <div>
@@ -559,7 +558,6 @@
                         <div class="field">
                             <label>Запрашиваемый ресурс <span style="color:var(--danger)">*</span></label>
                             <div x-data="richEditor(form, 'op_requested_resource', 'Опишите, что именно вы запрашиваете: ФОТ, подписка на ПО, подрядчик, бюджет на рекламу, и т.д.')"
-                                 x-init="init()"
                                  class="rich-editor-field"></div>
                         </div>
                         <div class="field">
@@ -567,7 +565,6 @@
                                 <span class="hint" style="font-weight:400"> — «Если не инвестируем сейчас → что потеряем через 12 месяцев»</span>
                             </label>
                             <div x-data="richEditor(form, 'op_investment_thesis', 'Опишите, что произойдёт через 12 месяцев, если эта инвестиция не будет сделана.')"
-                                 x-init="init()"
                                  class="rich-editor-field"></div>
                         </div>
 
@@ -753,13 +750,11 @@
                             <div class="field">
                                 <label>Baseline (отправная точка) <span style="color:var(--danger)">*</span></label>
                                 <div x-data="richEditor(form, 'op_baseline', 'Текущее значение метрики или текущее состояние. Пример: «NRR = 92%, отток 4 клиентов в месяц»')"
-                                     x-init="init()"
                                      class="rich-editor-field"></div>
                             </div>
                             <div class="field">
                                 <label>Target / план <span style="color:var(--danger)">*</span></label>
                                 <div x-data="richEditor(form, 'op_target', 'Целевое значение и источник данных. Пример: «NRR = 105% через 6 месяцев, источник — CRM»')"
-                                     x-init="init()"
                                      class="rich-editor-field"></div>
                             </div>
                         </div>
@@ -771,19 +766,16 @@
                         <div class="field">
                             <label>Экономика: эффект, диапазон отслеживания, payback</label>
                             <div x-data="richEditor(form, 'op_economics', 'Укажите ожидаемый денежный или операционный эффект, горизонт отслеживания (3/6/12 мес.) и ожидаемый срок окупаемости.')"
-                                 x-init="init()"
                                  class="rich-editor-field"></div>
                         </div>
                         <div class="field">
                             <label>Stop-loss критерии <span style="color:var(--danger)">*</span></label>
                             <div x-data="richEditor(form, 'op_stop_loss', 'При каких показателях прекратим финансирование? Пример: «если через 3 месяца NRR не вырос на 2 п.п. — останавливаем»')"
-                                 x-init="init()"
                                  class="rich-editor-field"></div>
                         </div>
                         <div class="field">
                             <label>Stage-gates и критерии успеха</label>
                             <div x-data="richEditor(form, 'op_stage_gates', 'Опишите контрольные точки. Пример: «Gate 1 (30 дней): онбординг завершён; Gate 2 (90 дней): первые измеримые результаты»')"
-                                 x-init="init()"
                                  class="rich-editor-field"></div>
                         </div>
                     </div>

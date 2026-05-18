@@ -1887,16 +1887,40 @@
                                         }
                                         annualCostsByCat[row.category] = vals;
                                     });
-                                    // Populate _gridPlan: distribute annual cost evenly across 12 months
+                                    // Populate _gridPlan with monthly values
                                     const newPlan = {};
+                                    const pad2 = n => String(n).padStart(2, '0');
                                     (fm.costs || []).forEach(row => {
                                         if (!row.category) return;
-                                        const annVals = annualCostsByCat[row.category] || [];
                                         for (let yi = 0; yi < numYears; yi++) {
-                                            const monthlyVal = (annVals[yi] || 0) / 12;
-                                            if (!monthlyVal) continue;
-                                            for (let mi = 0; mi < 12; mi++) {
-                                                newPlan[this._cellKey(row.category, {year: startYear + yi, month: mi + 1})] = monthlyVal;
+                                            const yr = startYear + yi;
+                                            // For manual mode: use monthlyValues directly if available,
+                                            // otherwise distribute annual value evenly
+                                            if (row.mode === 'manual') {
+                                                const mv = (row.monthlyValues || [])[yi];
+                                                if (mv && mv.length === 12) {
+                                                    for (let mi = 0; mi < 12; mi++) {
+                                                        const v = mv[mi] || 0;
+                                                        if (v) newPlan[row.category + '||' + yr + '/' + pad2(mi + 1)] = v;
+                                                    }
+                                                } else {
+                                                    const annual = (row.values || [])[yi] || 0;
+                                                    if (annual) {
+                                                        const perMonth = annual / 12;
+                                                        for (let mi = 0; mi < 12; mi++) {
+                                                            newPlan[row.category + '||' + yr + '/' + pad2(mi + 1)] = perMonth;
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                const annVals = annualCostsByCat[row.category] || [];
+                                                const annual = annVals[yi] || 0;
+                                                if (annual) {
+                                                    const perMonth = annual / 12;
+                                                    for (let mi = 0; mi < 12; mi++) {
+                                                        newPlan[row.category + '||' + yr + '/' + pad2(mi + 1)] = perMonth;
+                                                    }
+                                                }
                                             }
                                         }
                                     });
@@ -1959,7 +1983,7 @@
                             }
                         }
                         this.$nextTick(() => this._renderChart());
-                    } catch(e) {}
+                    } catch(e) { console.error('loadFact error:', e); }
                     finally { this.factLoading = false; }
                 },
 
