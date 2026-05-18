@@ -90,8 +90,8 @@ def set_routerai_key(key: str) -> None:
 
 
 def get_routerai_model() -> str:
-    """Return selected RouterAI model (default: anthropic/claude-sonnet-4-6)."""
-    return _load().get("routerai_model") or "anthropic/claude-sonnet-4-6"
+    """Return selected RouterAI model (default: anthropic/claude-sonnet-4.5)."""
+    return _load().get("routerai_model") or "anthropic/claude-sonnet-4.5"
 
 
 def set_routerai_model(model: str) -> None:

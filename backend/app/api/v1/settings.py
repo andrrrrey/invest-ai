@@ -12,9 +12,9 @@ ANTHROPIC_MODEL = "claude-sonnet-4-6"
 ROUTERAI_BASE_URL = "https://routerai.ru/api/v1"
 
 ROUTERAI_MODELS = {
-    "anthropic/claude-sonnet-4-6": "Claude Sonnet 4.6",
-    "anthropic/claude-opus-4-7": "Claude Opus 4.7",
-    "anthropic/claude-haiku-4-5": "Claude Haiku 4.5",
+    "anthropic/claude-sonnet-4.5": "Claude Sonnet 4.5",
+    "anthropic/claude-haiku-4.5": "Claude Haiku 4.5",
+    "anthropic/claude-opus-4.5": "Claude Opus 4.5",
 }
 
 
@@ -75,8 +75,6 @@ def update_settings(body: SettingsUpdate, _=Depends(require_cfo)) -> dict:
     if body.routerai_api_key is not None:
         settings_store.set_routerai_key(body.routerai_api_key)
     if body.routerai_model is not None:
-        if body.routerai_model not in ROUTERAI_MODELS:
-            raise HTTPException(status_code=400, detail=f"Неверная модель RouterAI. Допустимо: {', '.join(ROUTERAI_MODELS)}")
         settings_store.set_routerai_model(body.routerai_model)
     if body.ai_provider is not None:
         if body.ai_provider not in ("openai", "anthropic", "routerai"):
