@@ -36,6 +36,14 @@
         .status-pill { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:99px; font-size:12px; font-weight:700; }
         .tab-btn { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:99px; font-size:12px; font-weight:700; border:1.5px solid; cursor:pointer; transition:all .2s; font-family:inherit; background:none; }
         @media (max-width:992px) { body{padding:0;} .app-window{height:100vh;border-radius:0;} .mobile-menu-btn{display:block;} .sidebar{position:absolute;left:-260px;top:0;height:100%;z-index:1001;} .sidebar.active{left:0;} .main-content{padding:80px 20px 30px;} }
+        .rich-content ul, .rich-content ol { padding-left: 20px; margin: 4px 0; }
+        .rich-content li { margin: 2px 0; }
+        .rich-content h1 { font-size: 16px; font-weight: 700; margin: 6px 0 3px; }
+        .rich-content h2 { font-size: 15px; font-weight: 700; margin: 5px 0 3px; }
+        .rich-content h3 { font-size: 14px; font-weight: 700; margin: 4px 0 2px; }
+        .rich-content p { margin: 0 0 4px; }
+        .rich-content strong { font-weight: 700; }
+        .rich-content em { font-style: italic; }
     </style>
 </head>
 <body>
@@ -160,11 +168,11 @@
                             <div class="block-title">Описание запроса</div>
                             <div style="margin-bottom:14px" x-show="fm.op_requested_resource">
                                 <p style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px">ЗАПРАШИВАЕМЫЙ РЕСУРС</p>
-                                <p style="font-size:13px;line-height:1.6" x-text="fm.op_requested_resource || '—'"></p>
+                                <div style="font-size:13px;line-height:1.6" class="rich-content" x-html="renderRichText(fm.op_requested_resource)"></div>
                             </div>
                             <div x-show="fm.op_investment_thesis">
                                 <p style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px">ИНВЕСТИЦИОННЫЙ ТЕЗИС</p>
-                                <p style="font-size:13px;line-height:1.6" x-text="fm.op_investment_thesis || '—'"></p>
+                                <div style="font-size:13px;line-height:1.6" class="rich-content" x-html="renderRichText(fm.op_investment_thesis)"></div>
                             </div>
                         </div>
 
@@ -178,16 +186,16 @@
                                 </template>
                             </div>
                             <div class="info-row"><span class="lbl">Ключевая метрика</span><span class="val" x-text="fm.op_metrics && fm.op_metrics !== '__custom__' ? fm.op_metrics : (fm.op_metrics_custom || '—')"></span></div>
-                            <div class="info-row"><span class="lbl">Базовое значение</span><span class="val" x-text="fm.op_baseline || '—'"></span></div>
-                            <div class="info-row"><span class="lbl">Целевое значение</span><span class="val" x-text="fm.op_target || '—'"></span></div>
+                            <div class="info-row"><span class="lbl">Базовое значение</span><div class="val rich-content" x-html="renderRichText(fm.op_baseline) || '—'"></div></div>
+                            <div class="info-row"><span class="lbl">Целевое значение</span><div class="val rich-content" x-html="renderRichText(fm.op_target) || '—'"></div></div>
                         </div>
 
                         <!-- Экономика и контроль -->
                         <div class="card-block">
                             <div class="block-title">Экономика и контроль</div>
-                            <div class="info-row"><span class="lbl">Экономика / Payback</span><span class="val" x-text="fm.op_economics || '—'"></span></div>
-                            <div class="info-row"><span class="lbl">Stop-loss критерии</span><span class="val" x-text="fm.op_stop_loss || '—'"></span></div>
-                            <div class="info-row"><span class="lbl">Stage-gates</span><span class="val" x-text="fm.op_stage_gates || '—'"></span></div>
+                            <div class="info-row"><span class="lbl">Экономика / Payback</span><div class="val rich-content" x-html="renderRichText(fm.op_economics) || '—'"></div></div>
+                            <div class="info-row"><span class="lbl">Stop-loss критерии</span><div class="val rich-content" x-html="renderRichText(fm.op_stop_loss) || '—'"></div></div>
+                            <div class="info-row"><span class="lbl">Stage-gates</span><div class="val rich-content" x-html="renderRichText(fm.op_stage_gates) || '—'"></div></div>
                         </div>
 
                         <!-- Бюджет по статьям -->
@@ -970,6 +978,11 @@
             routeLabel(route) {
                 const map = { fast_track: 'Fast Track ✅', efficiency_play: 'Efficiency Play 🟡', backlog_stop: 'Backlog / Stop 🔴', manual_review: 'Ручной разбор 🔍' };
                 return map[route] || route || '—';
+            },
+            renderRichText(content) {
+                if (!content) return '';
+                if (/<[a-z][\s\S]*>/i.test(content)) return content;
+                return content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
             },
             fmtDate(iso) {
                 if (!iso) return '—';
