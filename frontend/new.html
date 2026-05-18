@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Создание проекта | Инвестиционный процессор</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
     <script src="/js/auth.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
     <script src="/js/finance.js"></script>
@@ -294,6 +296,39 @@
             .footer-right .btn { flex: 1; justify-content: center; }
         }
     </style>
+    <style>
+        /* Rich text editor (Quill) */
+        .rich-editor-field .ql-toolbar.ql-snow {
+            border: 1px solid #E5E5EA;
+            border-bottom: none;
+            border-radius: 10px 10px 0 0;
+            background: #FAFAFA;
+            padding: 6px 8px;
+        }
+        .rich-editor-field .ql-container.ql-snow {
+            border: 1px solid #E5E5EA;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 14px;
+        }
+        .rich-editor-field .ql-editor {
+            min-height: 80px;
+            color: #1C1C1E;
+            line-height: 1.6;
+        }
+        .rich-editor-field .ql-editor.ql-blank::before {
+            color: #AEAEB2;
+            font-style: normal;
+        }
+        .rich-editor-field .ql-snow .ql-stroke { stroke: #555; }
+        .rich-editor-field .ql-snow .ql-fill { fill: #555; }
+        .rich-editor-field .ql-snow.ql-toolbar button:hover,
+        .rich-editor-field .ql-snow.ql-toolbar .ql-picker-label:hover { color: #5E5CE6; }
+        .rich-editor-field .ql-snow.ql-toolbar button:hover .ql-stroke,
+        .rich-editor-field .ql-snow.ql-toolbar .ql-picker-label:hover .ql-stroke { stroke: #5E5CE6; }
+        .rich-editor-field-tall .ql-editor { min-height: 100px; }
+    </style>
 </head>
 <body>
 
@@ -418,7 +453,9 @@
                     </div>
                     <div class="field">
                         <label>Краткое описание (1–3 абзаца)</label>
-                        <textarea x-model="form.description" placeholder="Опишите идею и бизнес-эффект."></textarea>
+                        <div x-data="richEditor(form, 'description', 'Опишите идею и бизнес-эффект.')"
+                             x-init="init()"
+                             class="rich-editor-field rich-editor-field-tall"></div>
                     </div>
                     <div>
                         <button class="btn btn-primary" @click="aiDescription()" :disabled="aiLoad.desc">
@@ -521,17 +558,17 @@
                         <h3>Описание запроса</h3>
                         <div class="field">
                             <label>Запрашиваемый ресурс <span style="color:var(--danger)">*</span></label>
-                            <textarea x-model="form.op_requested_resource"
-                                placeholder="Опишите, что именно вы запрашиваете: ФОТ, подписка на ПО, подрядчик, бюджет на рекламу, и т.д."
-                                style="min-height:80px"></textarea>
+                            <div x-data="richEditor(form, 'op_requested_resource', 'Опишите, что именно вы запрашиваете: ФОТ, подписка на ПО, подрядчик, бюджет на рекламу, и т.д.')"
+                                 x-init="init()"
+                                 class="rich-editor-field"></div>
                         </div>
                         <div class="field">
                             <label>Инвестиционный тезис <span style="color:var(--danger)">*</span>
                                 <span class="hint" style="font-weight:400"> — «Если не инвестируем сейчас → что потеряем через 12 месяцев»</span>
                             </label>
-                            <textarea x-model="form.op_investment_thesis"
-                                placeholder="Опишите, что произойдёт через 12 месяцев, если эта инвестиция не будет сделана."
-                                style="min-height:90px"></textarea>
+                            <div x-data="richEditor(form, 'op_investment_thesis', 'Опишите, что произойдёт через 12 месяцев, если эта инвестиция не будет сделана.')"
+                                 x-init="init()"
+                                 class="rich-editor-field"></div>
                         </div>
 
                         <!-- Бюджет по статьям -->
@@ -715,15 +752,15 @@
                         <div class="grid-2">
                             <div class="field">
                                 <label>Baseline (отправная точка) <span style="color:var(--danger)">*</span></label>
-                                <textarea x-model="form.op_baseline"
-                                    placeholder="Текущее значение метрики или текущее состояние. Пример: «NRR = 92%, отток 4 клиентов в месяц»"
-                                    style="min-height:70px"></textarea>
+                                <div x-data="richEditor(form, 'op_baseline', 'Текущее значение метрики или текущее состояние. Пример: «NRR = 92%, отток 4 клиентов в месяц»')"
+                                     x-init="init()"
+                                     class="rich-editor-field"></div>
                             </div>
                             <div class="field">
                                 <label>Target / план <span style="color:var(--danger)">*</span></label>
-                                <textarea x-model="form.op_target"
-                                    placeholder="Целевое значение и источник данных. Пример: «NRR = 105% через 6 месяцев, источник — CRM»"
-                                    style="min-height:70px"></textarea>
+                                <div x-data="richEditor(form, 'op_target', 'Целевое значение и источник данных. Пример: «NRR = 105% через 6 месяцев, источник — CRM»')"
+                                     x-init="init()"
+                                     class="rich-editor-field"></div>
                             </div>
                         </div>
                     </div>
@@ -733,21 +770,21 @@
                         <h3>Экономика и контроль рисков</h3>
                         <div class="field">
                             <label>Экономика: эффект, диапазон отслеживания, payback</label>
-                            <textarea x-model="form.op_economics"
-                                placeholder="Подсказка: укажите ожидаемый денежный или операционный эффект, горизонт отслеживания (3/6/12 мес.) и ожидаемый срок окупаемости. Пример: «экономия ФОТ ~2M₽/год, payback 6 мес., отслеживаем ежеквартально»"
-                                style="min-height:80px"></textarea>
+                            <div x-data="richEditor(form, 'op_economics', 'Укажите ожидаемый денежный или операционный эффект, горизонт отслеживания (3/6/12 мес.) и ожидаемый срок окупаемости.')"
+                                 x-init="init()"
+                                 class="rich-editor-field"></div>
                         </div>
                         <div class="field">
                             <label>Stop-loss критерии <span style="color:var(--danger)">*</span></label>
-                            <textarea x-model="form.op_stop_loss"
-                                placeholder='Подсказка: "При каких показателях мы признаем, что «ставка не сыграла», и немедленно прекратим финансирование?"&#10;Пример: «если через 3 месяца NRR не вырос на 2 п.п. — останавливаем»'
-                                style="min-height:80px"></textarea>
+                            <div x-data="richEditor(form, 'op_stop_loss', 'При каких показателях прекратим финансирование? Пример: «если через 3 месяца NRR не вырос на 2 п.п. — останавливаем»')"
+                                 x-init="init()"
+                                 class="rich-editor-field"></div>
                         </div>
                         <div class="field">
                             <label>Stage-gates и критерии успеха</label>
-                            <textarea x-model="form.op_stage_gates"
-                                placeholder="Подсказка: опишите контрольные точки. Пример: «Gate 1 (30 дней): онбординг завершён; Gate 2 (90 дней): первые измеримые результаты по метрике; Gate 3 (180 дней): ROI подтверждён»"
-                                style="min-height:80px"></textarea>
+                            <div x-data="richEditor(form, 'op_stage_gates', 'Опишите контрольные точки. Пример: «Gate 1 (30 дней): онбординг завершён; Gate 2 (90 дней): первые измеримые результаты»')"
+                                 x-init="init()"
+                                 class="rich-editor-field"></div>
                         </div>
                     </div>
                 </div>
@@ -2275,6 +2312,51 @@
 </div>
 
 <script>
+// ─────────────────────────────────────────────────────────────────────────────
+//  Rich text editor component (Quill-based)
+// ─────────────────────────────────────────────────────────────────────────────
+function richEditor(formObj, field, placeholder) {
+    return {
+        _quill: null,
+        _syncing: false,
+        init() {
+            const toolbar = [
+                ['bold', 'italic', 'underline'],
+                [{ list: 'ordered' }, { list: 'bullet' }],
+                [{ header: [1, 2, 3, false] }],
+                ['clean']
+            ];
+            const q = new Quill(this.$el, {
+                theme: 'snow',
+                placeholder: placeholder || '',
+                modules: { toolbar }
+            });
+            this._quill = q;
+
+            const initVal = formObj[field] || '';
+            if (initVal) q.root.innerHTML = initVal;
+
+            // Quill → form
+            q.on('text-change', () => {
+                if (this._syncing) return;
+                const html = q.root.innerHTML;
+                formObj[field] = html === '<p><br></p>' ? '' : html;
+            });
+
+            // form → Quill (e.g. AI-generated content)
+            Alpine.effect(() => {
+                const val = formObj[field] || '';
+                const cur = q.root.innerHTML === '<p><br></p>' ? '' : q.root.innerHTML;
+                if (val !== cur) {
+                    this._syncing = true;
+                    q.root.innerHTML = val;
+                    this._syncing = false;
+                }
+            });
+        }
+    };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  Alpine.js wizard component
 // ─────────────────────────────────────────────────────────────────────────────
