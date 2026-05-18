@@ -75,13 +75,38 @@ def set_anthropic_key(key: str) -> None:
     _save(data)
 
 
+def get_routerai_key() -> str | None:
+    """Return the effective RouterAI API key (env var takes priority)."""
+    env_key = os.getenv("ROUTERAI_API_KEY")
+    if env_key:
+        return env_key
+    return _load().get("routerai_api_key") or None
+
+
+def set_routerai_key(key: str) -> None:
+    data = _load()
+    data["routerai_api_key"] = key.strip()
+    _save(data)
+
+
+def get_routerai_model() -> str:
+    """Return selected RouterAI model (default: anthropic/claude-sonnet-4-6)."""
+    return _load().get("routerai_model") or "anthropic/claude-sonnet-4-6"
+
+
+def set_routerai_model(model: str) -> None:
+    data = _load()
+    data["routerai_model"] = model.strip()
+    _save(data)
+
+
 def get_ai_provider() -> str:
-    """Return active AI provider: 'openai' (default) or 'anthropic'."""
+    """Return active AI provider: 'openai' (default), 'anthropic', or 'routerai'."""
     return _load().get("ai_provider") or "openai"
 
 
 def set_ai_provider(provider: str) -> None:
-    if provider not in ("openai", "anthropic"):
+    if provider not in ("openai", "anthropic", "routerai"):
         raise ValueError(f"Unknown AI provider: {provider}")
     data = _load()
     data["ai_provider"] = provider
