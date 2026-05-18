@@ -255,7 +255,7 @@
                     <div class="ai-status" @click="isCfo && (window.location.href='/settings')"
                          :style="isCfo ? 'cursor:pointer' : ''">
                         <span class="dot" :style="aiActive ? '' : 'background:#FF9500;box-shadow:0 0 10px #FF9500'"></span>
-                        <span x-text="aiActive ? (stats.ai_provider === 'anthropic' ? 'Claude Sonnet 4.6 активен' : 'GPT-5.4 активен') : 'AI не настроен'"></span>
+                        <span x-text="aiActive ? (stats.ai_model || 'AI') + ' активен' : 'AI не настроен'"></span>
                     </div>
                     <div x-data="bellApp()" x-init="initBell()">
                         <button @click="toggleBell()" style="position:relative;background:white;border:1.5px solid #E5E5E5;border-radius:12px;padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:6px">
