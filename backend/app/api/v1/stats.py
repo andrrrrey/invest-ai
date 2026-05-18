@@ -10,6 +10,22 @@ from ... import settings_store
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
+_ROUTERAI_LABELS = {
+    "anthropic/claude-sonnet-4.5": "Claude Sonnet 4.5",
+    "anthropic/claude-haiku-4.5": "Claude Haiku 4.5",
+    "anthropic/claude-opus-4.5": "Claude Opus 4.5",
+}
+
+
+def _ai_model_label() -> str:
+    provider = settings_store.get_ai_provider()
+    if provider == "anthropic":
+        return "Claude Sonnet 4.6"
+    if provider == "routerai":
+        model = settings_store.get_routerai_model()
+        return _ROUTERAI_LABELS.get(model, model)
+    return "GPT-5.4"
+
 
 @router.get("/")
 def get_stats(
@@ -81,6 +97,11 @@ def get_stats(
         "approved_investment": round(approved_investment, 2),
         "available_for_investment": round(available_for_investment, 2) if available_for_investment is not None else None,
         "total_approved_investments": round(approved_investment, 2),
-        "ai_active": bool(settings_store.get_openai_key() or settings_store.get_anthropic_key()),
+        "ai_active": bool(
+            settings_store.get_openai_key()
+            or settings_store.get_anthropic_key()
+            or settings_store.get_routerai_key()
+        ),
         "ai_provider": settings_store.get_ai_provider(),
+        "ai_model": _ai_model_label(),
     }
