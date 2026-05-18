@@ -1198,7 +1198,7 @@
                                             </td>
                                             <template x-for="p in periods" :key="periodKey(p)">
                                                 <td style="padding:3px 4px;text-align:center;font-size:10px;font-weight:700;border-bottom:2px solid #E5E5ED;background:#FAFAF8"
-                                                    :style="getDeviation(metric,p) > 0 ? 'color:#2D9B63' : getDeviation(metric,p) < 0 ? 'color:#FF3B30' : 'color:#C7C7CC'"
+                                                    :style="getDeviation(metric,p) > 0 ? 'color:#FF3B30' : getDeviation(metric,p) < 0 ? 'color:#2D9B63' : 'color:#C7C7CC'"
                                                     x-text="getDeviation(metric,p) !== null ? (getDeviation(metric,p) > 0 ? '+' : '') + getDeviation(metric,p) + '%' : '—'">
                                                 </td>
                                             </template>
