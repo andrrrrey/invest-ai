@@ -17,6 +17,7 @@ from .. import settings_store
 
 OPENAI_MODEL = "gpt-5.4"
 ANTHROPIC_MODEL = "claude-sonnet-4-6"
+ROUTERAI_BASE_URL = "https://routerai.ru/api/v1"
 
 SYSTEM_PROMPT = (
     "Ты — Ксения, AI-ассистент инвестиционного процессора. "
@@ -56,11 +57,30 @@ def _chat_anthropic(prompt: str, max_tokens: int = 700) -> str:
     return message.content[0].text.strip()
 
 
+def _chat_routerai(prompt: str, max_tokens: int = 700) -> str:
+    key = settings_store.get_routerai_key()
+    if not key:
+        raise ValueError("RouterAI API ключ не настроен. Откройте Настройки и введите ключ.")
+    model = settings_store.get_routerai_model()
+    response = OpenAI(api_key=key, base_url=ROUTERAI_BASE_URL).chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=max_tokens,
+        temperature=0.4,
+    )
+    return response.choices[0].message.content.strip()
+
+
 def _chat(prompt: str, max_tokens: int = 700) -> str:
     """Dispatch to active AI provider."""
     provider = settings_store.get_ai_provider()
     if provider == "anthropic":
         return _chat_anthropic(prompt, max_tokens)
+    if provider == "routerai":
+        return _chat_routerai(prompt, max_tokens)
     return _chat_openai(prompt, max_tokens)
 
 
