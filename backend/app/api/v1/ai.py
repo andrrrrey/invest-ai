@@ -32,6 +32,8 @@ class AnalyzeRequest(BaseModel):
 
 class ExtractAmountRequest(BaseModel):
     text: str
+    budget_rows: list = []
+    budget_num_years: int = 1
 
 
 def _check_api_key():
@@ -89,7 +91,36 @@ def analyze_project(req: AnalyzeRequest, _=Depends(get_current_user)) -> dict:
 def extract_amount(req: ExtractAmountRequest, _=Depends(get_current_user)) -> dict:
     _check_api_key()
     try:
-        amount = ai_service.extract_requested_amount(req.text)
+        budget_summary = _build_budget_summary(req.budget_rows, req.budget_num_years)
+        amount = ai_service.extract_requested_amount(req.text, budget_summary=budget_summary)
         return {"amount": amount}
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Ошибка AI-сервиса: {e}")
+
+
+def _build_budget_summary(budget_rows: list, num_years: int) -> str:
+    """Build a human-readable budget summary from structured op_budget_rows."""
+    if not budget_rows:
+        return ""
+    lines = []
+    grand_total = 0
+    for row in budget_rows:
+        cat = row.get("category") or "—"
+        monthly_values = row.get("monthlyValues") or []
+        row_total = 0
+        for year_vals in monthly_values:
+            if isinstance(year_vals, list):
+                row_total += sum(v for v in year_vals if isinstance(v, (int, float)))
+        if row_total:
+            lines.append(f"  {cat}: {row_total:,.0f} ₽ (за весь период)")
+            grand_total += row_total
+    if not lines:
+        return ""
+    # Also compute monthly average
+    total_months = max(num_years * 12, 1)
+    monthly_avg = grand_total / total_months
+    summary = "Бюджет по статьям (из структурированной таблицы):\n"
+    summary += "\n".join(lines)
+    summary += f"\nИТОГО за период: {grand_total:,.0f} ₽"
+    summary += f"\nСреднемесячно: {monthly_avg:,.0f} ₽/мес"
+    return summary
