@@ -30,6 +30,10 @@ class AnalyzeRequest(BaseModel):
     metrics: dict
 
 
+class ExtractAmountRequest(BaseModel):
+    text: str
+
+
 def _check_api_key():
     provider = settings_store.get_ai_provider()
     key = settings_store.get_anthropic_key() if provider == "anthropic" else settings_store.get_openai_key()
@@ -77,5 +81,15 @@ def analyze_project(req: AnalyzeRequest, _=Depends(get_current_user)) -> dict:
             project=req.project,
             metrics=req.metrics,
         )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Ошибка AI-сервиса: {e}")
+
+
+@router.post("/extract-amount")
+def extract_amount(req: ExtractAmountRequest, _=Depends(get_current_user)) -> dict:
+    _check_api_key()
+    try:
+        amount = ai_service.extract_requested_amount(req.text)
+        return {"amount": amount}
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Ошибка AI-сервиса: {e}")

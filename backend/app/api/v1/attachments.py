@@ -16,14 +16,15 @@ from ...auth import get_current_user, require_approver
 router = APIRouter(tags=["attachments"])
 
 ATTACHMENTS_DIR = os.environ.get("ATTACHMENTS_DIR", "/data/attachments")
-MAX_FILE_SIZE = 25 * 1024 * 1024  # 25 MB
-ALLOWED_EXTENSIONS = {".pdf", ".docx", ".md"}
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+ALLOWED_EXTENSIONS = {".pdf", ".docx", ".doc", ".md"}
 ALLOWED_MIME_TYPES = {
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/msword",  # .doc
     "text/markdown",
     "text/plain",
-    "application/octet-stream",  # some browsers send this for .docx
+    "application/octet-stream",  # some browsers send this for .docx/.doc
 }
 
 
@@ -56,12 +57,12 @@ async def upload_attachment(
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail=f"Недопустимый формат файла. Разрешены: {', '.join(ALLOWED_EXTENSIONS)}",
+            detail="Недопустимый формат файла. Разрешены: PDF, DOC, DOCX, MD",
         )
 
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="Файл превышает допустимый размер 25 МБ")
+        raise HTTPException(status_code=400, detail="Файл превышает допустимый размер 50 МБ")
 
     project_dir = os.path.join(ATTACHMENTS_DIR, str(project_id))
     os.makedirs(project_dir, exist_ok=True)
