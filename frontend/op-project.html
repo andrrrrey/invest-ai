@@ -1075,7 +1075,11 @@
                 try {
                     const res = await authFetch('/api/v1/ai/extract-amount', {
                         method: 'POST',
-                        body: JSON.stringify({text}),
+                        body: JSON.stringify({
+                            text,
+                            budget_rows: fm.op_budget_rows || [],
+                            budget_num_years: fm.op_budget_numYears || 1,
+                        }),
                     });
                     if (res.ok) {
                         const data = await res.json();
