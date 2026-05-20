@@ -176,6 +176,21 @@
                             </div>
                         </div>
 
+                        <!-- Запрашиваемая сумма (AI) -->
+                        <div class="card-block">
+                            <div class="block-title" style="display:flex;align-items:center;gap:8px">
+                                Запрашиваемая сумма
+                                <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:#EEF0FF;color:var(--accent-purple)">AI</span>
+                            </div>
+                            <div x-show="amountLoading" style="display:flex;align-items:center;gap:8px;color:#8E8E93;font-size:13px">
+                                <i class="fas fa-spinner fa-spin"></i> ИИ анализирует...
+                            </div>
+                            <div x-show="!amountLoading && extractedAmount && extractedAmount !== 'не указана'"
+                                 style="font-size:26px;font-weight:800;color:var(--accent-purple)" x-text="extractedAmount"></div>
+                            <div x-show="!amountLoading && (!extractedAmount || extractedAmount === 'не указана')"
+                                 style="font-size:13px;color:#8E8E93">не указана</div>
+                        </div>
+
                         <!-- Драйверы ценности -->
                         <div class="card-block">
                             <div class="block-title">Драйверы ценности и метрики</div>
@@ -224,6 +239,34 @@
                                         </template>
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+                        <!-- Документы заявки -->
+                        <div class="card-block" x-data="opAttachmentsApp()" x-init="loadAttachments()">
+                            <div class="block-title">Документы заявки <i class="fas fa-paperclip" style="color:var(--accent-purple)"></i></div>
+                            <div x-show="attachments.length > 0" style="margin-bottom:12px">
+                                <template x-for="a in attachments" :key="a.id">
+                                    <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#F8F7F3;border-radius:12px;margin-bottom:8px">
+                                        <i class="fas fa-file-alt" style="color:var(--accent-purple);font-size:18px;flex-shrink:0"></i>
+                                        <div style="flex:1;min-width:0">
+                                            <p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" x-text="a.original_name"></p>
+                                            <p style="font-size:11px;color:#8E8E93" x-text="opFmtFileSize(a.file_size) + ' · ' + opFmtDateShort(a.uploaded_at) + ' · ' + a.uploader_name"></p>
+                                        </div>
+                                        <button @click="downloadFile(a)" title="Скачать" style="background:#EEF0FF;border:none;border-radius:10px;padding:7px 12px;cursor:pointer;color:var(--accent-purple);font-size:13px">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                            <div x-show="!attachments.length && !uploading" style="color:#8E8E93;font-size:13px;margin-bottom:10px">Нет загруженных файлов</div>
+                            <div style="display:flex;gap:10px;align-items:center">
+                                <input type="file" x-ref="opFileInput" accept=".pdf,.doc,.docx" style="display:none" @change="uploadFile($event)">
+                                <button @click="$refs.opFileInput.click()" :disabled="uploading"
+                                    style="background:#EEF0FF;border:1.5px solid #C7C9FF;color:var(--accent-purple);border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
+                                    <i class="fas" :class="uploading ? 'fa-spinner fa-spin' : 'fa-upload'"></i>
+                                    <span x-text="uploading ? 'Загружаем...' : 'Прикрепить файл'"></span>
+                                </button>
+                                <span style="font-size:11px;color:#8E8E93">PDF, DOC, DOCX · до 50 МБ</span>
                             </div>
                         </div>
                     </div>
@@ -348,6 +391,10 @@
                                     <p :style="statusMsgType === 'ok' ? 'color:#34C759' : 'color:#FF3B30'"
                                         style="font-size:13px;font-weight:600;text-align:center" x-text="statusMsg"></p>
                                 </template>
+                                <button @click="window.location.href='/new?id=' + project.id + '&readonly=1'"
+                                    style="padding:12px;border-radius:12px;border:1.5px solid #C7C9FF;background:#EEF0FF;color:var(--accent-purple);font-weight:700;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px">
+                                    <i class="fas fa-eye"></i> Посмотреть заявку
+                                </button>
                             </div>
                         </div>
 
@@ -546,7 +593,7 @@
                                             <td style="position:sticky;left:0;z-index:1;background:#FAFAF8;padding:3px 14px;font-size:10px;color:#8E8E93;border-bottom:2px solid #E5E5ED;letter-spacing:0.3px">ОТКЛ. %</td>
                                             <template x-for="p in periods" :key="periodKey(p)">
                                                 <td style="padding:3px 4px;text-align:center;font-size:10px;font-weight:700;border-bottom:2px solid #E5E5ED;background:#FAFAF8"
-                                                    :style="getDeviation(metric,p) > 0 ? 'color:#2D9B63' : getDeviation(metric,p) < 0 ? 'color:#FF3B30' : 'color:#C7C7CC'"
+                                                    :style="getDeviation(metric,p) > 0 ? 'color:#FF3B30' : getDeviation(metric,p) < 0 ? 'color:#2D9B63' : 'color:#C7C7CC'"
                                                     x-text="getDeviation(metric,p) !== null ? (getDeviation(metric,p) > 0 ? '+' : '') + getDeviation(metric,p) + '%' : '—'"></td>
                                             </template>
                                         </tr>
@@ -629,6 +676,62 @@
     function opFmtDateShort(iso) {
         if (!iso) return '—';
         return new Date(iso).toLocaleDateString('ru-RU', {day:'numeric', month:'short', year:'numeric'});
+    }
+
+    function opAttachmentsApp() {
+        return {
+            attachments: [],
+            uploading: false,
+            async loadAttachments() {
+                const id = _opProjectId();
+                if (!id) return;
+                try {
+                    const res = await authFetch('/api/v1/projects/' + id + '/attachments');
+                    if (res.ok) this.attachments = await res.json();
+                } catch(e) {}
+            },
+            async uploadFile(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                this.uploading = true;
+                const fd = new FormData();
+                fd.append('file', file);
+                try {
+                    const res = await fetch('/api/v1/projects/' + _opProjectId() + '/attachments', {
+                        method: 'POST',
+                        headers: {Authorization: 'Bearer ' + localStorage.getItem('invest_token')},
+                        body: fd,
+                    });
+                    if (res.ok) {
+                        const a = await res.json();
+                        this.attachments.unshift(a);
+                    } else {
+                        const err = await res.json().catch(() => ({}));
+                        alert(err.detail || 'Ошибка загрузки файла');
+                    }
+                } catch(e) { alert('Ошибка: ' + e.message); }
+                finally { this.uploading = false; event.target.value = ''; }
+            },
+            async downloadFile(a) {
+                try {
+                    const res = await authFetch('/api/v1/attachments/' + a.id + '/download');
+                    if (!res.ok) { alert('Ошибка скачивания'); return; }
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url; link.download = a.original_name;
+                    document.body.appendChild(link); link.click();
+                    document.body.removeChild(link);
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                } catch(e) { alert('Ошибка: ' + e.message); }
+            },
+        };
+    }
+
+    function opFmtFileSize(bytes) {
+        if (bytes >= 1048576) return (bytes/1048576).toFixed(1) + ' МБ';
+        if (bytes >= 1024) return Math.round(bytes/1024) + ' КБ';
+        return bytes + ' Б';
     }
 
     function opCommentsApp() {
@@ -923,6 +1026,8 @@
             statusMsg: '',
             statusMsgType: 'ok',
             activeTab: 'main',
+            extractedAmount: null,
+            amountLoading: false,
             statusLabelMap: {
                 draft: 'Черновик',
                 pending_approval: 'На согласовании',
@@ -953,12 +1058,31 @@
                             return;
                         }
                         this.project = p;
+                        this.extractAmount();
                     }
                 } catch(e) {
                     if (e.message !== 'Unauthorized') console.error(e);
                 } finally {
                     this.loading = false;
                 }
+            },
+
+            async extractAmount() {
+                const fm = this.project?.financial_model || {};
+                const text = ((fm.op_requested_resource || '') + '\n' + (fm.op_investment_thesis || '')).trim();
+                if (!text) return;
+                this.amountLoading = true;
+                try {
+                    const res = await authFetch('/api/v1/ai/extract-amount', {
+                        method: 'POST',
+                        body: JSON.stringify({text}),
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.extractedAmount = data.amount || null;
+                    }
+                } catch(e) {}
+                finally { this.amountLoading = false; }
             },
 
             get fm() { return this.project?.financial_model || {}; },

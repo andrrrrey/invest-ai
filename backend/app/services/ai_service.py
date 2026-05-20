@@ -409,3 +409,15 @@ def analyze_project(project: dict, metrics: dict) -> dict:
             return json.loads(text)
         except json.JSONDecodeError:
             return {"comment": text, "anomalies": [], "comparison": ""}
+
+
+def extract_requested_amount(text: str) -> str:
+    """Extract requested monetary amount from operational request description."""
+    prompt = (
+        "Из текста операционной заявки извлеки запрашиваемую сумму инвестиций.\n"
+        "Верни ТОЛЬКО сумму с валютой и периодом (например: «500 000 ₽/мес» или «2 400 000 ₽/год»).\n"
+        "Если сумма не указана явно — верни строку «не указана».\n"
+        "Никакого пояснительного текста — только сумма или «не указана».\n\n"
+        f"Текст заявки:\n{text[:3000]}"
+    )
+    return _chat(prompt, max_tokens=60)

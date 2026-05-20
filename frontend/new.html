@@ -297,6 +297,37 @@
         }
     </style>
     <style>
+        /* Readonly mode */
+        .readonly-mode input:not([type="file"]),
+        .readonly-mode select,
+        .readonly-mode textarea {
+            pointer-events: none;
+            background: #F7F7FB !important;
+            color: var(--muted) !important;
+            cursor: default;
+        }
+        .readonly-mode .ql-toolbar { display: none !important; }
+        .readonly-mode .ql-container { border-radius: 10px !important; }
+        .readonly-mode .ql-editor {
+            background: #F7F7FB !important;
+            pointer-events: none;
+            user-select: text;
+            cursor: default;
+        }
+        .readonly-mode .choice-card { pointer-events: none; }
+        .readonly-mode .score-btn { pointer-events: none !important; cursor: default !important; }
+        .readonly-banner {
+            background: #EEF0FF;
+            border: 1.5px solid #C7C9FF;
+            border-radius: 14px;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+    </style>
+    <style>
         /* Rich text editor (Quill) */
         .rich-editor-field .ql-toolbar.ql-snow {
             border: 1px solid #E5E5EA;
@@ -360,22 +391,31 @@
     </aside>
 
     <!-- Main content -->
-    <main class="main-content">
+    <main class="main-content" :class="{'readonly-mode': isReadOnly}">
 
         <!-- Header -->
         <header class="top-header">
             <div>
-                <h1 x-text="projectId ? 'Редактирование черновика' : 'Создание инвестиционного запроса'">Создание инвестиционного запроса</h1>
+                <h1 x-text="isReadOnly ? 'Просмотр заявки' : (projectId ? 'Редактирование черновика' : 'Создание инвестиционного запроса')">Создание инвестиционного запроса</h1>
                 <p>Шаг <span x-text="step"></span> из 5 · Метрики пересчитываются в реальном времени</p>
             </div>
-            <button class="btn btn-outline" @click="saveDraft()" :disabled="saving">
+            <button x-show="!isReadOnly" class="btn btn-outline" @click="saveDraft()" :disabled="saving">
                 <i class="fas" :class="saving ? 'fa-spinner spin' : 'fa-save'"></i>
                 <span x-text="saving ? 'Сохраняем...' : 'Сохранить черновик'"></span>
             </button>
         </header>
 
+        <!-- Readonly banner -->
+        <div x-show="isReadOnly" class="readonly-banner">
+            <i class="fas fa-eye" style="color:var(--accent);font-size:18px"></i>
+            <div>
+                <strong style="font-size:13px;color:var(--accent)">Режим просмотра</strong>
+                <p style="font-size:12px;color:#8E8E93;margin-top:2px">Редактирование недоступно. Используйте кнопку «Редактировать» в карточке проекта.</p>
+            </div>
+        </div>
+
         <!-- AI banner -->
-        <div class="ai-banner">
+        <div class="ai-banner" x-show="!isReadOnly">
             <i class="fas fa-wand-magic-sparkles" style="font-size:22px;margin-top:2px"></i>
             <div>
                 <strong style="display:block;margin-bottom:3px" x-text="'Ксения, AI-ассистент (' + aiModelLabel + ')'"></strong>
@@ -419,7 +459,7 @@
             <div class="panel-footer">
                 <span style="visibility:hidden" class="btn btn-outline">—</span>
                 <div class="footer-right">
-                    <button class="btn btn-outline" @click="saveDraft()">Сохранить черновик</button>
+                    <button x-show="!isReadOnly" class="btn btn-outline" @click="saveDraft()">Сохранить черновик</button>
                     <button class="btn btn-primary" @click="goTo(2)">Далее <i class="fas fa-chevron-right"></i></button>
                 </div>
             </div>
@@ -779,13 +819,48 @@
                                  class="rich-editor-field"></div>
                         </div>
                     </div>
+
+                    <!-- Блок: Документы заявки -->
+                    <div class="subsection">
+                        <h3>Документы заявки</h3>
+                        <!-- Уже загруженные файлы (редактирование существующего) -->
+                        <template x-for="a in docAttachments" :key="a.id">
+                            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#F0F7FF;border-radius:10px;margin-bottom:8px">
+                                <i class="fas fa-file-alt" style="color:var(--accent);font-size:16px"></i>
+                                <div style="flex:1;min-width:0">
+                                    <p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" x-text="a.original_name"></p>
+                                    <p style="font-size:11px;color:#8E8E93" x-text="wizardFmtFileSize(a.file_size) + ' · ' + a.uploader_name"></p>
+                                </div>
+                            </div>
+                        </template>
+                        <!-- Новый файл (ещё не загружен) -->
+                        <template x-if="pendingDocFile && !isReadOnly">
+                            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#FFF8E5;border-radius:10px;margin-bottom:8px">
+                                <i class="fas fa-file-alt" style="color:#FF9500;font-size:16px"></i>
+                                <span style="flex:1;font-size:13px;font-weight:600" x-text="pendingDocFile.name + ' (не сохранён)'"></span>
+                                <button @click="pendingDocFile=null" style="background:none;border:none;cursor:pointer;color:#FF3B30;font-size:16px" title="Удалить">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </template>
+                        <div x-show="!isReadOnly" style="display:flex;gap:10px;align-items:center;margin-top:4px">
+                            <input type="file" id="opDocFileInput" accept=".pdf,.doc,.docx" style="display:none"
+                                   @change="pendingDocFile = $event.target.files[0] || null; $event.target.value=''">
+                            <button @click="document.getElementById('opDocFileInput').click()"
+                                style="background:#EEF0FF;border:1.5px solid #C7C9FF;color:var(--accent);border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
+                                <i class="fas fa-upload"></i> Прикрепить файл
+                            </button>
+                            <span style="font-size:11px;color:#8E8E93">PDF, DOC, DOCX · до 50 МБ</span>
+                        </div>
+                        <p x-show="!isReadOnly && pendingDocFile" style="font-size:11px;color:#8E8E93;margin-top:6px">Файл будет загружен при сохранении черновика.</p>
+                    </div>
                 </div>
             </template>
 
             <div class="panel-footer">
                 <button class="btn btn-outline" @click="goTo(1)"><i class="fas fa-chevron-left"></i> Назад</button>
                 <div class="footer-right">
-                    <button class="btn btn-outline" @click="saveDraft()">Сохранить черновик</button>
+                    <button x-show="!isReadOnly" class="btn btn-outline" @click="saveDraft()">Сохранить черновик</button>
                     <button class="btn btn-primary" @click="goTo(3)">Далее <i class="fas fa-chevron-right"></i></button>
                 </div>
             </div>
@@ -1752,9 +1827,9 @@
             <div class="panel-footer">
                 <button class="btn btn-outline" @click="goTo(2)"><i class="fas fa-chevron-left"></i> Назад</button>
                 <div class="footer-right">
-                    <button class="btn btn-outline" @click="saveDraft()">Сохранить черновик</button>
+                    <button x-show="!isReadOnly" class="btn btn-outline" @click="saveDraft()">Сохранить черновик</button>
                     <button class="btn btn-primary" @click="goTo(4)"
-                        :disabled="form.projectType === 'operational' && !form.vs_total">
+                        :disabled="!isReadOnly && form.projectType === 'operational' && !form.vs_total">
                         Далее <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
@@ -1991,7 +2066,7 @@
             <div class="panel-footer">
                 <button class="btn btn-outline" @click="goTo(3)"><i class="fas fa-chevron-left"></i> Назад</button>
                 <div class="footer-right">
-                    <button class="btn btn-outline" @click="saveDraft()">Сохранить черновик</button>
+                    <button x-show="!isReadOnly" class="btn btn-outline" @click="saveDraft()">Сохранить черновик</button>
                     <button class="btn btn-primary" @click="goTo(5)">Далее <i class="fas fa-chevron-right"></i></button>
                 </div>
             </div>
@@ -2235,7 +2310,7 @@
 
             <div class="panel-footer">
                 <button class="btn btn-outline" @click="goTo(4)"><i class="fas fa-chevron-left"></i> Назад</button>
-                <div class="footer-right">
+                <div class="footer-right" x-show="!isReadOnly">
                     <button class="btn btn-outline" @click="saveDraft()">
                         <i class="far fa-save"></i> Сохранить черновик
                     </button>
@@ -2369,6 +2444,9 @@ function wizardApp() {
         aiModelLabel: 'AI',
         aiLoad: { desc: false, risks: false, riskScore: false },
         projectId: null,
+        isReadOnly: new URLSearchParams(location.search).get('readonly') === '1',
+        pendingDocFile: null,
+        docAttachments: [],
         risksData: null,
         riskScoreData: null,
         metrics: _emptyMetrics(),
@@ -2513,10 +2591,15 @@ function wizardApp() {
                 if (!res.ok) throw new Error('Проект не найден');
                 const p = await res.json();
                 const role = getUserRole();
-                if (p.status !== 'draft' && p.status !== 'pending_approval' && !(role === 'cfo' || role === 'manager')) {
+                if (!this.isReadOnly && p.status !== 'draft' && p.status !== 'pending_approval' && !(role === 'cfo' || role === 'manager')) {
                     this._toast('Редактирование доступно только для черновиков и заявок на согласовании', 'error');
                     return;
                 }
+                // Load existing attachments for this project
+                try {
+                    const ar = await authFetch('/api/v1/projects/' + id + '/attachments');
+                    if (ar.ok) this.docAttachments = await ar.json();
+                } catch(_) {}
                 this.projectId = p.id;
                 // financial_model contains all form fields (stored as { ...this.form })
                 if (p.financial_model && typeof p.financial_model === 'object') {
@@ -2602,7 +2685,7 @@ function wizardApp() {
                         this.risksData = p.risks_data;
                     }
                 }
-                this._toast('Черновик загружен для редактирования', 'success');
+                if (!this.isReadOnly) this._toast('Черновик загружен для редактирования', 'success');
             } catch(e) {
                 this._toast('Ошибка загрузки проекта: ' + e.message, 'error');
             }
@@ -2971,8 +3054,8 @@ function wizardApp() {
         // ── Navigation ─────────────────────────────────────────────────────
         goTo(n) {
             if (n < 1 || n > 5) return;
-            // Validate before moving forward
-            if (n > this.step) {
+            // Validate before moving forward (skip in readonly mode)
+            if (!this.isReadOnly && n > this.step) {
                 const err = this._validateStep(this.step);
                 if (err) { this._toast(err, 'error'); return; }
             }
@@ -3158,6 +3241,19 @@ function wizardApp() {
                 if (!res.ok) throw new Error(await res.text());
                 const data = await res.json();
                 this.projectId = data.id;
+                if (this.pendingDocFile) {
+                    const fd = new FormData();
+                    fd.append('file', this.pendingDocFile);
+                    try {
+                        const fr = await fetch(`/api/v1/projects/${this.projectId}/attachments`, {
+                            method: 'POST',
+                            headers: {Authorization: 'Bearer ' + localStorage.getItem('invest_token')},
+                            body: fd,
+                        });
+                        if (fr.ok) { this.pendingDocFile = null; }
+                        else { const e = await fr.json().catch(()=>({detail:''})); this._toast('Ошибка загрузки файла: ' + (e.detail||''), 'error'); }
+                    } catch(e) { this._toast('Ошибка загрузки файла', 'error'); }
+                }
                 this._toast('Черновик сохранён', 'success');
             } catch(e) {
                 this._toast('Ошибка: ' + e.message, 'error');
@@ -3419,6 +3515,12 @@ function _emptyMetrics() {
 
 function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('active');
+}
+
+function wizardFmtFileSize(bytes) {
+    if (bytes >= 1048576) return (bytes/1048576).toFixed(1) + ' МБ';
+    if (bytes >= 1024) return Math.round(bytes/1024) + ' КБ';
+    return bytes + ' Б';
 }
 </script>
 
