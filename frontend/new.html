@@ -834,25 +834,25 @@
                             </div>
                         </template>
                         <!-- Новый файл (ещё не загружен) -->
-                        <template x-if="pendingDocFile && !isReadOnly">
+                        <template x-if="pendingDocFileName && !isReadOnly">
                             <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#FFF8E5;border-radius:10px;margin-bottom:8px">
                                 <i class="fas fa-file-alt" style="color:#FF9500;font-size:16px"></i>
-                                <span style="flex:1;font-size:13px;font-weight:600" x-text="pendingDocFile.name + ' (не сохранён)'"></span>
-                                <button @click="pendingDocFile=null" style="background:none;border:none;cursor:pointer;color:#FF3B30;font-size:16px" title="Удалить">
+                                <span style="flex:1;font-size:13px;font-weight:600" x-text="pendingDocFileName + ' (не сохранён)'"></span>
+                                <button @click="pendingDocFileName=null; window._wizardPendingFile=null;" style="background:none;border:none;cursor:pointer;color:#FF3B30;font-size:16px" title="Удалить">
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>
                         </template>
                         <div x-show="!isReadOnly" style="display:flex;gap:10px;align-items:center;margin-top:4px">
                             <input type="file" id="opDocFileInput" accept=".pdf,.doc,.docx" style="display:none"
-                                   @change="pendingDocFile = $event.target.files[0] || null; $event.target.value=''">
+                                   @change="window._wizardPendingFile = $event.target.files[0] || null; pendingDocFileName = window._wizardPendingFile ? window._wizardPendingFile.name : null; $event.target.value=''">
                             <button @click="document.getElementById('opDocFileInput').click()"
                                 style="background:#EEF0FF;border:1.5px solid #C7C9FF;color:var(--accent);border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
                                 <i class="fas fa-upload"></i> Прикрепить файл
                             </button>
                             <span style="font-size:11px;color:#8E8E93">PDF, DOC, DOCX · до 50 МБ</span>
                         </div>
-                        <p x-show="!isReadOnly && pendingDocFile" style="font-size:11px;color:#8E8E93;margin-top:6px">Файл будет загружен при сохранении черновика.</p>
+                        <p x-show="!isReadOnly && pendingDocFileName" style="font-size:11px;color:#8E8E93;margin-top:6px">Файл будет загружен при сохранении черновика.</p>
                     </div>
                 </div>
             </template>
@@ -2445,7 +2445,7 @@ function wizardApp() {
         aiLoad: { desc: false, risks: false, riskScore: false },
         projectId: null,
         isReadOnly: new URLSearchParams(location.search).get('readonly') === '1',
-        pendingDocFile: null,
+        pendingDocFileName: null,
         docAttachments: [],
         risksData: null,
         riskScoreData: null,
@@ -2552,6 +2552,7 @@ function wizardApp() {
 
         // ── Lifecycle ──────────────────────────────────────────────────────
         async init() {
+            window._wizardPendingFile = null;
             if (!redirectIfNotLoggedIn()) return;
             // CEO cannot create projects
             if (getUserRole() === 'ceo') {
@@ -3241,18 +3242,26 @@ function wizardApp() {
                 if (!res.ok) throw new Error(await res.text());
                 const data = await res.json();
                 this.projectId = data.id;
-                if (this.pendingDocFile) {
+                const rawFile = window._wizardPendingFile;
+                if (rawFile instanceof File) {
                     const fd = new FormData();
-                    fd.append('file', this.pendingDocFile);
+                    fd.append('file', rawFile);
                     try {
                         const fr = await fetch(`/api/v1/projects/${this.projectId}/attachments`, {
                             method: 'POST',
                             headers: {Authorization: 'Bearer ' + localStorage.getItem('invest_token')},
                             body: fd,
                         });
-                        if (fr.ok) { this.pendingDocFile = null; }
-                        else { const e = await fr.json().catch(()=>({detail:''})); this._toast('Ошибка загрузки файла: ' + (e.detail||''), 'error'); }
-                    } catch(e) { this._toast('Ошибка загрузки файла', 'error'); }
+                        if (fr.ok) {
+                            const att = await fr.json();
+                            this.docAttachments.unshift(att);
+                            window._wizardPendingFile = null;
+                            this.pendingDocFileName = null;
+                        } else {
+                            const e = await fr.json().catch(()=>({detail:''}));
+                            this._toast('Ошибка загрузки файла: ' + (e.detail || 'неизвестная ошибка'), 'error');
+                        }
+                    } catch(e) { this._toast('Ошибка загрузки файла: ' + e.message, 'error'); }
                 }
                 this._toast('Черновик сохранён', 'success');
             } catch(e) {
