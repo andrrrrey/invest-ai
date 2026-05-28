@@ -16,7 +16,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
         body { background: #E5E5E5; padding: 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
         .mobile-menu-btn { display: none; position: fixed; top: 20px; left: 20px; z-index: 1000; background: var(--sb); color: #fff; border: none; padding: 12px; border-radius: 12px; cursor: pointer; }
-        .app-window { width: 100%; max-width: 1440px; height: 90vh; background: var(--bg); border-radius: 35px; display: flex; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,.1); }
+        .app-window { width: 100%; max-width: 1440px; height: 90vh; background: var(--bg); border-radius: 35px; display: flex; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,.1); position: relative; }
         .sidebar { width: 260px; min-width: 260px; background: var(--sb); color: #fff; display: flex; flex-direction: column; padding: 60px 25px 40px; gap: 6px; transition: all .4s cubic-bezier(.4,0,.2,1); flex-shrink: 0; }
         .profile-section { text-align: center; margin-bottom: 50px; }
         .profile-section p { font-size: 13px; color: #8E8E93; line-height: 1.6; }
@@ -106,9 +106,17 @@
         }
         /* Sidebar collapse toggle */
         .sidebar { position: relative; }
-        .sidebar-toggle-btn { position: absolute; bottom: 20px; right: -14px; width: 28px; height: 28px; background: white; border: 1.5px solid #E5E5ED; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #8E8E93; box-shadow: 0 2px 8px rgba(0,0,0,0.1); z-index: 10; transition: all 0.2s; }
+        .sidebar-toggle-btn {
+            position: absolute; bottom: 20px; left: 246px;
+            width: 28px; height: 28px; background: white;
+            border: 1.5px solid #E5E5ED; border-radius: 50%;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 11px; color: #8E8E93;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 20; transition: left 0.4s cubic-bezier(0.4,0,0.2,1), background 0.2s, color 0.2s, border-color 0.2s;
+        }
         .sidebar-toggle-btn:hover { background: #5E5CE6; color: white; border-color: #5E5CE6; }
-        .sidebar.collapsed .sidebar-toggle-btn { background: #5E5CE6; color: white; border-color: #5E5CE6; box-shadow: 0 2px 12px rgba(94,92,230,0.45); }
+        .sidebar-toggle-btn.collapsed { left: 54px; background: #5E5CE6; color: white; border-color: #5E5CE6; box-shadow: 0 2px 12px rgba(94,92,230,0.45); }
         .sidebar.collapsed { width: 68px; min-width: 68px; padding-left: 10px; padding-right: 10px; overflow: hidden; }
         .sidebar.collapsed .profile-section { display: none; }
         .sidebar.collapsed .nav-link { justify-content: center; padding: 14px 10px; gap: 0; font-size: 0; }
