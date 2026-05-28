@@ -267,6 +267,7 @@
         .rich-content strong { font-weight: 700; }
         .rich-content em { font-style: italic; }
         .rich-content u { text-decoration: underline; }
+        .rich-content img { max-width: 100%; height: auto; display: block; border-radius: 8px; margin: 4px 0; }
     </style>
 </head>
 <body>
@@ -851,7 +852,7 @@
                                 <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px">
                                     <template x-if="project.status === 'draft'">
                                         <div style="display:flex;flex-direction:column;gap:10px">
-                                            <button @click="window.location.href='/new?id=' + project.id"
+                                            <button @click="showConfirm('Редактировать черновик?', 'Вы перейдёте в режим редактирования проекта «' + project.name + '».', () => window.location.href='/new?id=' + project.id)"
                                                 style="padding:14px;border-radius:14px;border:1.5px solid var(--accent-purple);background:white;color:var(--accent-purple);font-weight:700;cursor:pointer;font-size:13px">
                                                 <i class="fas fa-pen" style="margin-right:6px"></i>Редактировать черновик
                                             </button>
@@ -863,7 +864,7 @@
                                     </template>
                                     <template x-if="project.status === 'pending_approval' && (canApprove || project.user_id === authUserId)">
                                         <div style="display:flex;flex-direction:column;gap:10px">
-                                            <button @click="window.location.href='/new?id=' + project.id"
+                                            <button @click="showConfirm('Редактировать проект?', 'Вы перейдёте в режим редактирования. Статус «На согласовании» может быть изменён.', () => window.location.href='/new?id=' + project.id)"
                                                 style="padding:14px;border-radius:14px;border:1.5px solid var(--accent-purple);background:white;color:var(--accent-purple);font-weight:700;cursor:pointer;font-size:13px">
                                                 <i class="fas fa-pen" style="margin-right:6px"></i>Редактировать проект
                                             </button>
@@ -887,7 +888,7 @@
                                     </template>
                                     <template x-if="project.status === 'approved' && canApprove">
                                         <div style="display:flex;flex-direction:column;gap:10px">
-                                            <button @click="window.location.href='/new?id=' + project.id"
+                                            <button @click="showConfirm('Редактировать утверждённый проект?', 'Внимание: проект уже утверждён. Редактирование переведёт его в статус черновика. Продолжить?', () => window.location.href='/new?id=' + project.id, { confirmLabel: 'Да, редактировать' })"
                                                 style="padding:14px;border-radius:14px;border:1.5px solid var(--accent-purple);background:white;color:var(--accent-purple);font-weight:700;cursor:pointer;font-size:13px">
                                                 <i class="fas fa-pen" style="margin-right:6px"></i>Редактировать проект
                                             </button>
@@ -1252,6 +1253,27 @@
 
                 </div>
             </template>
+
+            <!-- Confirm dialog -->
+            <div x-show="confirmModal.show"
+                 style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px">
+                <div style="background:white;border-radius:20px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25)">
+                    <h3 style="font-size:17px;font-weight:700;margin-bottom:10px" x-text="confirmModal.title"></h3>
+                    <p style="font-size:13px;color:#8E8E93;margin-bottom:24px;line-height:1.55" x-text="confirmModal.message"></p>
+                    <div style="display:flex;gap:10px;justify-content:flex-end">
+                        <button @click="confirmModal.show=false"
+                            style="padding:10px 20px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
+                            Отмена
+                        </button>
+                        <button @click="doConfirm()"
+                            :style="confirmModal.danger
+                                ? 'padding:10px 20px;border-radius:12px;border:none;background:#FF3B30;color:white;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit'
+                                : 'padding:10px 20px;border-radius:12px;border:none;background:#5E5CE6;color:white;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit'"
+                            x-text="confirmModal.confirmLabel">
+                        </button>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -1292,6 +1314,14 @@
                 statusMsgType: 'ok',
                 activeTab: 'main',
                 showExtraTimeModal: false,
+                confirmModal: { show: false, title: '', message: '', confirmLabel: 'Подтвердить', danger: false, onConfirm: null },
+                showConfirm(title, message, onConfirm, opts = {}) {
+                    this.confirmModal = { show: true, title, message, confirmLabel: opts.confirmLabel || 'Подтвердить', danger: opts.danger || false, onConfirm };
+                },
+                doConfirm() {
+                    if (this.confirmModal.onConfirm) this.confirmModal.onConfirm();
+                    this.confirmModal.show = false;
+                },
                 extraTime: { hoursPerMonth: 0, hourCost: 0, cycleDays: 0, months: 12, comment: '' },
                 customMetrics: [],
                 showAddMetric: false,
@@ -1463,19 +1493,25 @@
                     }
                 },
 
-                async deleteProject() {
+                deleteProject() {
                     if (!this.project) return;
-                    if (!confirm(`Удалить проект «${this.project.name || 'без названия'}»? Это действие нельзя отменить.`)) return;
-                    try {
-                        const res = await authFetch('/api/v1/projects/' + this.project.id, { method: 'DELETE' });
-                        if (res.ok || res.status === 204) {
-                            window.location.href = '/project-list';
-                        } else {
-                            alert('Ошибка удаления проекта');
-                        }
-                    } catch(e) {
-                        alert('Ошибка соединения: ' + e.message);
-                    }
+                    this.showConfirm(
+                        'Удалить проект?',
+                        `Проект «${this.project.name || 'без названия'}» будет удалён безвозвратно. Это действие нельзя отменить.`,
+                        async () => {
+                            try {
+                                const res = await authFetch('/api/v1/projects/' + this.project.id, { method: 'DELETE' });
+                                if (res.ok || res.status === 204) {
+                                    window.location.href = '/project-list';
+                                } else {
+                                    alert('Ошибка удаления проекта');
+                                }
+                            } catch(e) {
+                                alert('Ошибка соединения: ' + e.message);
+                            }
+                        },
+                        { danger: true, confirmLabel: 'Удалить' }
+                    );
                 },
 
                 async copyProject() {
