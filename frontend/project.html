@@ -238,6 +238,23 @@
             .main-content { padding: 80px 20px 30px; }
             .grid-layout { grid-template-columns: 1fr; }
         }
+        /* Sidebar collapse toggle */
+        .sidebar { position: relative; }
+        .sidebar-toggle-btn {
+            position: absolute; bottom: 20px; right: -14px;
+            width: 28px; height: 28px; background: white;
+            border: 1.5px solid #E5E5ED; border-radius: 50%;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 11px; color: #8E8E93;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            z-index: 10; transition: all 0.2s;
+        }
+        .sidebar-toggle-btn:hover { background: #5E5CE6; color: white; border-color: #5E5CE6; }
+        .sidebar.collapsed { width: 68px; min-width: 68px; padding-left: 10px; padding-right: 10px; overflow: hidden; }
+        .sidebar.collapsed .profile-section { display: none; }
+        .sidebar.collapsed .nav-link { justify-content: center; padding: 14px 10px; gap: 0; font-size: 0; }
+        .sidebar.collapsed .nav-link i { font-size: 18px; }
+        @media (max-width: 992px) { .sidebar-toggle-btn { display: none; } }
     </style>
     <style>
         /* Rich text content rendering */
@@ -1168,12 +1185,14 @@
                                     <tbody>
                                         <!-- Plan row -->
                                         <tr>
-                                            <td style="position:sticky;left:0;z-index:1;background:#F8F8FF;padding:5px 14px;font-weight:600;color:#5E5CE6;border-bottom:1px solid #F0F0F8;white-space:nowrap;font-size:11px">
+                                            <td style="position:sticky;left:0;z-index:1;padding:5px 14px;font-weight:600;border-bottom:1px solid #F0F0F8;white-space:nowrap;font-size:11px"
+                                                :style="isRevenue(metric) ? 'background:#EAF4FF;color:#0A84FF' : 'background:#F8F8FF;color:#5E5CE6'">
                                                 <span x-text="metric"></span>
                                                 <span style="font-size:9px;font-weight:400;color:#8E8E93;margin-left:4px;text-transform:uppercase;letter-spacing:0.4px">план</span>
                                             </td>
                                             <template x-for="p in periods" :key="periodKey(p)">
-                                                <td style="padding:4px;border-bottom:1px solid #F0F0F8;background:#F8F8FF">
+                                                <td style="padding:4px;border-bottom:1px solid #F0F0F8"
+                                                    :style="isRevenue(metric) ? 'background:#EAF4FF' : 'background:#F8F8FF'">
                                                     <span style="display:block;width:82px;padding:4px 6px;font-size:12px;text-align:right;color:#333"
                                                         x-text="fmtNum(getPlan(metric, p)) || '—'"></span>
                                                 </td>
@@ -1181,7 +1200,8 @@
                                         </tr>
                                         <!-- Fact row -->
                                         <tr>
-                                            <td style="position:sticky;left:0;z-index:1;background:white;padding:5px 14px;font-weight:600;color:#2D9B63;border-bottom:1px solid #EAFAF0;white-space:nowrap;font-size:11px">
+                                            <td style="position:sticky;left:0;z-index:1;background:white;padding:5px 14px;font-weight:600;border-bottom:1px solid #EAFAF0;white-space:nowrap;font-size:11px"
+                                                :style="isRevenue(metric) ? 'color:#0A84FF' : 'color:#2D9B63'">
                                                 <span x-text="metric"></span>
                                                 <span style="font-size:9px;font-weight:400;color:#8E8E93;margin-left:4px;text-transform:uppercase;letter-spacing:0.4px">факт</span>
                                             </td>
@@ -1190,7 +1210,7 @@
                                                     <input type="text" inputmode="decimal"
                                                         :value="fmtNum(getFact(metric, p))"
                                                         @change="setFact(metric, p, parseNum($event.target.value))"
-                                                        style="width:82px;padding:4px 6px;border:1.5px solid #D0EDD9;border-radius:6px;font-size:12px;text-align:right;background:white;color:#2D9B63;font-weight:600;outline:none"
+                                                        :style="isRevenue(metric) ? 'width:82px;padding:4px 6px;border:1.5px solid #BDD9F2;border-radius:6px;font-size:12px;text-align:right;background:white;color:#0A84FF;font-weight:600;outline:none' : 'width:82px;padding:4px 6px;border:1.5px solid #D0EDD9;border-radius:6px;font-size:12px;text-align:right;background:white;color:#2D9B63;font-weight:600;outline:none'"
                                                         placeholder="—">
                                                 </td>
                                             </template>
@@ -1202,7 +1222,7 @@
                                             </td>
                                             <template x-for="p in periods" :key="periodKey(p)">
                                                 <td style="padding:3px 4px;text-align:center;font-size:10px;font-weight:700;border-bottom:2px solid #E5E5ED;background:#FAFAF8"
-                                                    :style="getDeviation(metric,p) > 0 ? 'color:#FF3B30' : getDeviation(metric,p) < 0 ? 'color:#2D9B63' : 'color:#C7C7CC'"
+                                                    :style="deviationColor(metric, p)"
                                                     x-text="getDeviation(metric,p) !== null ? (getDeviation(metric,p) > 0 ? '+' : '') + getDeviation(metric,p) + '%' : '—'">
                                                 </td>
                                             </template>
@@ -1812,11 +1832,22 @@
                     this.factDirty = true;
                     this.$nextTick(() => this._renderChart());
                 },
+                isRevenue(metric) { return metric === 'Выручка'; },
+
                 getDeviation(metric, p) {
                     const plan = this.getPlan(metric, p);
                     const fact = this.getFact(metric, p);
                     if (plan == null || fact == null || plan === 0) return null;
                     return Math.round((fact - plan) / plan * 100 * 10) / 10;
+                },
+
+                deviationColor(metric, p) {
+                    const dev = this.getDeviation(metric, p);
+                    if (dev === null) return 'color:#C7C7CC';
+                    if (dev === 0) return 'color:#C7C7CC';
+                    // Revenue: exceeding plan is good (green); costs: underspending is good (green)
+                    const good = this.isRevenue(metric) ? dev > 0 : dev < 0;
+                    return good ? 'color:#2D9B63' : 'color:#FF3B30';
                 },
 
                 addMetric() {
@@ -1928,6 +1959,20 @@
                                             }
                                         }
                                     });
+                                    // Prepend revenue plan from financial model metrics
+                                    if (annualRevenue.length) {
+                                        for (let yi = 0; yi < numYears; yi++) {
+                                            const yr = startYear + yi;
+                                            const annual = annualRevenue[yi] || 0;
+                                            if (annual) {
+                                                const perMonth = annual / 12;
+                                                for (let mi = 0; mi < 12; mi++) {
+                                                    newPlan['Выручка||' + yr + '/' + pad2(mi + 1)] = perMonth;
+                                                }
+                                            }
+                                        }
+                                        categories = ['Выручка', ...categories];
+                                    }
                                     this._gridPlan = newPlan;
                                 }
                             } else {

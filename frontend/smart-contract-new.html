@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Создание смарт-контракта | Инвестиционный процессор</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="/js/auth.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        :root {
+            --bg: #F8F7F3; --sb: #1C1C1E; --accent: #5E5CE6; --muted: #8E8E93;
+            --danger: #FF3B30; --success: #34C759; --warn: #FF9500;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background: #E5E5E5; padding: 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .mobile-menu-btn { display: none; position: fixed; top: 20px; left: 20px; z-index: 1000; background: var(--sb); color: #fff; border: none; padding: 12px; border-radius: 12px; cursor: pointer; }
+        .app-window { width: 100%; max-width: 1440px; height: 90vh; background: var(--bg); border-radius: 35px; display: flex; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,.1); }
+        .sidebar { width: 260px; min-width: 260px; background: var(--sb); color: #fff; display: flex; flex-direction: column; padding: 60px 25px 40px; gap: 6px; transition: all .4s cubic-bezier(.4,0,.2,1); flex-shrink: 0; }
+        .profile-section { text-align: center; margin-bottom: 50px; }
+        .profile-section p { font-size: 13px; color: #8E8E93; line-height: 1.6; }
+        .profile-section h4 { font-size: 16px; font-weight: 600; margin-top: 4px; }
+        .nav-menu { flex: 1; }
+        .nav-link { display: flex; align-items: center; gap: 15px; padding: 14px 15px; border-radius: 12px; color: #8E8E93; text-decoration: none; font-size: 14px; font-weight: 500; margin-bottom: 8px; transition: .3s; }
+        .nav-link i { font-size: 18px; width: 20px; text-align: center; }
+        .nav-link:hover, .nav-link.active { background: #2C2C2E; color: #fff; }
+        .main-content { flex: 1; display: flex; flex-direction: column; padding: 28px 34px; overflow-y: auto; gap: 16px; }
+        .top-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+        .top-header h1 { font-size: 22px; font-weight: 700; }
+        .top-header p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+        .ai-banner { background: linear-gradient(135deg,#EEF0FF 0%,#F5F4FF 100%); border: 1.5px solid #C7C9FF; border-radius: 16px; padding: 14px 18px; display: flex; gap: 14px; align-items: flex-start; color: var(--accent); }
+        .ai-banner strong { font-size: 13px; display: block; margin-bottom: 3px; }
+        .ai-banner p { font-size: 12px; line-height: 1.5; color: #555; }
+        .steps-nav { display: grid; grid-template-columns: repeat(5,1fr); gap: 8px; }
+        .step-btn { padding: 10px 8px; border: 1.5px solid #E5E5ED; border-radius: 12px; background: white; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; transition: .2s; text-align: center; }
+        .step-btn.active { border-color: var(--accent); background: #F0EFFF; color: var(--accent); }
+        .step-btn.done { border-color: var(--success); background: #DDF0E1; color: #1A7A40; }
+        .wizard-panel { background: white; border-radius: 20px; padding: 28px; display: flex; flex-direction: column; gap: 20px; flex: 1; min-height: 0; overflow-y: auto; }
+        .panel-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 16px; border-top: 1px solid #F2F2F7; }
+        .footer-right { display: flex; gap: 10px; }
+        .btn { padding: 10px 22px; border-radius: 12px; font-weight: 600; cursor: pointer; border: none; font-size: 14px; transition: .2s; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { opacity: .9; }
+        .btn-outline { background: white; border: 1.5px solid #E5E5E5; color: #1C1C1E; }
+        .btn-outline:hover { border-color: #bbb; }
+        .btn:disabled { opacity: .5; cursor: not-allowed; }
+        .choice-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+        .choice-card { border: 2px solid #E5E5ED; border-radius: 16px; padding: 22px 18px; cursor: pointer; transition: .2s; background: white; }
+        .choice-card:hover { border-color: var(--accent); background: #FAFAFF; }
+        .choice-card.active { border-color: var(--accent); background: #EEF0FF; }
+        .choice-card h3 { font-size: 13px; font-weight: 600; line-height: 1.5; color: #1C1C1E; }
+        .choice-card .card-icon { font-size: 28px; margin-bottom: 12px; }
+        .choice-card .card-badge { display: inline-block; padding: 3px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; margin-top: 10px; }
+        .field { display: flex; flex-direction: column; gap: 6px; }
+        .field label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+        .field input, .field select, .field textarea { border: 1.5px solid #E5E5ED; border-radius: 10px; padding: 10px 14px; font-size: 14px; font-family: inherit; outline: none; transition: .2s; background: white; }
+        .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+        .field textarea { resize: vertical; min-height: 80px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+        .hint { font-size: 12px; color: var(--muted); }
+        /* Milestone card */
+        .milestone-card { border: 1.5px solid #E5E5ED; border-radius: 16px; padding: 20px; background: white; display: flex; flex-direction: column; gap: 14px; }
+        .milestone-card.valid-milestone { border-color: #34C759; background: #F8FFF9; }
+        .milestone-header { display: flex; justify-content: space-between; align-items: center; }
+        .milestone-num { background: var(--accent); color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+        .smart-indicator { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+        .smart-badge { display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; border: 1.5px solid; }
+        .smart-badge.pass { border-color: #34C759; background: #DDF0E1; color: #1A7A40; }
+        .smart-badge.fail { border-color: #FFD0CE; background: #FFF0EF; color: #CC2A22; }
+        .smart-badge.pending { border-color: #E5E5ED; background: #F8F7F3; color: var(--muted); }
+        .btn-ai { background: #EEF0FF; border: 1.5px solid #C7C9FF; color: var(--accent); border-radius: 10px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; transition: .2s; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; }
+        .btn-ai:hover { background: var(--accent); color: white; }
+        /* Team table */
+        .team-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .team-table th { text-align: left; padding: 8px 12px; color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; border-bottom: 2px solid #F2F2F7; }
+        .team-table td { padding: 10px 12px; border-bottom: 1px solid #F8F7F3; vertical-align: middle; }
+        .team-table tr:last-child td { border-bottom: none; }
+        /* Summary */
+        .summary-block { border: 1.5px solid #E5E5ED; border-radius: 14px; padding: 18px; }
+        .summary-block h4 { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 12px; }
+        .summary-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid #F2F2F7; font-size: 13px; }
+        .summary-row:last-child { border-bottom: none; }
+        .summary-row .lbl { color: var(--muted); }
+        .summary-row .val { font-weight: 600; }
+        .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+        .pill-pending { background: #FFF4E5; color: #B05E00; }
+        .pill-coin { background: #F0EFFF; color: var(--accent); }
+        .coins-summary { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+        .coin-card { background: #F8F7F3; border-radius: 12px; padding: 14px; text-align: center; }
+        .coin-card .coin-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+        .coin-card .coin-value { font-size: 18px; font-weight: 800; color: #1C1C1E; }
+        .ai-summary-block { background: linear-gradient(135deg,#EEF0FF,#F5F4FF); border: 1.5px solid #C7C9FF; border-radius: 14px; padding: 18px; }
+        .milestone-summary-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .milestone-summary-table th { padding: 8px 10px; text-align: left; color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; border-bottom: 2px solid #E5E5ED; }
+        .milestone-summary-table td { padding: 8px 10px; border-bottom: 1px solid #F2F2F7; vertical-align: top; }
+        @media (max-width: 992px) {
+            body { padding: 0; }
+            .app-window { height: 100vh; border-radius: 0; }
+            .mobile-menu-btn { display: block; }
+            .sidebar { position: absolute; left: -260px; top: 0; height: 100%; z-index: 1001; }
+            .sidebar.active { left: 0; }
+            .main-content { padding: 80px 16px 20px; }
+            .choice-grid, .steps-nav { grid-template-columns: 1fr; }
+        }
+        /* Sidebar collapse toggle */
+        .sidebar { position: relative; }
+        .sidebar-toggle-btn { position: absolute; bottom: 20px; right: -14px; width: 28px; height: 28px; background: white; border: 1.5px solid #E5E5ED; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #8E8E93; box-shadow: 0 2px 8px rgba(0,0,0,0.1); z-index: 10; transition: all 0.2s; }
+        .sidebar-toggle-btn:hover { background: #5E5CE6; color: white; border-color: #5E5CE6; }
+        .sidebar.collapsed { width: 68px; min-width: 68px; padding-left: 10px; padding-right: 10px; overflow: hidden; }
+        .sidebar.collapsed .profile-section { display: none; }
+        .sidebar.collapsed .nav-link { justify-content: center; padding: 14px 10px; gap: 0; font-size: 0; }
+        .sidebar.collapsed .nav-link i { font-size: 18px; }
+        @media (max-width: 992px) { .sidebar-toggle-btn { display: none; } }
+    </style>
+</head>
+<body>
+
+<button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('active')">
+    <i class="fas fa-bars"></i>
+</button>
+
+<div x-data="scWizard()" x-init="init()" class="app-window">
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="profile-section">
+            <div style="width:90px;height:90px;border-radius:50%;border:3px solid white;margin:0 auto 15px;background:#5E5CE6;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:white" id="sidebar-avatar"></div>
+            <p>С возвращением,</p>
+            <h4 id="sidebar-name">—</h4>
+            <div style="display:inline-block;background:rgba(94,92,230,0.3);color:#A8A6FF;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700;margin-top:6px" id="sidebar-role"></div>
+        </div>
+        <nav class="nav-menu">
+            <a href="/" class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
+            <a href="/project-list" class="nav-link active"><i class="fas fa-project-diagram"></i> Проекты</a>
+            <a href="/export" class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
+            <a href="/settings" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
+            <a href="/users" class="nav-link" style="display:none" id="nav-users"><i class="fas fa-users"></i> Пользователи</a>
+            <a href="/profile" class="nav-link"><i class="fas fa-user-circle"></i> Мой профиль</a>
+        </nav>
+        <a href="#" class="nav-link" id="sidebar-logout" style="margin-top:auto;color:#EB5757">
+            <i class="fas fa-sign-out-alt"></i> Выйти
+        </a>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main-content">
+
+        <!-- Header -->
+        <header class="top-header">
+            <div>
+                <h1>Создание смарт-контракта</h1>
+                <p>Шаг <span x-text="step"></span> из 5 · Контракт с выплатой вознаграждения в coin</p>
+            </div>
+            <span class="status-pill pill-coin"><i class="fas fa-coins"></i> Смарт-контракт</span>
+        </header>
+
+        <!-- AI banner -->
+        <div class="ai-banner">
+            <i class="fas fa-wand-magic-sparkles" style="font-size:22px;margin-top:2px"></i>
+            <div>
+                <strong>Ксения, AI-ассистент (GPT-5.4)</strong>
+                <p x-text="step === 3
+                    ? 'Ксения проверяет каждый milestone на измеримость. Кнопка «Далее» становится активной только после валидации всех критериев по SMART.'
+                    : 'Заполняйте шаги по очереди. Coins резервируются только при достижении milestone — без предоплаты.'"></p>
+            </div>
+        </div>
+
+        <!-- Step navigation -->
+        <nav class="steps-nav">
+            <template x-for="(label, i) in ['1. Тип проекта','2. Суть','3. Milestones','4. Команда и coins','5. Резюме']" :key="i">
+                <button class="step-btn"
+                    :class="{ active: step === i+1, done: step > i+1 }"
+                    @click="goTo(i+1)">
+                    <template x-if="step > i+1"><i class="fas fa-check" style="margin-right:3px"></i></template>
+                    <span x-text="label"></span>
+                </button>
+            </template>
+        </nav>
+
+        <!-- ══════════ STEP 1: Тип проекта ══════════ -->
+        <section class="wizard-panel" x-show="step===1" x-transition>
+            <div>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 1 из 5</span>
+                <h2 style="font-size:20px;font-weight:700;margin-top:4px">Тип проекта</h2>
+                <p class="hint" style="margin-top:3px">Выберите формат инвестиционного запроса.</p>
+            </div>
+
+            <div class="choice-grid">
+                <article class="choice-card" :class="{active: form.type==='investment'}" @click="form.type='investment'">
+                    <div class="card-icon">📈</div>
+                    <h3>Запрос на инвестиции в стратегические инициативы (новые продукты, выход на новые рынки, запуск новых направлений)</h3>
+                    <div class="card-badge" style="background:#EEF0FF;color:var(--accent)">NPV / IRR</div>
+                </article>
+                <article class="choice-card" :class="{active: form.type==='operational'}" @click="form.type='operational'">
+                    <div class="card-icon">⚙️</div>
+                    <h3>Запрос на инвестиции (в персонал, маркетинг, оборудование, операционную эффективность и прочее)</h3>
+                    <div class="card-badge" style="background:#DDF0E1;color:#1A7A40">Value Score</div>
+                </article>
+                <article class="choice-card" :class="{active: form.type==='smart_contract'}" @click="form.type='smart_contract'">
+                    <div class="card-icon">🪙</div>
+                    <h3>Смарт-контракт (выплата в coin) — контракт на результат с выплатой вознаграждения при достижении заранее согласованных Milestones</h3>
+                    <div class="card-badge" style="background:#FFF4E5;color:#B05E00">Verified Milestones</div>
+                </article>
+            </div>
+
+            <div class="panel-footer">
+                <span></span>
+                <div class="footer-right">
+                    <button class="btn btn-primary" @click="goTo(2)" :disabled="!form.type">
+                        Далее <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════ STEP 2: Суть контракта ══════════ -->
+        <section class="wizard-panel" x-show="step===2" x-transition>
+            <div>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 2 из 5</span>
+                <h2 style="font-size:20px;font-weight:700;margin-top:4px">Суть контракта</h2>
+            </div>
+
+            <div class="grid-2">
+                <div class="field">
+                    <label>Название контракта <span style="color:var(--danger)">*</span></label>
+                    <input type="text" x-model="form.name" placeholder="Например: AI-автоматизация DevOps">
+                </div>
+                <div class="field">
+                    <label>Направление / Бизнес-юнит <span style="color:var(--danger)">*</span></label>
+                    <select x-model="form.businessUnit">
+                        <option value="">Выберите бизнес-юнит</option>
+                        <option>Продукт</option>
+                        <option>Маркетинг</option>
+                        <option>Инженерия</option>
+                        <option>Операции</option>
+                        <option>Финансы</option>
+                        <option>HR</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Краткое описание и бизнес-эффект <span style="color:var(--danger)">*</span></label>
+                <div style="position:relative">
+                    <textarea x-model="form.description" rows="4"
+                        placeholder="Опишите суть контракта и ожидаемый бизнес-эффект (1–3 абзаца)..."></textarea>
+                    <button class="btn-ai" style="position:absolute;bottom:10px;right:10px"
+                        @click="mockGptDescription()" :disabled="gptLoading">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                        <span x-text="gptLoading ? 'Генерируем...' : 'Сформулировать с Ксенией'"></span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="field">
+                    <label>Инициатор</label>
+                    <input type="text" :value="userName" readonly style="background:#F8F7F3;color:var(--muted)">
+                </div>
+                <div class="field">
+                    <label>Куратор <span style="color:var(--danger)">*</span></label>
+                    <select x-model="form.curator">
+                        <option value="">Выберите куратора</option>
+                        <option>CEO</option>
+                        <option>CFO</option>
+                        <option>CTO</option>
+                        <option>Руководитель направления</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="field">
+                    <label>Дедлайн контракта <span style="color:var(--danger)">*</span></label>
+                    <input type="date" x-model="form.deadline" :min="minDeadline">
+                    <span class="hint">Не ранее 14 дней от сегодня</span>
+                </div>
+                <div class="field">
+                    <label>Тип контракта</label>
+                    <div style="display:flex;gap:10px;margin-top:6px">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;color:#1C1C1E;text-transform:none;letter-spacing:0">
+                            <input type="radio" x-model="form.contractType" value="single" style="accent-color:var(--accent)">
+                            Единый
+                        </label>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;color:#1C1C1E;text-transform:none;letter-spacing:0">
+                            <input type="radio" x-model="form.contractType" value="phased" style="accent-color:var(--accent)">
+                            Поэтапный (несколько milestone)
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Прикреплённые документы</label>
+                <input type="file" accept=".pdf,.docx,.md" style="padding:8px 10px;font-size:13px">
+                <span class="hint">PDF, DOCX или MD (необязательно)</span>
+            </div>
+
+            <div class="panel-footer">
+                <button class="btn btn-outline" @click="goTo(1)">
+                    <i class="fas fa-chevron-left"></i> Назад
+                </button>
+                <div class="footer-right">
+                    <button class="btn btn-primary" @click="goTo(3)"
+                        :disabled="!form.name || !form.businessUnit || !form.description || !form.curator || !form.deadline">
+                        Далее <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════ STEP 3: Milestones ══════════ -->
+        <section class="wizard-panel" x-show="step===3" x-transition>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+                <div>
+                    <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 3 из 5</span>
+                    <h2 style="font-size:20px;font-weight:700;margin-top:4px">Milestones</h2>
+                    <p class="hint" style="margin-top:3px">Каждый milestone должен пройти проверку по всем 5 критериям SMART.</p>
+                </div>
+                <button class="btn btn-outline" style="font-size:13px" @click="addMilestone()">
+                    <i class="fas fa-plus"></i> Добавить milestone
+                </button>
+            </div>
+
+            <!-- SMART legend -->
+            <div style="display:flex;gap:8px;flex-wrap:wrap;padding:12px 14px;background:#F8F7F3;border-radius:12px">
+                <span style="font-size:11px;font-weight:700;color:var(--muted);margin-right:4px">SMART:</span>
+                <template x-for="[letter, title] in [['S','Specific — конкретный'],['M','Measurable — измеримый'],['A','Achievable — достижимый'],['R','Relevant — значимый'],['T','Time-bound — ограниченный по времени']]" :key="letter">
+                    <span style="font-size:11px;font-weight:600;color:#555">
+                        <b style="color:var(--accent)" x-text="letter"></b> — <span x-text="title.split('—')[1]"></span>
+                    </span>
+                </template>
+            </div>
+
+            <!-- Milestone cards -->
+            <template x-for="(ms, idx) in milestones" :key="ms.id">
+                <div class="milestone-card" :class="{'valid-milestone': ms.smartValid}">
+                    <div class="milestone-header">
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <div class="milestone-num" x-text="idx+1"></div>
+                            <input type="text" x-model="ms.name" placeholder="Название milestone (напр.: A1 — First Blood)"
+                                style="border:none;font-size:15px;font-weight:700;color:#1C1C1E;background:transparent;outline:none;width:300px">
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <span x-show="ms.smartValid" class="status-pill" style="background:#DDF0E1;color:#1A7A40;padding:4px 12px;font-size:11px">
+                                <i class="fas fa-check-circle"></i> SMART пройден
+                            </span>
+                            <button @click="removeMilestone(idx)" x-show="milestones.length > 1"
+                                style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:4px">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid-3">
+                        <div class="field">
+                            <label>Дедлайн milestone</label>
+                            <input type="date" x-model="ms.deadline" :max="form.deadline">
+                        </div>
+                        <div class="field">
+                            <label>Период измерения</label>
+                            <input type="text" x-model="ms.period" placeholder="напр.: 14 дней / 30 дней">
+                        </div>
+                        <div class="field">
+                            <label>Сумма вознаграждения (coin)</label>
+                            <input type="number" x-model.number="ms.coins" placeholder="150000" min="0">
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="field">
+                            <label>Baseline (текущее значение метрики)</label>
+                            <input type="text" x-model="ms.baseline" placeholder="напр.: 11 029 ч lead time">
+                        </div>
+                        <div class="field">
+                            <label>Target (целевое значение)</label>
+                            <input type="text" x-model="ms.target" placeholder="напр.: автоматизация ≥50% категорий L1">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label>Критерий успеха (SMART) <span style="color:var(--danger)">*</span></label>
+                        <div style="position:relative">
+                            <textarea x-model="ms.criteria" rows="3"
+                                @input="resetSmart(idx)"
+                                placeholder="Опишите измеримый критерий успеха. Пример: инструмент развёрнут в prod, успешно обработал ≥10 реальных L1-тикетов за 14 дней..."></textarea>
+                        </div>
+                        <!-- SMART indicators -->
+                        <div class="smart-indicator">
+                            <template x-for="letter in ['S','M','A','R','T']" :key="letter">
+                                <span class="smart-badge"
+                                    :class="ms.smart[letter] === true ? 'pass' : ms.smart[letter] === false ? 'fail' : 'pending'">
+                                    <template x-if="ms.smart[letter] === true"><i class="fas fa-check"></i></template>
+                                    <template x-if="ms.smart[letter] === false"><i class="fas fa-times"></i></template>
+                                    <template x-if="ms.smart[letter] === null"><i class="fas fa-circle" style="font-size:6px;opacity:0.4"></i></template>
+                                    <span x-text="letter"></span>
+                                </span>
+                            </template>
+                            <button class="btn-ai" @click="validateSmart(idx)" :disabled="ms.validating || !ms.criteria">
+                                <i class="fas fa-wand-magic-sparkles"></i>
+                                <span x-text="ms.validating ? 'Анализирую...' : 'Проверить с Ксенией'"></span>
+                            </button>
+                        </div>
+                        <!-- Validation feedback -->
+                        <template x-if="ms.smartFeedback">
+                            <div style="background:#F8F7F3;border-radius:10px;padding:10px 14px;margin-top:6px">
+                                <p style="font-size:12px;color:#555;line-height:1.5" x-text="ms.smartFeedback"></p>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="field">
+                            <label>Источник данных для верификации <span style="color:var(--danger)">*</span></label>
+                            <input type="text" x-model="ms.dataSource" placeholder="напр.: Jira + логи агента, дашборд обработки">
+                        </div>
+                        <div class="field">
+                            <label>Стоп-лосс критерий (необязательно)</label>
+                            <input type="text" x-model="ms.stopLoss" placeholder="напр.: если за 3 мес. success rate < 50%">
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Total coins -->
+            <div style="background:#F0EFFF;border-radius:14px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:13px;font-weight:600;color:var(--accent)">
+                    <i class="fas fa-coins"></i> Итого по milestones:
+                </span>
+                <span style="font-size:16px;font-weight:800;color:var(--accent)"
+                    x-text="milestones.reduce((s,m)=>s+(m.coins||0),0).toLocaleString('ru-RU') + ' coin'"></span>
+            </div>
+
+            <div class="panel-footer">
+                <button class="btn btn-outline" @click="goTo(2)">
+                    <i class="fas fa-chevron-left"></i> Назад
+                </button>
+                <div class="footer-right">
+                    <template x-if="!allSmartValid()">
+                        <span style="font-size:12px;color:var(--danger);align-self:center">
+                            <i class="fas fa-exclamation-circle"></i> Проверьте все milestones по SMART
+                        </span>
+                    </template>
+                    <button class="btn btn-primary" @click="goTo(4)" :disabled="!allSmartValid()">
+                        Далее <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════ STEP 4: Команда и coins ══════════ -->
+        <section class="wizard-panel" x-show="step===4" x-transition>
+            <div>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 4 из 5</span>
+                <h2 style="font-size:20px;font-weight:700;margin-top:4px">Команда и coins</h2>
+                <p class="hint" style="margin-top:3px">Распределите вознаграждение между участниками. Сумма свободных coins не может быть отрицательной.</p>
+            </div>
+
+            <div class="grid-2" style="align-items:start">
+                <div class="field">
+                    <label>Общий бюджет контракта (руб.) <span style="color:var(--danger)">*</span></label>
+                    <input type="number" x-model.number="form.totalBudget" placeholder="1000000" min="0">
+                    <span class="hint">Может быть больше суммы по участникам — резерв для новых</span>
+                </div>
+                <div class="field">
+                    <label>Принцип распределения</label>
+                    <textarea x-model="form.distributionNote" rows="2"
+                        placeholder="Опишите логику: вклад, роль, доля..."></textarea>
+                </div>
+            </div>
+
+            <!-- Team table -->
+            <div style="border:1.5px solid #E5E5ED;border-radius:14px;overflow:hidden">
+                <table class="team-table">
+                    <thead style="background:#F8F7F3">
+                        <tr>
+                            <th>Участник</th>
+                            <th>Роль</th>
+                            <th style="text-align:right">Coins</th>
+                            <th style="text-align:right">%</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="(member, idx) in team" :key="member.id">
+                            <tr>
+                                <td>
+                                    <input type="text" x-model="member.name" placeholder="Имя участника"
+                                        style="border:1.5px solid #E5E5ED;border-radius:8px;padding:6px 10px;font-size:13px;width:160px">
+                                </td>
+                                <td>
+                                    <input type="text" x-model="member.role" placeholder="Роль"
+                                        style="border:1.5px solid #E5E5ED;border-radius:8px;padding:6px 10px;font-size:13px;width:130px">
+                                </td>
+                                <td style="text-align:right">
+                                    <input type="number" x-model.number="member.coins" min="0" placeholder="0"
+                                        style="border:1.5px solid #E5E5ED;border-radius:8px;padding:6px 10px;font-size:13px;width:110px;text-align:right">
+                                </td>
+                                <td style="text-align:right;font-size:13px;font-weight:600;color:var(--muted)">
+                                    <span x-text="totalCoins() > 0 ? Math.round(member.coins/totalCoins()*100) + '%' : '—'"></span>
+                                </td>
+                                <td>
+                                    <button @click="removeMember(idx)" x-show="team.length > 1"
+                                        style="background:none;border:none;cursor:pointer;color:var(--muted)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                <div style="padding:10px 14px;border-top:1px solid #F2F2F7">
+                    <button class="btn-ai" @click="addMember()">
+                        <i class="fas fa-plus"></i> Добавить участника
+                    </button>
+                </div>
+            </div>
+
+            <!-- Coins summary -->
+            <div class="coins-summary">
+                <div class="coin-card">
+                    <div class="coin-label">Всего coin</div>
+                    <div class="coin-value" x-text="milestones.reduce((s,m)=>s+(m.coins||0),0).toLocaleString('ru-RU')"></div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:4px">по milestones</div>
+                </div>
+                <div class="coin-card">
+                    <div class="coin-label">Распределено</div>
+                    <div class="coin-value" x-text="totalCoins().toLocaleString('ru-RU')"></div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:4px">по участникам</div>
+                </div>
+                <div class="coin-card" :style="freeCoins() < 0 ? 'background:#FFF0EF' : ''">
+                    <div class="coin-label">Свободные</div>
+                    <div class="coin-value" :style="freeCoins() < 0 ? 'color:var(--danger)' : ''"
+                        x-text="freeCoins().toLocaleString('ru-RU')"></div>
+                    <div style="font-size:11px;margin-top:4px" :style="freeCoins() < 0 ? 'color:var(--danger);font-weight:700' : 'color:var(--muted)'">
+                        <span x-text="freeCoins() < 0 ? '⚠ Превышение!' : 'резерв'"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-footer">
+                <button class="btn btn-outline" @click="goTo(3)">
+                    <i class="fas fa-chevron-left"></i> Назад
+                </button>
+                <div class="footer-right">
+                    <button class="btn btn-primary" @click="goTo(5)"
+                        :disabled="team.length === 0 || freeCoins() < 0">
+                        Далее <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════ STEP 5: Резюме ══════════ -->
+        <section class="wizard-panel" x-show="step===5" x-transition>
+            <div>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 5 из 5</span>
+                <h2 style="font-size:20px;font-weight:700;margin-top:4px">Резюме контракта</h2>
+                <p class="hint" style="margin-top:3px">Проверьте все данные перед отправкой на согласование.</p>
+            </div>
+
+            <!-- Contract essence block -->
+            <div class="summary-block">
+                <h4><i class="fas fa-file-contract" style="color:var(--accent)"></i> Суть контракта</h4>
+                <div class="summary-row">
+                    <span class="lbl">Название</span>
+                    <span class="val" x-text="form.name || '—'"></span>
+                </div>
+                <div class="summary-row">
+                    <span class="lbl">Тип</span>
+                    <span class="val">
+                        <span class="status-pill pill-coin" style="padding:3px 10px;font-size:11px">
+                            <i class="fas fa-coins"></i> Смарт-контракт
+                        </span>
+                        <span x-text="form.contractType === 'phased' ? ' · Поэтапный' : ' · Единый'"
+                            style="font-size:12px;color:var(--muted)"></span>
+                    </span>
+                </div>
+                <div class="summary-row">
+                    <span class="lbl">Бизнес-юнит</span>
+                    <span class="val" x-text="form.businessUnit || '—'"></span>
+                </div>
+                <div class="summary-row">
+                    <span class="lbl">Куратор</span>
+                    <span class="val" x-text="form.curator || '—'"></span>
+                </div>
+                <div class="summary-row">
+                    <span class="lbl">Инициатор</span>
+                    <span class="val" x-text="userName"></span>
+                </div>
+                <div class="summary-row">
+                    <span class="lbl">Дедлайн</span>
+                    <span class="val" x-text="form.deadline || '—'"></span>
+                </div>
+                <div class="summary-row" x-show="form.description">
+                    <span class="lbl">Описание</span>
+                    <span class="val" style="max-width:70%;font-weight:500;line-height:1.4" x-text="form.description"></span>
+                </div>
+            </div>
+
+            <!-- Milestones summary -->
+            <div class="summary-block">
+                <h4><i class="fas fa-flag-checkered" style="color:var(--accent)"></i> Milestones</h4>
+                <div style="overflow-x:auto">
+                    <table class="milestone-summary-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Название</th>
+                                <th>Дедлайн</th>
+                                <th>Период</th>
+                                <th>Coins</th>
+                                <th>Критерий (кратко)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(ms, idx) in milestones" :key="ms.id">
+                                <tr>
+                                    <td style="font-weight:700;color:var(--accent)" x-text="idx+1"></td>
+                                    <td style="font-weight:600" x-text="ms.name || '—'"></td>
+                                    <td x-text="ms.deadline || '—'"></td>
+                                    <td x-text="ms.period || '—'"></td>
+                                    <td style="font-weight:700;color:var(--accent)" x-text="(ms.coins||0).toLocaleString('ru-RU')"></td>
+                                    <td style="color:var(--muted);max-width:200px" x-text="(ms.criteria||'—').substring(0,80) + ((ms.criteria||'').length>80?'...':'')"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Team summary -->
+            <div class="summary-block">
+                <h4><i class="fas fa-users" style="color:var(--accent)"></i> Команда и coins</h4>
+                <div style="overflow-x:auto">
+                    <table class="milestone-summary-table">
+                        <thead>
+                            <tr>
+                                <th>Участник</th>
+                                <th>Роль</th>
+                                <th style="text-align:right">Coins</th>
+                                <th style="text-align:right">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="member in team" :key="member.id">
+                                <tr>
+                                    <td style="font-weight:600" x-text="member.name || '—'"></td>
+                                    <td style="color:var(--muted)" x-text="member.role || '—'"></td>
+                                    <td style="text-align:right;font-weight:700;color:var(--accent)" x-text="(member.coins||0).toLocaleString('ru-RU')"></td>
+                                    <td style="text-align:right;color:var(--muted)" x-text="totalCoins()>0 ? Math.round(member.coins/totalCoins()*100)+'%' : '—'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+                <div style="margin-top:12px">
+                    <div class="coins-summary">
+                        <div class="coin-card">
+                            <div class="coin-label">Всего coin</div>
+                            <div class="coin-value" x-text="milestones.reduce((s,m)=>s+(m.coins||0),0).toLocaleString('ru-RU')"></div>
+                        </div>
+                        <div class="coin-card">
+                            <div class="coin-label">Распределено</div>
+                            <div class="coin-value" x-text="totalCoins().toLocaleString('ru-RU')"></div>
+                        </div>
+                        <div class="coin-card">
+                            <div class="coin-label">Свободный резерв</div>
+                            <div class="coin-value" x-text="freeCoins().toLocaleString('ru-RU')"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Summary -->
+            <div class="ai-summary-block">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                    <p style="font-size:12px;font-weight:700;color:var(--accent)">
+                        <i class="fas fa-wand-magic-sparkles"></i> AI-резюме для финансового блока (Ксения)
+                    </p>
+                    <button class="btn-ai" @click="generateAiSummary()" :disabled="aiSummaryLoading">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                        <span x-text="aiSummaryLoading ? 'Генерируем...' : 'Сформировать резюме'"></span>
+                    </button>
+                </div>
+                <template x-if="aiSummary">
+                    <p style="font-size:13px;line-height:1.6;color:#333" x-text="aiSummary"></p>
+                </template>
+                <template x-if="!aiSummary">
+                    <p style="font-size:12px;color:var(--muted);font-style:italic">
+                        Нажмите «Сформировать резюме» — Ксения подготовит описание контракта для финансового блока.
+                    </p>
+                </template>
+            </div>
+
+            <div class="panel-footer">
+                <button class="btn btn-outline" @click="goTo(4)">
+                    <i class="fas fa-chevron-left"></i> Назад
+                </button>
+                <div class="footer-right">
+                    <button class="btn btn-primary" @click="submitContract()" :disabled="submitted"
+                        style="background: submitted ? '#34C759' : 'var(--accent)'">
+                        <template x-if="!submitted">
+                            <span><i class="fas fa-paper-plane"></i> Отправить на согласование</span>
+                        </template>
+                        <template x-if="submitted">
+                            <span><i class="fas fa-check"></i> Отправлено!</span>
+                        </template>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Success message -->
+            <template x-if="submitted">
+                <div style="background:#DDF0E1;border:1.5px solid #34C759;border-radius:14px;padding:18px;display:flex;gap:14px;align-items:flex-start">
+                    <i class="fas fa-check-circle" style="color:#1A7A40;font-size:22px;margin-top:2px"></i>
+                    <div>
+                        <strong style="font-size:14px;color:#1A7A40">Контракт отправлен на согласование</strong>
+                        <p style="font-size:12px;color:#2D7A4A;margin-top:4px;line-height:1.5">
+                            Финансовый блок получил заявку с AI-резюме. После согласования coins будут зарезервированы на счёте контракта.
+                            Выплата — только по факту верификации каждого milestone куратором / CEO.
+                        </p>
+                        <a href="/smart-contract" style="display:inline-block;margin-top:10px;font-size:12px;font-weight:600;color:var(--accent)">
+                            Перейти к просмотру контракта →
+                        </a>
+                    </div>
+                </div>
+            </template>
+        </section>
+
+    </main>
+</div>
+
+<script>
+function scWizard() {
+    return {
+        step: 1,
+        userName: '',
+        gptLoading: false,
+        aiSummaryLoading: false,
+        aiSummary: '',
+        submitted: false,
+
+        form: {
+            type: 'smart_contract',
+            name: '',
+            businessUnit: '',
+            description: '',
+            curator: '',
+            deadline: '',
+            contractType: 'phased',
+            totalBudget: 0,
+            distributionNote: '',
+        },
+
+        milestones: [],
+        team: [],
+
+        get minDeadline() {
+            const d = new Date();
+            d.setDate(d.getDate() + 14);
+            return d.toISOString().split('T')[0];
+        },
+
+        init() {
+            patchSidebar();
+            this.userName = getUserName() || 'Текущий пользователь';
+            const role = getUserRole();
+            if (role === 'cfo' || role === 'manager') {
+                const el = document.getElementById('nav-users');
+                if (el) el.style.display = '';
+            }
+            this.addMilestone();
+            this.addMember();
+        },
+
+        goTo(n) {
+            if (n < 1 || n > 5) return;
+            this.step = n;
+            window.scrollTo(0, 0);
+        },
+
+        addMilestone() {
+            this.milestones.push({
+                id: Date.now() + Math.random(),
+                name: '',
+                deadline: '',
+                period: '',
+                coins: 0,
+                baseline: '',
+                target: '',
+                criteria: '',
+                dataSource: '',
+                stopLoss: '',
+                smart: { S: null, M: null, A: null, R: null, T: null },
+                smartValid: false,
+                validating: false,
+                smartFeedback: '',
+            });
+        },
+
+        removeMilestone(idx) {
+            this.milestones.splice(idx, 1);
+        },
+
+        resetSmart(idx) {
+            const ms = this.milestones[idx];
+            ms.smart = { S: null, M: null, A: null, R: null, T: null };
+            ms.smartValid = false;
+            ms.smartFeedback = '';
+        },
+
+        async validateSmart(idx) {
+            const ms = this.milestones[idx];
+            if (!ms.criteria) return;
+            ms.validating = true;
+            ms.smartFeedback = '';
+            await new Promise(r => setTimeout(r, 1400));
+            const text = ms.criteria.toLowerCase();
+            // Mock SMART validation logic
+            const hasNum = /[0-9]+\s*(%|шт|тик|ticket|ч\b|час|мин|min|sec|сек|руб|₽|coin)/.test(text);
+            const hasPeriod = /(дней|день|неделя|месяц|days?|weeks?|months?|за\s+\d+|в течение|continuously|\d+\s+д\b)/.test(text);
+            const hasAction = /(развёрн|deploy|обработ|запущ|работ|автомат|достиг|достичь|выполнен|обеспечен)/.test(text);
+            const hasBaseline = ms.baseline && ms.baseline.length > 3;
+            const hasRelevance = /(экономи|savings?|lead time|revenue|выручк|fot|фот|эффективн|улучш|сокращ|снижен)/.test(text);
+
+            ms.smart.S = hasAction || text.length > 40;
+            ms.smart.M = hasNum;
+            ms.smart.A = hasBaseline || text.length > 60;
+            ms.smart.R = hasRelevance || (ms.target && ms.target.length > 3);
+            ms.smart.T = hasPeriod;
+
+            const passed = Object.values(ms.smart).filter(Boolean).length;
+            ms.smartValid = passed === 5;
+
+            if (ms.smartValid) {
+                ms.smartFeedback = '✅ Критерий соответствует всем требованиям SMART. Ксения подтверждает: milestone готов к согласованию.';
+            } else {
+                const failed = Object.entries(ms.smart).filter(([,v]) => !v).map(([k]) => k);
+                const hints = {
+                    S: 'S — добавьте конкретное действие или результат',
+                    M: 'M — укажите числовой порог (%, количество, время)',
+                    A: 'A — укажите baseline и реалистичную цель',
+                    R: 'R — свяжите критерий с бизнес-результатом компании',
+                    T: 'T — укажите дедлайн или период измерения',
+                };
+                ms.smartFeedback = '⚠️ Требуется доработка: ' + failed.map(l => hints[l]).join('; ') + '.';
+            }
+            ms.validating = false;
+        },
+
+        allSmartValid() {
+            return this.milestones.length > 0 && this.milestones.every(m => m.smartValid);
+        },
+
+        addMember() {
+            this.team.push({ id: Date.now() + Math.random(), name: '', role: '', coins: 0 });
+        },
+
+        removeMember(idx) {
+            this.team.splice(idx, 1);
+        },
+
+        totalCoins() {
+            return this.team.reduce((s, m) => s + (m.coins || 0), 0);
+        },
+
+        freeCoins() {
+            return this.milestones.reduce((s, m) => s + (m.coins || 0), 0) - this.totalCoins();
+        },
+
+        async mockGptDescription() {
+            this.gptLoading = true;
+            await new Promise(r => setTimeout(r, 1600));
+            if (!this.form.description) {
+                this.form.description = `${this.form.name || 'Контракт'} направлен на автоматизацию ключевых операционных процессов с помощью AI-агентов.\n\nОжидаемый бизнес-эффект: сокращение ручного труда команды на ≥40%, снижение lead time обработки задач, высвобождение инженерного времени для продуктовых задач.\n\nФорма реализации — открытое участие, состав команды формируется по принципу вклада в результат.`;
+            }
+            this.gptLoading = false;
+        },
+
+        async generateAiSummary() {
+            this.aiSummaryLoading = true;
+            await new Promise(r => setTimeout(r, 2000));
+            const totalCoins = this.milestones.reduce((s, m) => s + (m.coins || 0), 0);
+            this.aiSummary = `Контракт «${this.form.name || 'Смарт-контракт'}» (${this.form.businessUnit || 'бизнес-юнит не указан'}) инициирован ${this.userName}. Куратор: ${this.form.curator || 'не назначен'}. Дедлайн: ${this.form.deadline || 'не указан'}.\n\nФормат: ${this.form.contractType === 'phased' ? 'поэтапный' : 'единый'} смарт-контракт с ${this.milestones.length} milestone(s), общая сумма вознаграждения — ${totalCoins.toLocaleString('ru-RU')} coin. Все критерии успеха прошли SMART-валидацию.\n\nОжидаемый эффект: ${this.form.description ? this.form.description.substring(0, 120) + '...' : 'описание не указано'}. Источники верификации: ${this.milestones.map(m => m.dataSource).filter(Boolean).join(', ') || 'не указаны'}.\n\nРекомендация Ксении: контракт готов к согласованию финансовым блоком. Риски — умеренные.`;
+            this.aiSummaryLoading = false;
+        },
+
+        async submitContract() {
+            if (this.submitted) return;
+            this.submitted = true;
+        },
+    };
+}
+</script>
+</body>
+</html>
