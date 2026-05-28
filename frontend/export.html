@@ -131,12 +131,13 @@
 
         .settings-card { background: white; padding: 35px; border-radius: var(--radius-md); }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px; }
-        .form-group { display: flex; flex-direction: column; gap: 10px; }
+        .form-group { display: flex; flex-direction: column; gap: 10px; min-width: 0; overflow: hidden; }
         .form-group label { font-size: 13px; font-weight: 700; color: var(--text-main); }
-        
-        .input-field { 
-            padding: 12px 15px; border-radius: 12px; border: 1px solid #E5E5E5; 
+
+        .input-field {
+            padding: 12px 15px; border-radius: 12px; border: 1px solid #E5E5E5;
             font-size: 14px; font-weight: 500; outline: none; background: #F9F9F9;
+            width: 100%; max-width: 100%; box-sizing: border-box;
         }
 
         .checkbox-group { display: flex; align-items: center; gap: 12px; cursor: pointer; }

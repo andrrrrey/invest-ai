@@ -436,6 +436,27 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Confirm dialog -->
+            <div x-show="confirmModal.show"
+                 style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px">
+                <div style="background:white;border-radius:20px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25)">
+                    <h3 style="font-size:17px;font-weight:700;margin-bottom:10px" x-text="confirmModal.title"></h3>
+                    <p style="font-size:13px;color:#8E8E93;margin-bottom:24px;line-height:1.55" x-text="confirmModal.message"></p>
+                    <div style="display:flex;gap:10px;justify-content:flex-end">
+                        <button @click="confirmModal.show=false"
+                            style="padding:10px 20px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
+                            Отмена
+                        </button>
+                        <button @click="doConfirm()"
+                            :style="confirmModal.danger
+                                ? 'padding:10px 20px;border-radius:12px;border:none;background:#FF3B30;color:white;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit'
+                                : 'padding:10px 20px;border-radius:12px;border:none;background:#5E5CE6;color:white;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit'"
+                            x-text="confirmModal.confirmLabel">
+                        </button>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -471,6 +492,14 @@
                 filterStatus: '',
                 filterRisk: '',
                 search: '',
+                confirmModal: { show: false, title: '', message: '', confirmLabel: 'Подтвердить', danger: false, onConfirm: null },
+                showConfirm(title, message, onConfirm, opts = {}) {
+                    this.confirmModal = { show: true, title, message, confirmLabel: opts.confirmLabel || 'Подтвердить', danger: opts.danger || false, onConfirm };
+                },
+                doConfirm() {
+                    if (this.confirmModal.onConfirm) this.confirmModal.onConfirm();
+                    this.confirmModal.show = false;
+                },
 
                 async init() {
                     if (!redirectIfNotLoggedIn()) return;
@@ -565,15 +594,21 @@
                     return '';
                 },
 
-                async deleteProject(id, name) {
-                    if (!confirm(`Удалить проект «${name || 'без названия'}»? Это действие нельзя отменить.`)) return;
-                    try {
-                        const res = await authFetch(`/api/v1/projects/${id}`, { method: 'DELETE' });
-                        if (!res.ok && res.status !== 204) throw new Error('Ошибка удаления');
-                        this.projects = this.projects.filter(p => p.id !== id);
-                    } catch(e) {
-                        if (e.message !== 'Unauthorized') alert('Ошибка удаления: ' + e.message);
-                    }
+                deleteProject(id, name) {
+                    this.showConfirm(
+                        'Удалить проект?',
+                        `Проект «${name || 'без названия'}» будет удалён безвозвратно. Это действие нельзя отменить.`,
+                        async () => {
+                            try {
+                                const res = await authFetch(`/api/v1/projects/${id}`, { method: 'DELETE' });
+                                if (!res.ok && res.status !== 204) throw new Error('Ошибка удаления');
+                                this.projects = this.projects.filter(p => p.id !== id);
+                            } catch(e) {
+                                if (e.message !== 'Unauthorized') alert('Ошибка удаления: ' + e.message);
+                            }
+                        },
+                        { danger: true, confirmLabel: 'Удалить' }
+                    );
                 },
             };
         }

@@ -3189,9 +3189,9 @@ function wizardApp() {
             const manualReview = this.riskScoreData?.manual_review_required;
             const route = this.riskScoreData?.recommended_route || this.form.vs_band;
             if (manualReview) return 'Обязательное рассмотрение CEO/CFO/инвесткомитетом.';
-            if (route === 'fast_track')      return 'Автоматическое утверждение на Discovery/Pilot. Ресурсы выделяются из резерва.';
-            if (route === 'efficiency_play') return 'Должна окупить сама себя в течение 12 месяцев. Требуется unit-кейс.';
-            if (route === 'backlog_stop')    return 'Отказ или возврат на переработку с рекомендациями AI.';
+            if (route === 'fast_track')      return 'Fast Track (40–50/50) — высокий потенциал создания ценности. Автоматическое утверждение на Discovery/Pilot, ресурсы выделяются из резерва.';
+            if (route === 'efficiency_play') return 'Efficiency Play (25–39/50) — умеренный потенциал, приоритет операционной эффективности. Инициатива должна окупить себя в течение 12 месяцев; для получения ресурсов требуется unit-кейс с подтверждёнными расчётами.';
+            if (route === 'backlog_stop')    return 'Backlog / Stop (0–24/50) — недостаточный потенциал создания ценности. Отказ или возврат на переработку с рекомендациями AI.';
             return '';
         },
 
