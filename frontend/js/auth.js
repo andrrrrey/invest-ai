@@ -136,20 +136,22 @@ function patchSidebar() {
         }
     }
 
-    // Inject collapse toggle button
+    // Inject collapse toggle button as sibling of sidebar (outside sidebar's overflow)
     const sidebar = document.getElementById('sidebar');
-    if (sidebar && !document.getElementById('sidebar-toggle')) {
+    const appWindow = sidebar && sidebar.parentElement;
+    if (sidebar && appWindow && !document.getElementById('sidebar-toggle')) {
         const btn = document.createElement('button');
         btn.id = 'sidebar-toggle';
         btn.className = 'sidebar-toggle-btn';
         btn.innerHTML = '<i class="fas fa-chevron-left"></i>';
         btn.title = 'Свернуть меню';
         btn.addEventListener('click', toggleSidebarCollapse);
-        sidebar.appendChild(btn);
+        appWindow.appendChild(btn);
 
         // Restore collapsed state from localStorage
         if (localStorage.getItem('sidebarCollapsed') === 'true') {
             sidebar.classList.add('collapsed');
+            btn.classList.add('collapsed');
             btn.innerHTML = '<i class="fas fa-chevron-right"></i>';
             btn.title = 'Развернуть меню';
         }
@@ -163,6 +165,7 @@ function toggleSidebarCollapse() {
     const isCollapsed = sidebar.classList.toggle('collapsed');
     localStorage.setItem('sidebarCollapsed', isCollapsed ? 'true' : 'false');
     if (btn) {
+        btn.classList.toggle('collapsed', isCollapsed);
         btn.innerHTML = isCollapsed
             ? '<i class="fas fa-chevron-right"></i>'
             : '<i class="fas fa-chevron-left"></i>';
