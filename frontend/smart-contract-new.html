@@ -32,7 +32,7 @@
         .ai-banner { background: linear-gradient(135deg,#EEF0FF 0%,#F5F4FF 100%); border: 1.5px solid #C7C9FF; border-radius: 16px; padding: 14px 18px; display: flex; gap: 14px; align-items: flex-start; color: var(--accent); }
         .ai-banner strong { font-size: 13px; display: block; margin-bottom: 3px; }
         .ai-banner p { font-size: 12px; line-height: 1.5; color: #555; }
-        .steps-nav { display: grid; grid-template-columns: repeat(5,1fr); gap: 8px; }
+        .steps-nav { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
         .step-btn { padding: 10px 8px; border: 1.5px solid #E5E5ED; border-radius: 12px; background: white; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; transition: .2s; text-align: center; }
         .step-btn.active { border-color: var(--accent); background: #F0EFFF; color: var(--accent); }
         .step-btn.done { border-color: var(--success); background: #DDF0E1; color: #1A7A40; }
@@ -161,7 +161,7 @@
         <header class="top-header">
             <div>
                 <h1>Создание смарт-контракта</h1>
-                <p>Шаг <span x-text="step"></span> из 5 · Контракт с выплатой вознаграждения в coin</p>
+                <p>Шаг <span x-text="step"></span> из 4 · Контракт с выплатой вознаграждения в coin</p>
             </div>
             <span class="status-pill pill-coin"><i class="fas fa-coins"></i> Смарт-контракт</span>
         </header>
@@ -170,8 +170,8 @@
         <div class="ai-banner">
             <i class="fas fa-wand-magic-sparkles" style="font-size:22px;margin-top:2px"></i>
             <div>
-                <strong>Ксения, AI-ассистент (GPT-5.4)</strong>
-                <p x-text="step === 3
+                <strong x-text="'Ксения · ' + aiModel"></strong>
+                <p x-text="step === 2
                     ? 'Ксения проверяет каждый milestone на измеримость. Кнопка «Далее» становится активной только после валидации всех критериев по SMART.'
                     : 'Заполняйте шаги по очереди. Coins резервируются только при достижении milestone — без предоплаты.'"></p>
             </div>
@@ -179,7 +179,7 @@
 
         <!-- Step navigation -->
         <nav class="steps-nav">
-            <template x-for="(label, i) in ['1. Тип проекта','2. Суть','3. Milestones','4. Команда и coins','5. Резюме']" :key="i">
+            <template x-for="(label, i) in ['1. Суть','2. Milestones','3. Команда и coins','4. Резюме']" :key="i">
                 <button class="step-btn"
                     :class="{ active: step === i+1, done: step > i+1 }"
                     @click="goTo(i+1)">
@@ -189,46 +189,10 @@
             </template>
         </nav>
 
-        <!-- ══════════ STEP 1: Тип проекта ══════════ -->
+        <!-- ══════════ STEP 1: Суть контракта ══════════ -->
         <section class="wizard-panel" x-show="step===1" x-transition>
             <div>
-                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 1 из 5</span>
-                <h2 style="font-size:20px;font-weight:700;margin-top:4px">Тип проекта</h2>
-                <p class="hint" style="margin-top:3px">Выберите формат инвестиционного запроса.</p>
-            </div>
-
-            <div class="choice-grid">
-                <article class="choice-card" :class="{active: form.type==='investment'}" @click="form.type='investment'">
-                    <div class="card-icon">📈</div>
-                    <h3>Запрос на инвестиции в стратегические инициативы (новые продукты, выход на новые рынки, запуск новых направлений)</h3>
-                    <div class="card-badge" style="background:#EEF0FF;color:var(--accent)">NPV / IRR</div>
-                </article>
-                <article class="choice-card" :class="{active: form.type==='operational'}" @click="form.type='operational'">
-                    <div class="card-icon">⚙️</div>
-                    <h3>Запрос на инвестиции (в персонал, маркетинг, оборудование, операционную эффективность и прочее)</h3>
-                    <div class="card-badge" style="background:#DDF0E1;color:#1A7A40">Value Score</div>
-                </article>
-                <article class="choice-card" :class="{active: form.type==='smart_contract'}" @click="form.type='smart_contract'">
-                    <div class="card-icon">🪙</div>
-                    <h3>Смарт-контракт (выплата в coin) — контракт на результат с выплатой вознаграждения при достижении заранее согласованных Milestones</h3>
-                    <div class="card-badge" style="background:#FFF4E5;color:#B05E00">Verified Milestones</div>
-                </article>
-            </div>
-
-            <div class="panel-footer">
-                <span></span>
-                <div class="footer-right">
-                    <button class="btn btn-primary" @click="goTo(2)" :disabled="!form.type">
-                        Далее <i class="fas fa-chevron-right"></i>
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <!-- ══════════ STEP 2: Суть контракта ══════════ -->
-        <section class="wizard-panel" x-show="step===2" x-transition>
-            <div>
-                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 2 из 5</span>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 1 из 4</span>
                 <h2 style="font-size:20px;font-weight:700;margin-top:4px">Суть контракта</h2>
             </div>
 
@@ -318,11 +282,16 @@
             </div>
 
             <div class="panel-footer">
-                <button class="btn btn-outline" @click="goTo(1)">
-                    <i class="fas fa-chevron-left"></i> Назад
-                </button>
+                <a href="/smart-contracts" class="btn btn-outline" style="text-decoration:none">
+                    <i class="fas fa-chevron-left"></i> Отмена
+                </a>
                 <div class="footer-right">
-                    <button class="btn btn-primary" @click="goTo(3)"
+                    <template x-if="form.name && form.businessUnit && form.shortDescription && form.businessEffect && form.deadline ? false : true">
+                        <span style="font-size:12px;color:var(--danger);align-self:center">
+                            <i class="fas fa-exclamation-circle"></i> Заполните обязательные поля
+                        </span>
+                    </template>
+                    <button class="btn btn-primary" @click="goTo(2)"
                         :disabled="!form.name || !form.businessUnit || !form.shortDescription || !form.businessEffect || !form.deadline">
                         Далее <i class="fas fa-chevron-right"></i>
                     </button>
@@ -330,11 +299,11 @@
             </div>
         </section>
 
-        <!-- ══════════ STEP 3: Milestones ══════════ -->
-        <section class="wizard-panel" x-show="step===3" x-transition>
+        <!-- ══════════ STEP 2: Milestones ══════════ -->
+        <section class="wizard-panel" x-show="step===2" x-transition>
             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
                 <div>
-                    <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 3 из 5</span>
+                    <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 2 из 4</span>
                     <h2 style="font-size:20px;font-weight:700;margin-top:4px">Milestones</h2>
                     <p class="hint" style="margin-top:3px" x-show="form.contractType !== 'single'">Каждый milestone должен пройти проверку по всем 5 критериям SMART.</p>
                     <p class="hint" style="margin-top:3px" x-show="form.contractType === 'single'">Тип контракта «Единый» — один этап. Критерий успеха должен пройти проверку SMART.</p>
@@ -403,8 +372,8 @@
 
                     <div class="field">
                         <label>Критерий успеха (SMART) <span style="color:var(--danger)">*</span></label>
-                        <div style="position:relative">
-                            <textarea x-model="ms.criteria" rows="3"
+                        <div style="position:relative;width:100%">
+                            <textarea x-model="ms.criteria" rows="3" style="width:100%;resize:vertical"
                                 @input="resetSmart(idx)"
                                 placeholder="Опишите измеримый критерий успеха. Пример: инструмент развёрнут в prod, успешно обработал ≥10 реальных L1-тикетов за 14 дней..."></textarea>
                         </div>
@@ -455,26 +424,24 @@
             </div>
 
             <div class="panel-footer">
-                <button class="btn btn-outline" @click="goTo(2)">
+                <button class="btn btn-outline" @click="goTo(1)">
                     <i class="fas fa-chevron-left"></i> Назад
                 </button>
                 <div class="footer-right">
-                    <template x-if="!allSmartValid()">
-                        <span style="font-size:12px;color:var(--danger);align-self:center">
-                            <i class="fas fa-exclamation-circle"></i> Проверьте все milestones по SMART
-                        </span>
+                    <template x-if="!milestonesValid()">
+                        <span style="font-size:12px;color:var(--danger);align-self:center" x-text="milestonesError()"></span>
                     </template>
-                    <button class="btn btn-primary" @click="goTo(4)" :disabled="!allSmartValid()">
+                    <button class="btn btn-primary" @click="goTo(3)" :disabled="!milestonesValid()">
                         Далее <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
             </div>
         </section>
 
-        <!-- ══════════ STEP 4: Команда и coins ══════════ -->
-        <section class="wizard-panel" x-show="step===4" x-transition>
+        <!-- ══════════ STEP 3: Команда и coins ══════════ -->
+        <section class="wizard-panel" x-show="step===3" x-transition>
             <div>
-                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 4 из 5</span>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 3 из 4</span>
                 <h2 style="font-size:20px;font-weight:700;margin-top:4px">Состав участников</h2>
                 <p class="hint" style="margin-top:3px">Распределите вознаграждение между участниками. Сумма свободных coins не может быть отрицательной.</p>
             </div>
@@ -574,11 +541,21 @@
             </div>
 
             <div class="panel-footer">
-                <button class="btn btn-outline" @click="goTo(3)">
+                <button class="btn btn-outline" @click="goTo(2)">
                     <i class="fas fa-chevron-left"></i> Назад
                 </button>
                 <div class="footer-right">
-                    <button class="btn btn-primary" @click="goTo(5)"
+                    <template x-if="!form.needsRecruitment && team.filter(m=>m.name).length === 0">
+                        <span style="font-size:12px;color:var(--danger);align-self:center">
+                            <i class="fas fa-exclamation-circle"></i> Добавьте хотя бы одного участника
+                        </span>
+                    </template>
+                    <template x-if="!form.needsRecruitment && freeCoins() < 0">
+                        <span style="font-size:12px;color:var(--danger);align-self:center">
+                            <i class="fas fa-exclamation-circle"></i> Превышение бюджета coins
+                        </span>
+                    </template>
+                    <button class="btn btn-primary" @click="goTo(4)"
                         :disabled="!form.needsRecruitment && (team.filter(m=>m.name).length === 0 || freeCoins() < 0)">
                         Далее <i class="fas fa-chevron-right"></i>
                     </button>
@@ -586,10 +563,10 @@
             </div>
         </section>
 
-        <!-- ══════════ STEP 5: Резюме ══════════ -->
-        <section class="wizard-panel" x-show="step===5" x-transition>
+        <!-- ══════════ STEP 4: Резюме ══════════ -->
+        <section class="wizard-panel" x-show="step===4" x-transition>
             <div>
-                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 5 из 5</span>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 4 из 4</span>
                 <h2 style="font-size:20px;font-weight:700;margin-top:4px">Резюме контракта</h2>
                 <p class="hint" style="margin-top:3px">Проверьте все данные перед отправкой на согласование.</p>
             </div>
@@ -737,7 +714,7 @@
             </div>
 
             <div class="panel-footer">
-                <button class="btn btn-outline" @click="goTo(4)">
+                <button class="btn btn-outline" @click="goTo(3)">
                     <i class="fas fa-chevron-left"></i> Назад
                 </button>
                 <div class="footer-right">
@@ -809,6 +786,7 @@ function scWizard() {
         team: [],
         directory: [],
         navRate: 10.1,
+        aiModel: 'AI-ассистент',
         submitError: '',
 
         get minDeadline() {
@@ -853,12 +831,30 @@ function scWizard() {
                         this.navRate = s.nav_rate;
                         this.milestones.forEach((m, i) => this.recalcCoins(i));
                     }
+                    if (s.ai_model) this.aiModel = s.ai_model;
                 }
             } catch (e) {}
         },
 
         curatorCandidates() {
-            return this.team.map(m => (m.name || '').trim()).filter(Boolean);
+            // ФИО из справочника сотрудников + уже добавленные участники
+            const fromTeam = this.team.map(m => (m.name || '').trim()).filter(Boolean);
+            const fromDir = (this.directory || []).map(e => e.full_name).filter(Boolean);
+            return [...new Set([...fromTeam, ...fromDir])];
+        },
+
+        milestonesValid() {
+            return this.milestones.length > 0 && this.milestones.every(m =>
+                m.name && m.deadline && (m.rewardRub > 0) && m.criteria && m.dataSource && m.smartValid
+            );
+        },
+
+        milestonesError() {
+            if (this.milestones.some(m => !m.name || !m.deadline || !(m.rewardRub > 0) || !m.dataSource)) {
+                return 'Заполните обязательные поля во всех milestones';
+            }
+            if (!this.allSmartValid()) return 'Проверьте все milestones по SMART';
+            return '';
         },
 
         onDocsChange(e) {
@@ -873,7 +869,7 @@ function scWizard() {
         },
 
         goTo(n) {
-            if (n < 1 || n > 5) return;
+            if (n < 1 || n > 4) return;
             this.step = n;
             window.scrollTo(0, 0);
         },
@@ -993,6 +989,19 @@ function scWizard() {
         async submitContract() {
             if (this.submitted) return;
             this.submitError = '';
+            // Финальная проверка обязательных полей по шагам
+            if (!this.form.name || !this.form.businessUnit || !this.form.shortDescription || !this.form.businessEffect || !this.form.deadline) {
+                this.submitError = 'Заполните обязательные поля на шаге «Суть»';
+                this.goTo(1); return;
+            }
+            if (!this.milestonesValid()) {
+                this.submitError = 'Проверьте обязательные поля и SMART во всех milestones';
+                this.goTo(2); return;
+            }
+            if (!this.form.needsRecruitment && (this.team.filter(t => t.name).length === 0 || this.freeCoins() < 0)) {
+                this.submitError = 'Проверьте состав участников и распределение coins';
+                this.goTo(3); return;
+            }
             const payload = {
                 project_type: 'smart_contract',
                 name: this.form.name,
