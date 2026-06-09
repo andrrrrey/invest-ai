@@ -41,6 +41,11 @@ class Project(Base):
     value_score_data = Column(JSON, nullable=True)   # Value Score inputs + calculated result
     decision_route = Column(String, nullable=True)   # fast_track | efficiency_play | backlog_stop | manual_review
 
+    # Smart contract (project_type == 'smart_contract') specific payload:
+    # milestones[], team[], curator, contractType, shortDescription,
+    # businessEffect, needsRecruitment, documents, navRate, reward totals
+    smart_contract_data = Column(JSON, nullable=True)
+
     # Workflow status
     status = Column(String, default="draft")  # draft | pending_approval | approved | rejected
 
