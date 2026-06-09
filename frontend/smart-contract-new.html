@@ -189,6 +189,12 @@
             </template>
         </nav>
 
+        <template x-if="navError">
+            <div style="background:#FFF0EF;border:1.5px solid var(--danger);border-radius:12px;padding:10px 16px;margin-bottom:14px;color:var(--danger);font-size:13px;font-weight:600">
+                <i class="fas fa-exclamation-circle"></i> <span x-text="navError"></span>
+            </div>
+        </template>
+
         <!-- ══════════ STEP 1: Суть контракта ══════════ -->
         <section class="wizard-panel" x-show="step===1" x-transition>
             <div>
@@ -429,7 +435,9 @@
                 </button>
                 <div class="footer-right">
                     <template x-if="!milestonesValid()">
-                        <span style="font-size:12px;color:var(--danger);align-self:center" x-text="milestonesError()"></span>
+                        <span style="font-size:12px;color:var(--danger);align-self:center;max-width:420px;line-height:1.4;white-space:normal;text-align:right">
+                            <i class="fas fa-exclamation-circle"></i> <span x-text="milestonesError()"></span>
+                        </span>
                     </template>
                     <button class="btn btn-primary" @click="goTo(3)" :disabled="!milestonesValid()">
                         Далее <i class="fas fa-chevron-right"></i>
@@ -788,6 +796,7 @@ function scWizard() {
         navRate: 10.1,
         aiModel: 'AI-ассистент',
         submitError: '',
+        navError: '',
 
         get minDeadline() {
             const d = new Date();
@@ -850,11 +859,18 @@ function scWizard() {
         },
 
         milestonesError() {
-            if (this.milestones.some(m => !m.name || !m.deadline || !(m.rewardRub > 0) || !m.dataSource)) {
-                return 'Заполните обязательные поля во всех milestones';
-            }
-            if (!this.allSmartValid()) return 'Проверьте все milestones по SMART';
-            return '';
+            const probs = [];
+            this.milestones.forEach((m, i) => {
+                const miss = [];
+                if (!m.name) miss.push('название');
+                if (!m.deadline) miss.push('дедлайн');
+                if (!(m.rewardRub > 0)) miss.push('сумму вознаграждения');
+                if (!m.criteria) miss.push('критерий успеха');
+                if (!m.dataSource) miss.push('источник данных');
+                if (m.criteria && !m.smartValid) miss.push('проверку SMART (кнопка «Проверить с Ксенией»)');
+                if (miss.length) probs.push(`Milestone ${i + 1}: ${miss.join(', ')}`);
+            });
+            return probs.join('; ');
         },
 
         onDocsChange(e) {
@@ -868,8 +884,32 @@ function scWizard() {
             ms.coins = Math.round((ms.rewardRub || 0) / rate);
         },
 
+        stepValid(s) {
+            if (s === 1) return !!(this.form.name && this.form.businessUnit && this.form.shortDescription && this.form.businessEffect && this.form.deadline);
+            if (s === 2) return this.milestonesValid();
+            if (s === 3) return this.form.needsRecruitment || (this.team.filter(t => t.name).length > 0 && this.freeCoins() >= 0);
+            return true;
+        },
+
         goTo(n) {
             if (n < 1 || n > 4) return;
+            // Назад — всегда можно
+            if (n <= this.step) {
+                this.navError = '';
+                this.step = n;
+                window.scrollTo(0, 0);
+                return;
+            }
+            // Вперёд — только если все предыдущие шаги заполнены
+            for (let s = 1; s < n; s++) {
+                if (!this.stepValid(s)) {
+                    this.step = s;
+                    this.navError = 'Сначала заполните обязательные поля на этом шаге';
+                    window.scrollTo(0, 0);
+                    return;
+                }
+            }
+            this.navError = '';
             this.step = n;
             window.scrollTo(0, 0);
         },
