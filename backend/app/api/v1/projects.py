@@ -79,6 +79,7 @@ def _check_project_access(project: Project, current_user: User):
 @router.get("/", response_model=List[ProjectRead])
 def list_projects(
     status: str | None = None,
+    project_type: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -88,6 +89,8 @@ def list_projects(
         q = q.filter(Project.user_id == current_user.id)
     if status:
         q = q.filter(Project.status == status)
+    if project_type:
+        q = q.filter(Project.project_type == project_type)
     return q.order_by(Project.created_at.desc()).all()
 
 

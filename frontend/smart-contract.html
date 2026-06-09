@@ -132,7 +132,8 @@
         </div>
         <nav class="nav-menu">
             <a href="/" class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
-            <a href="/project-list" class="nav-link active"><i class="fas fa-project-diagram"></i> Проекты</a>
+            <a href="/project-list" class="nav-link"><i class="fas fa-project-diagram"></i> Проекты</a>
+            <a href="/smart-contracts" class="nav-link active"><i class="fas fa-file-contract"></i> Смарт-контракты</a>
             <a href="/export" class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
             <a href="/settings" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
             <a href="/users" class="nav-link" id="nav-users" style="display:none"><i class="fas fa-users"></i> Пользователи</a>
@@ -525,6 +526,9 @@ function scView() {
             ],
         },
 
+        loading: false,
+        notFound: false,
+
         init() {
             patchSidebar();
             const role = getUserRole();
@@ -532,6 +536,79 @@ function scView() {
                 const el = document.getElementById('nav-users');
                 if (el) el.style.display = '';
             }
+            const id = new URLSearchParams(window.location.search).get('id');
+            if (id) this.loadContract(id);
+        },
+
+        _fmtDate(iso) {
+            if (!iso) return '';
+            // ISO yyyy-mm-dd -> dd.mm.yyyy; pass through if already dotted
+            if (/^\d{4}-\d{2}-\d{2}/.test(iso)) {
+                const [y, m, d] = iso.slice(0, 10).split('-');
+                return `${d}.${m}.${y}`;
+            }
+            return iso;
+        },
+
+        async loadContract(id) {
+            this.loading = true;
+            try {
+                const res = await authFetch('/api/v1/projects/' + id);
+                if (!res.ok) { this.notFound = true; return; }
+                const p = await res.json();
+                const scd = p.smart_contract_data || {};
+                const milestones = (scd.milestones || []).map(m => ({
+                    name: m.name || '—',
+                    deadline: this._fmtDate(m.deadline),
+                    period: m.period || '—',
+                    rewardRub: m.rewardRub || 0,
+                    coins: m.coins || 0,
+                    baseline: m.baseline || '—',
+                    target: m.target || '—',
+                    criteria: m.criteria || '—',
+                    dataSource: m.dataSource || '—',
+                    status: m.status || 'pending',
+                }));
+                const team = (scd.team || []).map(t => ({
+                    name: t.name || '—', role: t.role || '—',
+                    coins: t.coins || 0, paid: t.paid || 0,
+                }));
+                this.contract = {
+                    name: p.name || '(без названия)',
+                    businessUnit: p.business_unit || '—',
+                    initiator: p.owner || '—',
+                    curator: scd.curator || '—',
+                    deadline: this._fmtDate(scd.deadline) || '—',
+                    contractType: scd.contractType || 'phased',
+                    status: p.status || 'draft',
+                    fundingSource: scd.fundingSource || '—',
+                    description: [scd.shortDescription, scd.businessEffect].filter(Boolean).join('\n\n') || '—',
+                    stopLoss: ((scd.milestones || []).find(m => m.stopLoss) || {}).stopLoss || 'Не задан',
+                    smallSampleRule: scd.smallSampleRule || 'Не задано',
+                    distributionNote: scd.distributionNote || '—',
+                    needsRecruitment: !!scd.needsRecruitment,
+                    hasDispute: false,
+                    disputeDescription: '',
+                    milestones,
+                    team,
+                    timeline: this._buildTimeline(p),
+                };
+            } catch (e) {
+                if (e.message !== 'Unauthorized') this.notFound = true;
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        _buildTimeline(p) {
+            const created = p.created_at ? new Date(p.created_at).toLocaleDateString('ru-RU') : '';
+            const labels = { draft: 'Черновик', pending_approval: 'На согласовании', approved: 'Согласован', rejected: 'Отклонён' };
+            const tl = [
+                { step: 1, title: 'Создание заявки', done: true, active: false, date: created, description: 'Инициатор заполнил мастер создания смарт-контракта.' },
+                { step: 2, title: 'Согласование', done: ['approved', 'rejected'].includes(p.status), active: p.status === 'pending_approval', date: '', description: 'Финансовый блок рассматривает заявку.' },
+                { step: 3, title: 'Текущий статус: ' + (labels[p.status] || p.status), done: p.status === 'approved', active: p.status === 'approved', date: '', description: 'Дальнейшие выплаты — по факту верификации milestones.' },
+            ];
+            return tl;
         },
 
         totalCoins() {
@@ -556,11 +633,11 @@ function scView() {
         },
 
         statusClass(s) {
-            return { approved: 'pill-done', in_progress: 'pill-progress', pending_approval: 'pill-pending', rejected: 'pill-verify' }[s] || 'pill-pending';
+            return { draft: 'pill-pending', approved: 'pill-done', in_progress: 'pill-progress', pending_approval: 'pill-pending', rejected: 'pill-verify' }[s] || 'pill-pending';
         },
 
         statusLabel(s) {
-            return { approved: 'Утверждён', in_progress: 'В работе', pending_approval: 'На согласовании', rejected: 'Отклонён' }[s] || s;
+            return { draft: 'Черновик', approved: 'Утверждён', in_progress: 'В работе', pending_approval: 'На согласовании', rejected: 'Отклонён' }[s] || s;
         },
 
         msStatusClass(s) {

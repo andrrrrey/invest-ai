@@ -37,6 +37,7 @@ def init_db():
             "ALTER TABLE projects ADD COLUMN status_history JSON",
             "ALTER TABLE users ADD COLUMN password_reset_token VARCHAR",
             "ALTER TABLE users ADD COLUMN password_reset_expires DATETIME",
+            "ALTER TABLE projects ADD COLUMN smart_contract_data JSON",
         ]:
             try:
                 conn.execute(text(col_def))

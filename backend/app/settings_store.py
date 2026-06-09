@@ -50,6 +50,21 @@ def set_investment_budget(budget: float) -> None:
     _save(data)
 
 
+def get_nav_rate() -> float:
+    """Return the current NAV exchange rate (rubles per coin). Default 10.1."""
+    val = _load().get("nav_rate")
+    try:
+        return float(val) if val else 10.1
+    except (TypeError, ValueError):
+        return 10.1
+
+
+def set_nav_rate(rate: float) -> None:
+    data = _load()
+    data["nav_rate"] = float(rate)
+    _save(data)
+
+
 def get_registration_domain() -> str | None:
     """Return the allowed email domain for self-registration."""
     return _load().get("registration_domain") or None

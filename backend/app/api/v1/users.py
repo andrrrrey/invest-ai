@@ -4,7 +4,7 @@ from typing import List
 
 from ...database import get_db
 from ...models.user import User
-from ...auth import hash_password, require_cfo
+from ...auth import hash_password, require_cfo, get_current_user
 from ...schemas.user import UserCreate, UserRead, UserUpdate, VALID_ROLES
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -17,6 +17,26 @@ def list_users(
 ):
     """List all users (CFO only)."""
     return db.query(User).order_by(User.created_at.desc()).all()
+
+
+@router.get("/directory")
+def employee_directory(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Lightweight employee directory (справочник сотрудников) for any
+    authenticated user. Used to pick a curator / participants when creating
+    a smart contract."""
+    users = (
+        db.query(User)
+        .filter(User.is_active == True)  # noqa: E712
+        .order_by(User.full_name)
+        .all()
+    )
+    return [
+        {"id": u.id, "full_name": u.full_name, "role": u.role}
+        for u in users
+    ]
 
 
 @router.post("/", response_model=UserRead, status_code=201)

@@ -252,9 +252,9 @@
             </div>
 
             <nav class="nav-menu">
-                <a href="/" class="nav-link active"><i class="fas fa-th-large"></i> Главный экран</a>
+                <a href="/" class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
                 <a href="/project-list" class="nav-link"><i class="fas fa-project-diagram"></i> Проекты</a>
-                <a href="/smart-contracts" class="nav-link"><i class="fas fa-file-contract"></i> Смарт-контракты</a>
+                <a href="/smart-contracts" class="nav-link active"><i class="fas fa-file-contract"></i> Смарт-контракты</a>
                 <a href="/export" class="nav-link" id="nav-export"><i class="fas fa-chart-bar"></i> Отчетность</a>
                 <a href="/settings" class="nav-link" id="nav-settings"><i class="fas fa-cog"></i> Настройки</a>
                 <a href="/users" class="nav-link" id="nav-users" style="display:none"><i class="fas fa-users"></i> Пользователи</a>
@@ -267,7 +267,7 @@
         <main class="main-content" x-data="dashboardApp()" x-init="init()" x-cloak>
             <header class="top-header">
                 <div class="header-left">
-                    <h1>Главный экран</h1>
+                    <h1>Смарт-контракты</h1>
                 </div>
 
                 <div class="header-right">
@@ -302,40 +302,39 @@
                             </div>
                         </div>
                     </div>
-                    <button x-show="!isOwner" class="btn btn-outline" onclick="window.location.href='/export'">Экспорт отчёта</button>
-                    <button x-show="canCreate" class="btn btn-primary" onclick="window.location.href='/new'">Создать проект</button>
+                    <button x-show="canCreate" class="btn btn-primary" onclick="window.location.href='/smart-contract-new'"><i class="fas fa-plus"></i> Создать смарт-контракт</button>
                 </div>
             </header>
 
             <section class="kpi-row">
                 <div class="kpi-card card-1">
-                    <div class="label"><i class="fas fa-check-circle"></i> Согласовано инвестиций</div>
-                    <div class="value" x-text="loading ? '...' : approvedInvestmentsFormatted"></div>
-                    <span class="trend" x-text="'Проектов: ' + (stats.by_status?.approved || 0)"></span>
+                    <div class="label"><i class="fas fa-file-contract"></i> Всего контрактов</div>
+                    <div class="value" x-text="loading ? '...' : (stats.total || 0)"></div>
+                    <span class="trend" x-text="'Активных: ' + (stats.by_status?.approved || 0)"></span>
                 </div>
                 <div class="kpi-card card-2">
-                    <div class="label"><i class="fas fa-chart-line"></i> Суммарный NPV</div>
-                    <div class="value" x-text="loading ? '...' : displayNpvFormatted"></div>
-                    <span class="trend" x-show="authRole !== 'owner' && stats.avg_irr" x-text="'Ср. IRR: ' + stats.avg_irr + '%'"></span>
+                    <div class="label"><i class="fas fa-hourglass-half"></i> На согласовании</div>
+                    <div class="value" x-text="loading ? '...' : (stats.by_status?.pending_approval || 0)"></div>
+                    <span class="trend" x-text="'Черновиков: ' + (stats.by_status?.draft || 0)"></span>
                 </div>
                 <div class="kpi-card card-3">
-                    <div class="label"><i class="fas fa-briefcase"></i> Активные</div>
-                    <div class="value" x-text="loading ? '...' : (displayActiveCount + ' проек' + (displayActiveCount === 1 ? 'т' : displayActiveCount < 5 ? 'та' : 'тов'))"></div>
-                    <span class="trend" x-show="authRole !== 'owner'" x-text="'На согл.: ' + (stats.by_status?.pending_approval || 0)"></span>
+                    <div class="label"><i class="fas fa-check-circle"></i> Активные</div>
+                    <div class="value" x-text="loading ? '...' : (stats.by_status?.approved || 0)"></div>
+                    <span class="trend" x-text="'Отклонено: ' + (stats.by_status?.rejected || 0)"></span>
                 </div>
                 <div class="kpi-card card-4">
-                    <div class="label"><i class="fas fa-exclamation-triangle"></i> В зоне риска</div>
-                    <div class="value" x-text="loading ? '...' : (stats.high_risk_count + ' проек' + (stats.high_risk_count === 1 ? 'т' : stats.high_risk_count < 5 ? 'та' : 'тов'))"></div>
+                    <div class="label"><i class="fas fa-ruble-sign"></i> Сумма вознаграждения</div>
+                    <div class="value" x-text="loading ? '...' : rewardRubFormatted"></div>
                 </div>
                 <div class="kpi-card card-5">
-                    <div class="label">Всего доступно для инвестиций</div>
-                    <div class="value" x-text="loading ? '...' : displayAvailableFormatted"></div>
-                    <p style="font-size: 11px; opacity: 0.9;" x-text="authRole === 'owner' ? 'Сумма по утверждённым проектам' : (stats.investment_budget != null ? ('Бюджет: ' + budgetFormatted) : 'Задайте бюджет в настройках')"></p>
+                    <div class="label"><i class="fas fa-coins"></i> Всего коинов</div>
+                    <div class="value" x-text="loading ? '...' : rewardCoinsFormatted"></div>
+                    <p style="font-size: 11px; opacity: 0.9;" x-text="'Курс NAV: ' + (stats.nav_rate || 10.1)"></p>
                 </div>
             </section>
 
             <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
-                <h2>Последние проекты</h2>
+                <h2>Последние смарт-контракты</h2>
                 <button x-show="!loading && displayProjects.length > 5" @click="showAllProjects = !showAllProjects"
                     style="padding:8px 16px;border-radius:10px;border:1.5px solid #C7C9FF;background:white;color:#5E5CE6;font-size:13px;font-weight:600;cursor:pointer"
                     x-text="showAllProjects ? 'Свернуть' : 'Показать все (' + displayProjects.length + ')'">
@@ -347,14 +346,14 @@
                     <p style="color: var(--text-muted); padding: 20px;">Загрузка данных...</p>
                 </template>
                 <template x-if="!loading && displayProjects.length === 0">
-                    <p style="color: var(--text-muted); padding: 20px;">Проектов пока нет. <a href="/new" style="color: var(--accent-purple);">Создать первый</a></p>
+                    <p style="color: var(--text-muted); padding: 20px;">Смарт-контрактов пока нет. <a href="/smart-contract-new" style="color: var(--accent-purple);">Создать первый</a></p>
                 </template>
                 <table class="projects-table" x-show="!loading && displayProjects.length > 0">
                     <thead>
                         <tr>
-                            <th>Проект</th>
-                            <th>Тип</th>
-                            <th>Инвестиции / Score</th>
+                            <th>Контракт</th>
+                            <th>Куратор</th>
+                            <th>Вознаграждение</th>
                             <th>Статус</th>
                             <th>Дата создания</th>
                         </tr>
@@ -367,12 +366,12 @@
                                         <div style="width:35px;height:35px;border-radius:10px;background:var(--accent-purple);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px;flex-shrink:0" x-text="(p.name || '?').charAt(0).toUpperCase()"></div>
                                         <div>
                                             <div x-text="p.name || '(без названия)'"></div>
-                                            <div style="font-size:11px;color:var(--text-muted)" x-text="p.owner || p.business_unit || ''"></div>
+                                            <div style="font-size:11px;color:var(--text-muted)" x-text="p.business_unit || ''"></div>
                                         </div>
                                     </div>
                                 </td>
-                                <td style="color:var(--text-muted);font-size:13px" x-text="p.project_type === 'investment' ? 'Инвестиционный' : 'Операционный'"></td>
-                                <td x-text="p.project_type === 'investment' ? investmentAmount(p) : ((p.value_score_data?.total || '—') + ' / 50')"></td>
+                                <td style="color:var(--text-muted);font-size:13px" x-text="(p.smart_contract_data?.curator) || '—'"></td>
+                                <td x-text="rewardOf(p)"></td>
                                 <td><span class="status-pill" :class="statusClass(p)" x-text="statusLabel(p)"></span></td>
                                 <td style="color: var(--text-muted);" x-text="formatDate(p.created_at)"></td>
                             </tr>
@@ -418,7 +417,7 @@
         function dashboardApp() {
             return {
                 ...authMixin(),
-                stats: { total: 0, by_status: {}, by_type: {}, total_npv: 0, avg_irr: null, high_risk_count: 0 },
+                stats: { total: 0, by_status: {}, by_type: {}, nav_rate: 10.1, sc_reward_rub: 0, sc_reward_coins: 0 },
                 projects: [],
                 loading: true,
                 aiActive: false,
@@ -426,9 +425,10 @@
                 async init() {
                     if (!redirectIfNotLoggedIn()) return;
                     try {
-                        const projUrl = getUserRole() === 'owner' ? '/api/v1/projects/?status=approved' : '/api/v1/projects/';
+                        const base = '/api/v1/projects/?project_type=smart_contract';
+                        const projUrl = getUserRole() === 'owner' ? base + '&status=approved' : base;
                         const [statsRes, projRes] = await Promise.all([
-                            authFetch('/api/v1/stats/'),
+                            authFetch('/api/v1/stats/?project_type=smart_contract'),
                             authFetch(projUrl),
                         ]);
                         if (statsRes.ok) {
@@ -443,66 +443,23 @@
                     }
                 },
 
-                get ownerStats() {
-                    let totalNpv = 0, totalInvestment = 0, investCount = 0, opCount = 0;
-                    for (const p of this.projects) {
-                        if (p.project_type === 'investment') {
-                            investCount++;
-                            totalNpv += (p.metrics?.npv || 0);
-                            totalInvestment += Math.abs(parseFloat(p.financial_model?.initialInvestment || 0));
-                        } else {
-                            opCount++;
-                        }
-                    }
-                    return { total: this.projects.length, totalNpv, totalInvestment, investCount, opCount };
-                },
-
-                get approvedInvestmentsFormatted() {
-                    const n = getUserRole() === 'owner'
-                        ? this.ownerStats.totalInvestment
-                        : (this.stats.total_approved_investments || 0);
+                _fmtRub(n) {
+                    n = n || 0;
                     if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(2) + ' млрд ₽';
                     if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1) + ' млн ₽';
                     if (Math.abs(n) >= 1e3) return Math.round(n / 1e3) + ' тыс ₽';
                     return Math.round(n) + ' ₽';
                 },
 
-                get displayTotal() {
-                    return getUserRole() === 'owner' ? this.ownerStats.total : this.stats.total;
+                get rewardRubFormatted() {
+                    return this._fmtRub(this.stats.sc_reward_rub);
                 },
 
-                get displayActiveCount() {
-                    if (getUserRole() === 'owner') return this.ownerStats.total;
-                    const s = this.stats.by_status || {};
-                    return (s.approved || 0) + (s.pending_approval || 0);
-                },
-
-                get displayNpvFormatted() {
-                    const n = getUserRole() === 'owner' ? this.ownerStats.totalNpv : (this.stats.total_npv || 0);
-                    if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1) + ' млн ₽';
-                    if (Math.abs(n) >= 1e3) return Math.round(n / 1e3) + ' тыс ₽';
-                    return Math.round(n) + ' ₽';
-                },
-
-                get displayAvailableFormatted() {
-                    if (getUserRole() === 'owner') {
-                        const n = this.ownerStats.totalInvestment;
-                        if (Math.abs(n) >= 1e6) return Math.round(n / 1e6) + ' млн ₽';
-                        if (Math.abs(n) >= 1e3) return Math.round(n / 1e3) + ' тыс ₽';
-                        return Math.round(n) + ' ₽';
-                    }
-                    return this._fmtBudget(this.stats.available_for_investment) || 'Не задан';
-                },
-
-                _fmtBudget(n) {
-                    if (n == null) return null;
-                    if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1) + ' млн ₽';
-                    if (Math.abs(n) >= 1e3) return Math.round(n / 1e3) + ' тыс ₽';
-                    return Math.round(n) + ' ₽';
-                },
-
-                get budgetFormatted() {
-                    return this._fmtBudget(this.stats.investment_budget) ?? '—';
+                get rewardCoinsFormatted() {
+                    const n = this.stats.sc_reward_coins || 0;
+                    if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(2) + ' млн';
+                    if (Math.abs(n) >= 1e3) return Math.round(n / 1e3) + ' тыс';
+                    return Math.round(n).toLocaleString('ru-RU');
                 },
 
                 get displayProjects() {
@@ -515,32 +472,22 @@
                     return this.showAllProjects ? this.displayProjects : this.displayProjects.slice(0, 5);
                 },
 
+                rewardOf(p) {
+                    const scd = p.smart_contract_data || {};
+                    const milestones = scd.milestones || [];
+                    const rub = milestones.reduce((s, m) => s + (parseFloat(m.rewardRub) || 0), 0);
+                    return rub ? this._fmtRub(rub) : '—';
+                },
+
                 statusLabel(p) {
-                    if (getUserRole() !== 'owner') {
-                        const risks = p.risks_data || {};
-                        const ai = risks.ai_assessment || {};
-                        if (ai.risk_level === 'высокий' || risks.overall_risk === 'высокий') return 'В зоне риска';
-                    }
                     const map = { draft: 'Черновик', pending_approval: 'На согласовании', approved: 'Активен', rejected: 'Отклонён' };
                     return map[p.status] || p.status;
                 },
 
                 statusClass(p) {
-                    if (getUserRole() !== 'owner') {
-                        const risks = p.risks_data || {};
-                        const ai = risks.ai_assessment || {};
-                        if (ai.risk_level === 'высокий' || risks.overall_risk === 'высокий') return 'st-risk';
-                    }
                     if (p.status === 'approved') return 'st-completed';
+                    if (p.status === 'rejected') return 'st-risk';
                     return 'st-draft';
-                },
-
-                investmentAmount(p) {
-                    const fm = p.financial_model || {};
-                    const inv = Math.abs(fm.initialInvestment || 0);
-                    if (inv >= 1e6) return (inv / 1e6).toFixed(1) + ' млн ₽';
-                    if (inv >= 1e3) return Math.round(inv / 1e3) + ' тыс ₽';
-                    return inv ? inv + ' ₽' : '—';
                 },
 
                 formatDate(iso) {
@@ -550,9 +497,7 @@
 
                 openProject(p) {
                     const id = typeof p === 'object' ? p.id : p;
-                    const type = typeof p === 'object' ? p.project_type : null;
-                    const route = type === 'operational' ? '/op-project' : '/project';
-                    window.location.href = route + '?id=' + id;
+                    window.location.href = '/smart-contract?id=' + id;
                 },
             };
         }

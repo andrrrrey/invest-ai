@@ -16,6 +16,7 @@ class ProjectBase(BaseModel):
     risks_data: Optional[Any] = None
     value_score_data: Optional[Any] = None
     decision_route: Optional[str] = None
+    smart_contract_data: Optional[Any] = None
     status: str = "draft"
 
 

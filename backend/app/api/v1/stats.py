@@ -29,16 +29,21 @@ def _ai_model_label() -> str:
 
 @router.get("/")
 def get_stats(
+    project_type: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
     Aggregated portfolio stats for the dashboard.
     Owners see stats only for their own projects.
+    When project_type is provided, stats are scoped to that type
+    (used by the smart-contracts dashboard).
     """
     q = db.query(Project)
     if current_user.role == "owner":
         q = q.filter(Project.user_id == current_user.id)
+    if project_type:
+        q = q.filter(Project.project_type == project_type)
     projects = q.all()
 
     by_status = {"draft": 0, "pending_approval": 0, "approved": 0, "rejected": 0}
@@ -47,7 +52,25 @@ def get_stats(
     irr_values = []
     high_risk_count = 0
 
+    # Smart-contract specific aggregates
+    sc_reward_rub = 0.0
+    sc_reward_coins = 0.0
+    nav_rate = settings_store.get_nav_rate()
+
     for p in projects:
+        if (p.project_type or "") == "smart_contract":
+            scd = p.smart_contract_data or {}
+            milestones = scd.get("milestones") or []
+            for m in milestones:
+                try:
+                    sc_reward_rub += float(m.get("rewardRub") or 0)
+                except (TypeError, ValueError):
+                    pass
+                try:
+                    sc_reward_coins += float(m.get("coins") or 0)
+                except (TypeError, ValueError):
+                    pass
+
         st = p.status or "draft"
         by_status[st] = by_status.get(st, 0) + 1
 
@@ -104,4 +127,7 @@ def get_stats(
         ),
         "ai_provider": settings_store.get_ai_provider(),
         "ai_model": _ai_model_label(),
+        "nav_rate": nav_rate,
+        "sc_reward_rub": round(sc_reward_rub, 2),
+        "sc_reward_coins": round(sc_reward_coins, 2),
     }

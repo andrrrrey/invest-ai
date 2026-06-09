@@ -142,7 +142,8 @@
         </div>
         <nav class="nav-menu">
             <a href="/" class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
-            <a href="/project-list" class="nav-link active"><i class="fas fa-project-diagram"></i> Проекты</a>
+            <a href="/project-list" class="nav-link"><i class="fas fa-project-diagram"></i> Проекты</a>
+            <a href="/smart-contracts" class="nav-link active"><i class="fas fa-file-contract"></i> Смарт-контракты</a>
             <a href="/export" class="nav-link"><i class="fas fa-chart-bar"></i> Отчетность</a>
             <a href="/settings" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
             <a href="/users" class="nav-link" style="display:none" id="nav-users"><i class="fas fa-users"></i> Пользователи</a>
@@ -251,10 +252,10 @@
             </div>
 
             <div class="field">
-                <label>Краткое описание и бизнес-эффект <span style="color:var(--danger)">*</span></label>
+                <label>Краткое описание <span style="color:var(--danger)">*</span></label>
                 <div style="position:relative">
-                    <textarea x-model="form.description" rows="4"
-                        placeholder="Опишите суть контракта и ожидаемый бизнес-эффект (1–3 абзаца)..."></textarea>
+                    <textarea x-model="form.shortDescription" rows="6" style="width:100%;resize:vertical"
+                        placeholder="Опишите инициативу, её суть и предполагаемые изменения..."></textarea>
                     <button class="btn-ai" style="position:absolute;bottom:10px;right:10px"
                         @click="mockGptDescription()" :disabled="gptLoading">
                         <i class="fas fa-wand-magic-sparkles"></i>
@@ -263,20 +264,26 @@
                 </div>
             </div>
 
+            <div class="field">
+                <label>Бизнес-эффект <span style="color:var(--danger)">*</span></label>
+                <textarea x-model="form.businessEffect" rows="6" style="width:100%;resize:vertical"
+                    placeholder="Опишите ожидаемый результат от внедрения инициативы. Примеры: экономия затрат, рост выручки, сокращение трудозатрат, повышение качества процессов, снижение рисков и т.д."></textarea>
+            </div>
+
             <div class="grid-2">
                 <div class="field">
                     <label>Инициатор</label>
                     <input type="text" :value="userName" readonly style="background:#F8F7F3;color:var(--muted)">
                 </div>
                 <div class="field">
-                    <label>Куратор <span style="color:var(--danger)">*</span></label>
-                    <select x-model="form.curator">
+                    <label>Куратор</label>
+                    <select x-model="form.curator" :disabled="curatorCandidates().length === 0">
                         <option value="">Выберите куратора</option>
-                        <option>CEO</option>
-                        <option>CFO</option>
-                        <option>CTO</option>
-                        <option>Руководитель направления</option>
+                        <template x-for="name in curatorCandidates()" :key="name">
+                            <option :value="name" x-text="name"></option>
+                        </template>
                     </select>
+                    <span class="hint" x-show="curatorCandidates().length === 0">Куратором может быть один из участников. Добавьте участников на шаге 4 (если состав ещё не определён — не заполняйте).</span>
                 </div>
             </div>
 
@@ -303,8 +310,11 @@
 
             <div class="field">
                 <label>Прикреплённые документы</label>
-                <input type="file" accept=".pdf,.docx,.md" style="padding:8px 10px;font-size:13px">
-                <span class="hint">PDF, DOCX или MD (необязательно)</span>
+                <input type="file" accept=".pdf,.docx,.md" multiple @change="onDocsChange($event)" style="padding:8px 10px;font-size:13px">
+                <span class="hint">Приложите документы, которые считаете важными для принятия решения (расчёт экономического эффекта, расчёт метрик, презентации, аналитические материалы, обоснования и иные подтверждающие документы).</span>
+                <template x-if="form.documents && form.documents.length">
+                    <span class="hint" style="color:var(--accent)">Выбрано файлов: <b x-text="form.documents.length"></b></span>
+                </template>
             </div>
 
             <div class="panel-footer">
@@ -313,7 +323,7 @@
                 </button>
                 <div class="footer-right">
                     <button class="btn btn-primary" @click="goTo(3)"
-                        :disabled="!form.name || !form.businessUnit || !form.description || !form.curator || !form.deadline">
+                        :disabled="!form.name || !form.businessUnit || !form.shortDescription || !form.businessEffect || !form.deadline">
                         Далее <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
@@ -326,9 +336,10 @@
                 <div>
                     <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 3 из 5</span>
                     <h2 style="font-size:20px;font-weight:700;margin-top:4px">Milestones</h2>
-                    <p class="hint" style="margin-top:3px">Каждый milestone должен пройти проверку по всем 5 критериям SMART.</p>
+                    <p class="hint" style="margin-top:3px" x-show="form.contractType !== 'single'">Каждый milestone должен пройти проверку по всем 5 критериям SMART.</p>
+                    <p class="hint" style="margin-top:3px" x-show="form.contractType === 'single'">Тип контракта «Единый» — один этап. Критерий успеха должен пройти проверку SMART.</p>
                 </div>
-                <button class="btn btn-outline" style="font-size:13px" @click="addMilestone()">
+                <button class="btn btn-outline" style="font-size:13px" @click="addMilestone()" x-show="form.contractType !== 'single'">
                     <i class="fas fa-plus"></i> Добавить milestone
                 </button>
             </div>
@@ -356,7 +367,7 @@
                             <span x-show="ms.smartValid" class="status-pill" style="background:#DDF0E1;color:#1A7A40;padding:4px 12px;font-size:11px">
                                 <i class="fas fa-check-circle"></i> SMART пройден
                             </span>
-                            <button @click="removeMilestone(idx)" x-show="milestones.length > 1"
+                            <button @click="removeMilestone(idx)" x-show="milestones.length > 1 && form.contractType !== 'single'"
                                 style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:4px">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -373,8 +384,9 @@
                             <input type="text" x-model="ms.period" placeholder="напр.: 14 дней / 30 дней">
                         </div>
                         <div class="field">
-                            <label>Сумма вознаграждения (coin)</label>
-                            <input type="number" x-model.number="ms.coins" placeholder="150000" min="0">
+                            <label>Сумма вознаграждения (руб.)</label>
+                            <input type="number" x-model.number="ms.rewardRub" @input="recalcCoins(idx)" placeholder="1500000" min="0">
+                            <span class="hint">≈ <b x-text="(ms.coins||0).toLocaleString('ru-RU')"></b> coin по курсу NAV <span x-text="navRate"></span></span>
                         </div>
                     </div>
 
@@ -439,7 +451,7 @@
                     <i class="fas fa-coins"></i> Итого по milestones:
                 </span>
                 <span style="font-size:16px;font-weight:800;color:var(--accent)"
-                    x-text="milestones.reduce((s,m)=>s+(m.coins||0),0).toLocaleString('ru-RU') + ' coin'"></span>
+                    x-text="milestones.reduce((s,m)=>s+(m.rewardRub||0),0).toLocaleString('ru-RU') + ' ₽ · ' + milestones.reduce((s,m)=>s+(m.coins||0),0).toLocaleString('ru-RU') + ' coin'"></span>
             </div>
 
             <div class="panel-footer">
@@ -463,11 +475,23 @@
         <section class="wizard-panel" x-show="step===4" x-transition>
             <div>
                 <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 4 из 5</span>
-                <h2 style="font-size:20px;font-weight:700;margin-top:4px">Команда и coins</h2>
+                <h2 style="font-size:20px;font-weight:700;margin-top:4px">Состав участников</h2>
                 <p class="hint" style="margin-top:3px">Распределите вознаграждение между участниками. Сумма свободных coins не может быть отрицательной.</p>
             </div>
 
-            <div class="grid-2" style="align-items:start">
+            <datalist id="emp-directory">
+                <template x-for="emp in directory" :key="emp.id">
+                    <option :value="emp.full_name"></option>
+                </template>
+            </datalist>
+
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;background:#F8F7F3;border-radius:12px;padding:12px 16px">
+                <input type="checkbox" x-model="form.needsRecruitment" style="accent-color:var(--accent);width:18px;height:18px">
+                <span style="font-size:14px;font-weight:600;color:#1C1C1E">Требуется набор участников после согласования</span>
+            </label>
+            <p class="hint" x-show="form.needsRecruitment">Состав участников можно не заполнять на этапе создания заявки — он будет сформирован после согласования.</p>
+
+            <div class="grid-2" style="align-items:start" x-show="!form.needsRecruitment">
                 <div class="field">
                     <label>Общий бюджет контракта (руб.) <span style="color:var(--danger)">*</span></label>
                     <input type="number" x-model.number="form.totalBudget" placeholder="1000000" min="0">
@@ -481,7 +505,7 @@
             </div>
 
             <!-- Team table -->
-            <div style="border:1.5px solid #E5E5ED;border-radius:14px;overflow:hidden">
+            <div style="border:1.5px solid #E5E5ED;border-radius:14px;overflow:hidden" x-show="!form.needsRecruitment">
                 <table class="team-table">
                     <thead style="background:#F8F7F3">
                         <tr>
@@ -496,8 +520,8 @@
                         <template x-for="(member, idx) in team" :key="member.id">
                             <tr>
                                 <td>
-                                    <input type="text" x-model="member.name" placeholder="Имя участника"
-                                        style="border:1.5px solid #E5E5ED;border-radius:8px;padding:6px 10px;font-size:13px;width:160px">
+                                    <input type="text" x-model="member.name" list="emp-directory" placeholder="ФИО участника"
+                                        style="border:1.5px solid #E5E5ED;border-radius:8px;padding:6px 10px;font-size:13px;width:180px">
                                 </td>
                                 <td>
                                     <input type="text" x-model="member.role" placeholder="Роль"
@@ -528,7 +552,7 @@
             </div>
 
             <!-- Coins summary -->
-            <div class="coins-summary">
+            <div class="coins-summary" x-show="!form.needsRecruitment">
                 <div class="coin-card">
                     <div class="coin-label">Всего coin</div>
                     <div class="coin-value" x-text="milestones.reduce((s,m)=>s+(m.coins||0),0).toLocaleString('ru-RU')"></div>
@@ -555,7 +579,7 @@
                 </button>
                 <div class="footer-right">
                     <button class="btn btn-primary" @click="goTo(5)"
-                        :disabled="team.length === 0 || freeCoins() < 0">
+                        :disabled="!form.needsRecruitment && (team.filter(m=>m.name).length === 0 || freeCoins() < 0)">
                         Далее <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
@@ -603,9 +627,17 @@
                     <span class="lbl">Дедлайн</span>
                     <span class="val" x-text="form.deadline || '—'"></span>
                 </div>
-                <div class="summary-row" x-show="form.description">
-                    <span class="lbl">Описание</span>
-                    <span class="val" style="max-width:70%;font-weight:500;line-height:1.4" x-text="form.description"></span>
+                <div class="summary-row" x-show="form.shortDescription">
+                    <span class="lbl">Краткое описание</span>
+                    <span class="val" style="max-width:70%;font-weight:500;line-height:1.4" x-text="form.shortDescription"></span>
+                </div>
+                <div class="summary-row" x-show="form.businessEffect">
+                    <span class="lbl">Бизнес-эффект</span>
+                    <span class="val" style="max-width:70%;font-weight:500;line-height:1.4" x-text="form.businessEffect"></span>
+                </div>
+                <div class="summary-row" x-show="form.needsRecruitment">
+                    <span class="lbl">Участники</span>
+                    <span class="val" style="color:var(--accent)">Требуется набор после согласования</span>
                 </div>
             </div>
 
@@ -620,7 +652,7 @@
                                 <th>Название</th>
                                 <th>Дедлайн</th>
                                 <th>Период</th>
-                                <th>Coins</th>
+                                <th>Вознаграждение</th>
                                 <th>Критерий (кратко)</th>
                             </tr>
                         </thead>
@@ -631,7 +663,7 @@
                                     <td style="font-weight:600" x-text="ms.name || '—'"></td>
                                     <td x-text="ms.deadline || '—'"></td>
                                     <td x-text="ms.period || '—'"></td>
-                                    <td style="font-weight:700;color:var(--accent)" x-text="(ms.coins||0).toLocaleString('ru-RU')"></td>
+                                    <td style="font-weight:700;color:var(--accent)" x-text="(ms.rewardRub||0).toLocaleString('ru-RU') + ' ₽ · ' + (ms.coins||0).toLocaleString('ru-RU') + ' coin'"></td>
                                     <td style="color:var(--muted);max-width:200px" x-text="(ms.criteria||'—').substring(0,80) + ((ms.criteria||'').length>80?'...':'')"></td>
                                 </tr>
                             </template>
@@ -721,6 +753,12 @@
                 </div>
             </div>
 
+            <template x-if="submitError">
+                <div style="background:#FFF0EF;border:1.5px solid var(--danger);border-radius:14px;padding:14px 18px;color:var(--danger);font-size:13px;font-weight:600">
+                    <i class="fas fa-exclamation-circle"></i> <span x-text="submitError"></span>
+                </div>
+            </template>
+
             <!-- Success message -->
             <template x-if="submitted">
                 <div style="background:#DDF0E1;border:1.5px solid #34C759;border-radius:14px;padding:18px;display:flex;gap:14px;align-items:flex-start">
@@ -756,16 +794,22 @@ function scWizard() {
             type: 'smart_contract',
             name: '',
             businessUnit: '',
-            description: '',
+            shortDescription: '',
+            businessEffect: '',
             curator: '',
             deadline: '',
             contractType: 'phased',
             totalBudget: 0,
             distributionNote: '',
+            needsRecruitment: false,
+            documents: [],
         },
 
         milestones: [],
         team: [],
+        directory: [],
+        navRate: 10.1,
+        submitError: '',
 
         get minDeadline() {
             const d = new Date();
@@ -783,6 +827,49 @@ function scWizard() {
             }
             this.addMilestone();
             this.addMember();
+            this.loadDirectory();
+            this.loadNavRate();
+            // Тип «Единый» — ровно один этап
+            this.$watch('form.contractType', (v) => {
+                if (v === 'single' && this.milestones.length > 1) {
+                    this.milestones = this.milestones.slice(0, 1);
+                }
+            });
+        },
+
+        async loadDirectory() {
+            try {
+                const res = await authFetch('/api/v1/users/directory');
+                if (res.ok) this.directory = await res.json();
+            } catch (e) {}
+        },
+
+        async loadNavRate() {
+            try {
+                const res = await authFetch('/api/v1/stats/');
+                if (res.ok) {
+                    const s = await res.json();
+                    if (s.nav_rate) {
+                        this.navRate = s.nav_rate;
+                        this.milestones.forEach((m, i) => this.recalcCoins(i));
+                    }
+                }
+            } catch (e) {}
+        },
+
+        curatorCandidates() {
+            return this.team.map(m => (m.name || '').trim()).filter(Boolean);
+        },
+
+        onDocsChange(e) {
+            this.form.documents = Array.from(e.target.files || []).map(f => f.name);
+        },
+
+        recalcCoins(idx) {
+            const ms = this.milestones[idx];
+            if (!ms) return;
+            const rate = this.navRate || 10.1;
+            ms.coins = Math.round((ms.rewardRub || 0) / rate);
         },
 
         goTo(n) {
@@ -792,11 +879,13 @@ function scWizard() {
         },
 
         addMilestone() {
+            if (this.form.contractType === 'single' && this.milestones.length >= 1) return;
             this.milestones.push({
                 id: Date.now() + Math.random(),
                 name: '',
                 deadline: '',
                 period: '',
+                rewardRub: 0,
                 coins: 0,
                 baseline: '',
                 target: '',
@@ -883,8 +972,11 @@ function scWizard() {
         async mockGptDescription() {
             this.gptLoading = true;
             await new Promise(r => setTimeout(r, 1600));
-            if (!this.form.description) {
-                this.form.description = `${this.form.name || 'Контракт'} направлен на автоматизацию ключевых операционных процессов с помощью AI-агентов.\n\nОжидаемый бизнес-эффект: сокращение ручного труда команды на ≥40%, снижение lead time обработки задач, высвобождение инженерного времени для продуктовых задач.\n\nФорма реализации — открытое участие, состав команды формируется по принципу вклада в результат.`;
+            if (!this.form.shortDescription) {
+                this.form.shortDescription = `${this.form.name || 'Контракт'} направлен на автоматизацию ключевых операционных процессов с помощью AI-агентов. Инициатива предполагает развёртывание решения в продуктивной среде и поэтапную передачу рутинных операций под управление агента.`;
+            }
+            if (!this.form.businessEffect) {
+                this.form.businessEffect = `Сокращение ручного труда команды на ≥40%, снижение lead time обработки задач, высвобождение инженерного времени для продуктовых задач, повышение качества и предсказуемости процессов.`;
             }
             this.gptLoading = false;
         },
@@ -893,13 +985,61 @@ function scWizard() {
             this.aiSummaryLoading = true;
             await new Promise(r => setTimeout(r, 2000));
             const totalCoins = this.milestones.reduce((s, m) => s + (m.coins || 0), 0);
-            this.aiSummary = `Контракт «${this.form.name || 'Смарт-контракт'}» (${this.form.businessUnit || 'бизнес-юнит не указан'}) инициирован ${this.userName}. Куратор: ${this.form.curator || 'не назначен'}. Дедлайн: ${this.form.deadline || 'не указан'}.\n\nФормат: ${this.form.contractType === 'phased' ? 'поэтапный' : 'единый'} смарт-контракт с ${this.milestones.length} milestone(s), общая сумма вознаграждения — ${totalCoins.toLocaleString('ru-RU')} coin. Все критерии успеха прошли SMART-валидацию.\n\nОжидаемый эффект: ${this.form.description ? this.form.description.substring(0, 120) + '...' : 'описание не указано'}. Источники верификации: ${this.milestones.map(m => m.dataSource).filter(Boolean).join(', ') || 'не указаны'}.\n\nРекомендация Ксении: контракт готов к согласованию финансовым блоком. Риски — умеренные.`;
+            const totalRub = this.milestones.reduce((s, m) => s + (m.rewardRub || 0), 0);
+            this.aiSummary = `Контракт «${this.form.name || 'Смарт-контракт'}» (${this.form.businessUnit || 'бизнес-юнит не указан'}) инициирован ${this.userName}. Куратор: ${this.form.curator || 'не назначен'}. Дедлайн: ${this.form.deadline || 'не указан'}.\n\nФормат: ${this.form.contractType === 'phased' ? 'поэтапный' : 'единый'} смарт-контракт с ${this.milestones.length} milestone(s), общая сумма вознаграждения — ${totalRub.toLocaleString('ru-RU')} ₽ (≈ ${totalCoins.toLocaleString('ru-RU')} coin по курсу NAV ${this.navRate}). Все критерии успеха прошли SMART-валидацию.\n\nОжидаемый эффект: ${this.form.businessEffect ? this.form.businessEffect.substring(0, 140) + '...' : 'не указан'}. Источники верификации: ${this.milestones.map(m => m.dataSource).filter(Boolean).join(', ') || 'не указаны'}.\n\n${this.form.needsRecruitment ? 'Состав участников будет сформирован после согласования. ' : ''}Рекомендация Ксении: контракт готов к согласованию финансовым блоком. Риски — умеренные.`;
             this.aiSummaryLoading = false;
         },
 
         async submitContract() {
             if (this.submitted) return;
-            this.submitted = true;
+            this.submitError = '';
+            const payload = {
+                project_type: 'smart_contract',
+                name: this.form.name,
+                business_unit: this.form.businessUnit,
+                description: this.form.shortDescription,
+                status: 'pending_approval',
+                smart_contract_data: {
+                    shortDescription: this.form.shortDescription,
+                    businessEffect: this.form.businessEffect,
+                    curator: this.form.curator,
+                    deadline: this.form.deadline,
+                    contractType: this.form.contractType,
+                    needsRecruitment: this.form.needsRecruitment,
+                    navRate: this.navRate,
+                    totalBudget: this.form.totalBudget,
+                    distributionNote: this.form.distributionNote,
+                    documents: this.form.documents,
+                    aiSummary: this.aiSummary,
+                    milestones: this.milestones.map(m => ({
+                        name: m.name, deadline: m.deadline, period: m.period,
+                        rewardRub: m.rewardRub, coins: m.coins,
+                        baseline: m.baseline, target: m.target, criteria: m.criteria,
+                        dataSource: m.dataSource, stopLoss: m.stopLoss,
+                        smartValid: m.smartValid,
+                    })),
+                    team: this.form.needsRecruitment ? [] : this.team
+                        .filter(t => t.name)
+                        .map(t => ({ name: t.name, role: t.role, coins: t.coins })),
+                },
+            };
+            try {
+                const res = await authFetch('/api/v1/projects/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    this.submitError = err.detail || 'Не удалось сохранить контракт';
+                    return;
+                }
+                const created = await res.json();
+                this.submitted = true;
+                window.location.href = '/smart-contract?id=' + created.id;
+            } catch (e) {
+                if (e.message !== 'Unauthorized') this.submitError = 'Ошибка сети при сохранении';
+            }
         },
     };
 }
