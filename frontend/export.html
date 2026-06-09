@@ -192,6 +192,7 @@
                 <a href="/smart-contracts" class="nav-link"><i class="fas fa-file-contract"></i> Смарт-контракты</a>
                 <a href="/export" class="nav-link active"><i class="fas fa-chart-bar"></i> Отчетность</a>
                 <a href="/settings" class="nav-link" id="nav-settings"><i class="fas fa-cog"></i> Настройки</a>
+                <a href="/users" class="nav-link" id="nav-users" style="display:none"><i class="fas fa-users"></i> Пользователи</a>
                 <a href="/profile" class="nav-link"><i class="fas fa-user-circle"></i> Мой профиль</a>
             </nav>
 
@@ -291,6 +292,11 @@
             if (getUserRole() !== 'cfo') {
                 const ns = document.getElementById('nav-settings');
                 if (ns) ns.style.display = 'none';
+            }
+            // Show users link for CFO
+            if (getUserRole() === 'cfo') {
+                const nu = document.getElementById('nav-users');
+                if (nu) nu.style.display = '';
             }
             // Close sidebar on main content click (mobile)
             const mc = document.querySelector('.main-content');
