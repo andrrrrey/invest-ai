@@ -225,7 +225,13 @@ def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=400, detail="Недействительная или истёкшая ссылка сброса пароля.")
 
-    if user.password_reset_expires is None or datetime.now(timezone.utc) > user.password_reset_expires:
+    # SQLite stores DateTime(timezone=True) columns as naive values, so normalize
+    # to UTC-aware before comparing against the timezone-aware "now".
+    expires = user.password_reset_expires
+    if expires is not None and expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+
+    if expires is None or datetime.now(timezone.utc) > expires:
         user.password_reset_token = None
         user.password_reset_expires = None
         db.commit()
