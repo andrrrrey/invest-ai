@@ -16,7 +16,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
         body { background: #E5E5E5; padding: 8px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
         .mobile-menu-btn { display: none; position: fixed; top: 20px; left: 20px; z-index: 1000; background: var(--sb); color: #fff; border: none; padding: 12px; border-radius: 12px; cursor: pointer; }
-        .app-window { width: 100%; max-width: 1700px; height: 90vh; background: var(--bg); border-radius: 35px; display: flex; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,.1); position: relative; }
+        .app-window { width: 100%; max-width: 1700px; height: calc(100vh - 16px); background: var(--bg); border-radius: 35px; display: flex; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,.1); position: relative; }
         .sidebar { width: 260px; min-width: 260px; background: var(--sb); color: #fff; display: flex; flex-direction: column; padding: 60px 25px 40px; gap: 6px; transition: all .4s cubic-bezier(.4,0,.2,1); flex-shrink: 0; }
         .profile-section { text-align: center; margin-bottom: 50px; }
         .profile-section p { font-size: 13px; color: #8E8E93; line-height: 1.6; }
@@ -161,7 +161,7 @@
         <header class="top-header">
             <div>
                 <h1 x-text="isLeadership ? 'Создание лидерского контракта' : 'Создание смарт-контракта'"></h1>
-                <p x-text="'Шаг ' + step + ' из 4 · ' + (isLeadership ? 'Расчёт дохода в рублях (оклад + премии)' : 'Контракт с выплатой вознаграждения в coin')"></p>
+                <p x-text="'Шаг ' + step + ' из 5 · ' + (isLeadership ? 'Расчёт дохода в рублях (оклад + премии)' : 'Контракт с выплатой вознаграждения в coin')"></p>
             </div>
             <span class="status-pill pill-coin" x-show="!isLeadership"><i class="fas fa-coins"></i> Смарт-контракт</span>
             <span class="status-pill" x-show="isLeadership" style="background:#FBECCB;color:#8A6D00"><i class="fas fa-crown"></i> Лидерский контракт</span>
@@ -172,7 +172,7 @@
             <i class="fas fa-wand-magic-sparkles" style="font-size:22px;margin-top:2px"></i>
             <div>
                 <strong x-text="'AI-ассистент · ' + aiModel"></strong>
-                <p x-text="step === 2
+                <p x-text="step === 3
                     ? 'AI-ассистент проверяет каждый milestone на измеримость. Кнопка «Далее» становится активной только после валидации всех критериев по SMART.'
                     : (isLeadership
                         ? 'Заполняйте шаги по очереди. Расчёт ведётся только в рублях: оклад выплачивается ежемесячно, премии — по факту достижения milestone.'
@@ -198,10 +198,45 @@
             </div>
         </template>
 
-        <!-- ══════════ STEP 1: Суть контракта ══════════ -->
+        <!-- ══════════ STEP 1: Тип контракта ══════════ -->
         <section class="wizard-panel" x-show="step===1" x-transition>
             <div>
-                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 1 из 4</span>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 1 из 5</span>
+                <h2 style="font-size:20px;font-weight:700;margin-top:4px">Тип контракта</h2>
+                <p class="hint" style="margin-top:3px">Выберите формат контракта — от этого зависит логика расчёта.</p>
+            </div>
+
+            <div class="choice-grid" style="grid-template-columns:1fr 1fr">
+                <article class="choice-card" :class="{active: form.scType==='smart'}" @click="form.scType='smart'">
+                    <div class="card-icon" style="color:var(--accent)"><i class="fas fa-coins"></i></div>
+                    <h3>Смарт-контракт</h3>
+                    <p style="font-size:12px;color:var(--muted);line-height:1.5;margin-top:6px">Вознаграждение по milestones с конвертацией в coins по курсу NAV.</p>
+                    <span class="card-badge" style="background:#F0EFFF;color:var(--accent)">Выплата в coins</span>
+                </article>
+                <article class="choice-card" :class="{active: form.scType==='leadership'}" @click="form.scType='leadership'">
+                    <div class="card-icon" style="color:#D9A400"><i class="fas fa-crown"></i></div>
+                    <h3>Лидерский контракт</h3>
+                    <p style="font-size:12px;color:var(--muted);line-height:1.5;margin-top:6px">Оклад + переменная часть и премии по milestones. Расчёт только в рублях, без coins.</p>
+                    <span class="card-badge" style="background:#FBECCB;color:#8A6D00">Только рубли</span>
+                </article>
+            </div>
+
+            <div class="panel-footer">
+                <a href="/smart-contracts" class="btn btn-outline" style="text-decoration:none">
+                    <i class="fas fa-chevron-left"></i> Отмена
+                </a>
+                <div class="footer-right">
+                    <button class="btn btn-primary" @click="goTo(2)">
+                        Далее <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════ STEP 2: Суть контракта ══════════ -->
+        <section class="wizard-panel" x-show="step===2" x-transition>
+            <div>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 2 из 5</span>
                 <h2 style="font-size:20px;font-weight:700;margin-top:4px">Суть контракта</h2>
             </div>
 
@@ -315,27 +350,27 @@
             </div>
 
             <div class="panel-footer">
-                <a href="/smart-contracts" class="btn btn-outline" style="text-decoration:none">
-                    <i class="fas fa-chevron-left"></i> Отмена
-                </a>
+                <button class="btn btn-outline" @click="goTo(1)">
+                    <i class="fas fa-chevron-left"></i> Назад
+                </button>
                 <div class="footer-right">
-                    <template x-if="!stepValid(1)">
+                    <template x-if="!stepValid(2)">
                         <span style="font-size:12px;color:var(--danger);align-self:center">
                             <i class="fas fa-exclamation-circle"></i> Заполните обязательные поля
                         </span>
                     </template>
-                    <button class="btn btn-primary" @click="goTo(2)" :disabled="!stepValid(1)">
+                    <button class="btn btn-primary" @click="goTo(3)" :disabled="!stepValid(2)">
                         Далее <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
             </div>
         </section>
 
-        <!-- ══════════ STEP 2: Milestones ══════════ -->
-        <section class="wizard-panel" x-show="step===2" x-transition>
+        <!-- ══════════ STEP 3: Milestones ══════════ -->
+        <section class="wizard-panel" x-show="step===3" x-transition>
             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
                 <div>
-                    <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 2 из 4</span>
+                    <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 3 из 5</span>
                     <h2 style="font-size:20px;font-weight:700;margin-top:4px">Milestones</h2>
                     <p class="hint" style="margin-top:3px" x-show="form.contractType !== 'single'">Каждый milestone должен пройти проверку по всем 5 критериям SMART.</p>
                     <p class="hint" style="margin-top:3px" x-show="form.contractType === 'single'">Тип контракта «Единый» — один этап. Критерий успеха должен пройти проверку SMART.</p>
@@ -468,7 +503,7 @@
             </template>
 
             <div class="panel-footer">
-                <button class="btn btn-outline" @click="goTo(1)">
+                <button class="btn btn-outline" @click="goTo(2)">
                     <i class="fas fa-chevron-left"></i> Назад
                 </button>
                 <div class="footer-right">
@@ -477,17 +512,17 @@
                             <i class="fas fa-exclamation-circle"></i> <span x-text="milestonesError()"></span>
                         </span>
                     </template>
-                    <button class="btn btn-primary" @click="goTo(3)" :disabled="!milestonesValid()">
+                    <button class="btn btn-primary" @click="goTo(4)" :disabled="!milestonesValid()">
                         Далее <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
             </div>
         </section>
 
-        <!-- ══════════ STEP 3: Команда и coins ══════════ -->
-        <section class="wizard-panel" x-show="step===3" x-transition>
+        <!-- ══════════ STEP 4: Команда и coins ══════════ -->
+        <section class="wizard-panel" x-show="step===4" x-transition>
             <div>
-                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 3 из 4</span>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 4 из 5</span>
                 <h2 style="font-size:20px;font-weight:700;margin-top:4px" x-text="isLeadership ? 'Доход по месяцам' : 'Состав участников'"></h2>
                 <p class="hint" style="margin-top:3px" x-show="!isLeadership">Распределите вознаграждение между участниками. Сумма свободных coins не может быть отрицательной.</p>
                 <p class="hint" style="margin-top:3px" x-show="isLeadership">Помесячная разбивка дохода: оклад ежемесячно + премии milestones в месяце их дедлайна.</p>
@@ -638,7 +673,7 @@
             </div>
 
             <div class="panel-footer">
-                <button class="btn btn-outline" @click="goTo(2)">
+                <button class="btn btn-outline" @click="goTo(3)">
                     <i class="fas fa-chevron-left"></i> Назад
                 </button>
                 <div class="footer-right">
@@ -652,17 +687,17 @@
                             <i class="fas fa-exclamation-circle"></i> Превышение бюджета coins
                         </span>
                     </template>
-                    <button class="btn btn-primary" @click="goTo(4)" :disabled="!stepValid(3)">
+                    <button class="btn btn-primary" @click="goTo(5)" :disabled="!stepValid(4)">
                         Далее <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
             </div>
         </section>
 
-        <!-- ══════════ STEP 4: Резюме ══════════ -->
-        <section class="wizard-panel" x-show="step===4" x-transition>
+        <!-- ══════════ STEP 5: Резюме ══════════ -->
+        <section class="wizard-panel" x-show="step===5" x-transition>
             <div>
-                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 4 из 4</span>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 5 из 5</span>
                 <h2 style="font-size:20px;font-weight:700;margin-top:4px">Резюме контракта</h2>
                 <p class="hint" style="margin-top:3px">Проверьте все данные перед отправкой на согласование.</p>
             </div>
@@ -873,7 +908,7 @@
             </div>
 
             <div class="panel-footer">
-                <button class="btn btn-outline" @click="goTo(3)">
+                <button class="btn btn-outline" @click="goTo(4)">
                     <i class="fas fa-chevron-left"></i> Назад
                 </button>
                 <div class="footer-right">
@@ -966,8 +1001,8 @@ function scWizard() {
 
         get stepLabels() {
             return this.isLeadership
-                ? ['1. Суть', '2. Milestones', '3. Доход', '4. Резюме']
-                : ['1. Суть', '2. Milestones', '3. Команда и coins', '4. Резюме'];
+                ? ['1. Тип контракта', '2. Суть', '3. Milestones', '4. Доход', '5. Резюме']
+                : ['1. Тип контракта', '2. Суть', '3. Milestones', '4. Команда и coins', '5. Резюме'];
         },
 
         init() {
@@ -1108,13 +1143,14 @@ function scWizard() {
         },
 
         stepValid(s) {
-            if (s === 1) {
+            if (s === 1) return true; // Шаг «Тип контракта» — всегда выбран (дефолт smart)
+            if (s === 2) {
                 const base = !!(this.form.name && this.form.businessUnit && this.form.shortDescription && this.form.businessEffect && this.form.deadline);
                 if (this.isLeadership) return base && (this.form.fixedSalaryMonthly > 0) && (this.form.variableTotal > 0);
                 return base;
             }
-            if (s === 2) return this.milestonesValid();
-            if (s === 3) {
+            if (s === 3) return this.milestonesValid();
+            if (s === 4) {
                 // Лидерский контракт: команда необязательна, coins не используются
                 if (this.isLeadership) return true;
                 return this.form.needsRecruitment || (this.team.filter(t => t.name).length > 0 && this.freeCoins() >= 0);
@@ -1123,7 +1159,7 @@ function scWizard() {
         },
 
         goTo(n) {
-            if (n < 1 || n > 4) return;
+            if (n < 1 || n > 5) return;
             // Назад — всегда можно
             if (n <= this.step) {
                 this.navError = '';
@@ -1269,20 +1305,20 @@ function scWizard() {
             // Финальная проверка обязательных полей по шагам
             if (!this.form.name || !this.form.businessUnit || !this.form.shortDescription || !this.form.businessEffect || !this.form.deadline) {
                 this.submitError = 'Заполните обязательные поля на шаге «Суть»';
-                this.goTo(1); return;
+                this.goTo(2); return;
             }
             if (!this.milestonesValid()) {
                 this.submitError = 'Проверьте обязательные поля и SMART во всех milestones';
-                this.goTo(2); return;
+                this.goTo(3); return;
             }
             if (this.isLeadership) {
                 if (!(this.form.fixedSalaryMonthly > 0) || !(this.form.variableTotal > 0)) {
                     this.submitError = 'Укажите фиксированную и переменную части дохода на шаге «Суть»';
-                    this.goTo(1); return;
+                    this.goTo(2); return;
                 }
             } else if (!this.form.needsRecruitment && (this.team.filter(t => t.name).length === 0 || this.freeCoins() < 0)) {
                 this.submitError = 'Проверьте состав участников и распределение coins';
-                this.goTo(3); return;
+                this.goTo(4); return;
             }
             const payload = {
                 project_type: 'smart_contract',
