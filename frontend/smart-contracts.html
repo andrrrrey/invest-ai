@@ -31,7 +31,7 @@
 
         body {
             background-color: #E5E5E5;
-            padding: 20px;
+            padding: 8px;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -56,7 +56,7 @@
 
         .app-window {
             width: 100%;
-            max-width: 1400px;
+            max-width: 1700px;
             height: 90vh;
             background: var(--bg-body);
             border-radius: var(--radius-lg);
@@ -95,7 +95,7 @@
         /* Основной контент */
         .main-content {
             flex: 1;
-            padding: 40px 50px;
+            padding: 28px 36px;
             overflow-y: auto;
             background: var(--bg-body);
         }
@@ -302,9 +302,39 @@
                             </div>
                         </div>
                     </div>
-                    <button x-show="canCreate" class="btn btn-primary" onclick="window.location.href='/smart-contract-new'"><i class="fas fa-plus"></i> Создать смарт-контракт</button>
+                    <button x-show="canCreate" class="btn btn-primary" @click="showTypeChoice=true"><i class="fas fa-plus"></i> Создать смарт-контракт</button>
                 </div>
             </header>
+
+            <!-- Выбор типа контракта -->
+            <div x-show="showTypeChoice" x-cloak @click.self="showTypeChoice=false"
+                 style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px">
+                <div style="background:white;border-radius:24px;padding:32px;width:100%;max-width:640px;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                        <h2 style="font-size:20px;font-weight:700">Выберите тип контракта</h2>
+                        <button @click="showTypeChoice=false" style="background:none;border:none;cursor:pointer;font-size:20px;color:#8E8E93"><i class="fas fa-times"></i></button>
+                    </div>
+                    <p style="font-size:13px;color:#8E8E93;margin-bottom:22px">Логика расчёта зависит от выбранного типа.</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                        <a href="/smart-contract-new?type=smart" style="text-decoration:none;color:inherit">
+                            <div style="border:1.5px solid #E5E5ED;border-radius:18px;padding:24px;height:100%;transition:all .15s;cursor:pointer"
+                                 onmouseover="this.style.borderColor='#5E5CE6';this.style.background='#F7F7FF'" onmouseout="this.style.borderColor='#E5E5ED';this.style.background='white'">
+                                <i class="fas fa-coins" style="font-size:30px;color:#5E5CE6"></i>
+                                <h3 style="font-size:16px;font-weight:700;margin:14px 0 6px">Смарт-контракт</h3>
+                                <p style="font-size:13px;color:#555;line-height:1.5">Вознаграждение по milestones с конвертацией в coins по курсу NAV.</p>
+                            </div>
+                        </a>
+                        <a href="/smart-contract-new?type=leadership" style="text-decoration:none;color:inherit">
+                            <div style="border:1.5px solid #E5E5ED;border-radius:18px;padding:24px;height:100%;transition:all .15s;cursor:pointer"
+                                 onmouseover="this.style.borderColor='#5E5CE6';this.style.background='#F7F7FF'" onmouseout="this.style.borderColor='#E5E5ED';this.style.background='white'">
+                                <i class="fas fa-crown" style="font-size:30px;color:#D9A400"></i>
+                                <h3 style="font-size:16px;font-weight:700;margin:14px 0 6px">Лидерский контракт</h3>
+                                <p style="font-size:13px;color:#555;line-height:1.5">Оклад + переменная часть и премии по milestones. Расчёт только в рублях, без coins.</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
 
             <section class="kpi-row">
                 <div class="kpi-card card-1">
@@ -421,6 +451,7 @@
                 projects: [],
                 loading: true,
                 aiActive: false,
+                showTypeChoice: false,
 
                 async init() {
                     if (!redirectIfNotLoggedIn()) return;

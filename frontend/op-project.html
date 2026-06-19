@@ -9,9 +9,9 @@
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
         :root { --bg-body:#F8F7F3; --sidebar-bg:#1C1C1E; --sidebar-hover:#2C2C2E; --text-main:#1C1C1E; --text-muted:#8E8E93; --accent-purple:#5E5CE6; --radius-lg:35px; --radius-md:24px; --danger:#FF3B30; --success:#34C759; }
         * { box-sizing:border-box; margin:0; padding:0; font-family:'Plus Jakarta Sans',sans-serif; }
-        body { background:#E5E5E5; padding:20px; min-height:100vh; display:flex; align-items:center; justify-content:center; }
+        body { background:#E5E5E5; padding:8px; min-height:100vh; display:flex; align-items:center; justify-content:center; }
         .mobile-menu-btn { display:none; position:fixed; top:20px; left:20px; z-index:1000; background:var(--sidebar-bg); color:white; border:none; padding:12px; border-radius:12px; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
-        .app-window { width:100%; max-width:1400px; height:90vh; background:var(--bg-body); border-radius:var(--radius-lg); display:flex; overflow:hidden; box-shadow:0 50px 100px rgba(0,0,0,0.1); position:relative; }
+        .app-window { width:100%; max-width:1700px; height:90vh; background:var(--bg-body); border-radius:var(--radius-lg); display:flex; overflow:hidden; box-shadow:0 50px 100px rgba(0,0,0,0.1); position:relative; }
         .sidebar { width:260px; background:var(--sidebar-bg); padding:60px 25px 40px; display:flex; flex-direction:column; color:white; transition:all 0.4s cubic-bezier(0.4,0,0.2,1); flex-shrink:0; }
         .profile-section { text-align:center; margin-bottom:50px; }
         .profile-section p { font-size:13px; color:var(--text-muted); line-height:1.6; }
@@ -20,7 +20,7 @@
         .nav-link { display:flex; align-items:center; gap:15px; color:var(--text-muted); text-decoration:none; padding:14px 15px; border-radius:12px; font-size:14px; margin-bottom:8px; transition:0.3s; }
         .nav-link.active, .nav-link:hover { background:var(--sidebar-hover); color:white; }
         .nav-link i { font-size:18px; width:20px; text-align:center; }
-        .main-content { flex:1; padding:40px 50px; overflow-y:auto; background:var(--bg-body); }
+        .main-content { flex:1; padding:28px 36px; overflow-y:auto; background:var(--bg-body); }
         .card-block { background:white; border-radius:var(--radius-md); padding:28px; box-shadow:0 4px 15px rgba(0,0,0,0.02); margin-bottom:20px; }
         .block-title { font-size:13px; font-weight:700; color:var(--text-muted); margin-bottom:18px; text-transform:uppercase; letter-spacing:0.5px; }
         .info-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #F2F2F7; font-size:13px; }
@@ -942,20 +942,29 @@
                         const proj = await projRes.json();
                         const fm = proj.financial_model || {};
                         const categories = (fm.op_budget_rows || []).map(r => r.category).filter(Boolean);
-                        if (categories.length) {
-                            this.metricNames = categories;
+                        // Resolve key-metric rows (selected on step 2 of the wizard)
+                        const metricRows = (fm.op_metric_rows || []).map(r => ({
+                            name: r.metric === '__custom__' ? (r.metricCustom || '').trim() : r.metric,
+                            monthlyValues: r.monthlyValues || [],
+                        })).filter(r => r.name);
+                        if (categories.length || metricRows.length) {
                             const startYear = proj.start_date ? parseInt(proj.start_date.slice(0,4)) : now.getFullYear();
-                            const numYears = fm.op_budget_numYears || 1;
+                            const numYears = Math.max(fm.op_budget_numYears || 1, fm.op_metric_numYears || 1);
                             this.initPeriods(startYear, 1, numYears * 12);
                             const newPlan = {};
-                            (fm.op_budget_rows || []).forEach(row => {
-                                if (!row.category) return;
-                                (row.monthlyValues || []).forEach((yearVals, yi) => {
+                            const names = [];
+                            const addRow = (name, monthlyValues) => {
+                                if (!name) return;
+                                if (!names.includes(name)) names.push(name);
+                                (monthlyValues || []).forEach((yearVals, yi) => {
                                     (yearVals || []).forEach((val, mi) => {
-                                        if (val) newPlan[this._cellKey(row.category, {year: startYear + yi, month: mi + 1})] = val;
+                                        if (val) newPlan[this._cellKey(name, {year: startYear + yi, month: mi + 1})] = val;
                                     });
                                 });
-                            });
+                            };
+                            (fm.op_budget_rows || []).forEach(row => addRow(row.category, row.monthlyValues));
+                            metricRows.forEach(row => addRow(row.name, row.monthlyValues));
+                            this.metricNames = names;
                             this._gridPlan = newPlan;
                         }
                     }

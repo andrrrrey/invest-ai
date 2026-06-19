@@ -27,10 +27,10 @@
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
 
-        body { background: #E5E5E5; padding: 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        body { background: #E5E5E5; padding: 8px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
 
         .app-window {
-            width: 100%; max-width: 1440px; height: 90vh;
+            width: 100%; max-width: 1700px; height: 90vh;
             background: var(--bg); border-radius: 35px;
             display: flex; overflow: hidden;
             box-shadow: 0 50px 100px rgba(0,0,0,.1);
@@ -437,7 +437,7 @@
         <div class="ai-banner" x-show="!isReadOnly">
             <i class="fas fa-wand-magic-sparkles" style="font-size:22px;margin-top:2px"></i>
             <div>
-                <strong style="display:block;margin-bottom:3px" x-text="'Ксения, AI-ассистент (' + aiModelLabel + ')'"></strong>
+                <strong style="display:block;margin-bottom:3px" x-text="'AI-ассистент (' + aiModelLabel + ')'"></strong>
                 <p style="font-size:13px;line-height:1.45">
                     Заполняйте шаги по очереди. Все расчёты обновляются мгновенно — не нужно нажимать «Рассчитать».
                 </p>
@@ -773,31 +773,98 @@
                                     • <strong>Unit-экономика (вес ×2)</strong> — как метрика связана с юнит-показателями: если метрика напрямую улучшает LTV, CAC или маржу — балл выше.<br>
                                     В блоке <em>Baseline → Target</em> укажите текущее и целевое значение метрики: это позволяет AI оценить реалистичность цели и рассчитать потенциальный экономический эффект в комментарии.
                                 </div>
-                                <select x-model="form.op_metrics">
-                                    <option value="">— Выберите метрику —</option>
-                                    <option value="TTV">1. Time to Value (TTV) — скорость первого результата</option>
-                                    <option value="NRR">2. Net Revenue Retention (NRR) — удержание и расширение базы</option>
-                                    <option value="LTV/CAC">3. LTV / CAC — юнит-экономика</option>
-                                    <option value="Lead Time">4. Lead Time for Changes — скорость разработки</option>
-                                    <option value="Revenue/Employee">5. Revenue per Employee — операционная эффективность</option>
-                                    <option value="CAC Payback">6. CAC Payback — возврат затрат на привлечение</option>
-                                    <option value="Confidence Score">7. Confidence Score — уверенность в прогнозах</option>
-                                    <option value="Churn Rate">8. Churn Rate — риск потери выручки</option>
-                                    <option value="Burn Multiple">9. Burn Multiple — эффективность сжигания ресурсов</option>
-                                    <option value="ROI">10. Return of Investment (ROI) — финансовая эффективность</option>
-                                    <option value="New Logo/MRR">11. New Logo / MRR</option>
-                                    <option value="TTM">12. Time to Market (TTM)</option>
-                                    <option value="CAC">13. САС</option>
-                                    <option value="__custom__">14. Другая метрика (ввести вручную)...</option>
-                                </select>
-                                <template x-if="form.op_metrics === '__custom__'">
-                                    <div style="margin-top:8px">
-                                        <input type="text" x-model="form.op_metrics_custom"
-                                            placeholder="Введите название метрики..."
-                                            style="width:100%;padding:10px 12px;border:1.5px solid #5E5CE6;border-radius:10px;font-size:13px;outline:none">
-                                        <p class="hint" style="margin-top:4px">Введите название метрики, по которой будет отслеживаться результат инвестиции</p>
-                                    </div>
-                                </template>
+                                <div class="tbl-wrap">
+                                    <table style="min-width:400px">
+                                        <thead><tr>
+                                            <th style="min-width:170px">Метрика</th>
+                                            <template x-for="col in visibleOpMetricCols()" :key="'omh_' + col.type + '_' + col.yi + '_' + (col.mi ?? '')">
+                                                <th style="white-space:nowrap;font-size:11px">
+                                                    <template x-if="col.type === 'year'">
+                                                        <span style="display:inline-flex;align-items:center;gap:4px">
+                                                            <button @click="toggleOpMetricYear(col.yi)"
+                                                                title="Развернуть/свернуть месяцы"
+                                                                style="background:none;border:none;cursor:pointer;color:#8E8E93;padding:0 2px;font-size:11px">
+                                                                <i class="fas" :class="opMetricYearExpanded[col.yi] ? 'fa-compress-alt' : 'fa-expand-alt'"></i>
+                                                            </button>
+                                                            Год <span x-text="col.yi + 1"></span>
+                                                        </span>
+                                                    </template>
+                                                    <template x-if="col.type === 'month'">
+                                                        <span style="display:inline-flex;align-items:center;gap:2px">
+                                                            <template x-if="col.mi === 0">
+                                                                <button @click="toggleOpMetricYear(col.yi)" title="Свернуть"
+                                                                    style="background:none;border:none;cursor:pointer;color:#8E8E93;padding:0 2px;font-size:10px">
+                                                                    <i class="fas fa-compress-alt"></i>
+                                                                </button>
+                                                            </template>
+                                                            <span x-text="'М' + (col.mi + 1)" style="color:#5E5CE6;font-weight:600"></span>
+                                                        </span>
+                                                    </template>
+                                                </th>
+                                            </template>
+                                            <th></th>
+                                        </tr></thead>
+                                        <tbody>
+                                            <template x-for="(row, ri) in form.op_metric_rows" :key="ri">
+                                                <tr>
+                                                    <td>
+                                                        <select x-model="form.op_metric_rows[ri].metric" style="width:160px">
+                                                            <option value="">— Метрика —</option>
+                                                            <option value="TTV">Time to Value (TTV)</option>
+                                                            <option value="NRR">Net Revenue Retention (NRR)</option>
+                                                            <option value="LTV/CAC">LTV / CAC</option>
+                                                            <option value="Lead Time">Lead Time for Changes</option>
+                                                            <option value="Revenue/Employee">Revenue per Employee</option>
+                                                            <option value="CAC Payback">CAC Payback</option>
+                                                            <option value="Confidence Score">Confidence Score</option>
+                                                            <option value="Churn Rate">Churn Rate</option>
+                                                            <option value="Burn Multiple">Burn Multiple</option>
+                                                            <option value="ROI">Return of Investment (ROI)</option>
+                                                            <option value="New Logo/MRR">New Logo / MRR</option>
+                                                            <option value="TTM">Time to Market (TTM)</option>
+                                                            <option value="CAC">CAC</option>
+                                                            <option value="__custom__">Другая метрика...</option>
+                                                        </select>
+                                                        <template x-if="form.op_metric_rows[ri].metric === '__custom__'">
+                                                            <input type="text" x-model="form.op_metric_rows[ri].metricCustom"
+                                                                placeholder="Название метрики"
+                                                                style="width:160px;margin-top:4px;padding:8px 10px;border:1.5px solid #5E5CE6;border-radius:8px;font-size:12px;outline:none">
+                                                        </template>
+                                                    </td>
+                                                    <template x-for="col in visibleOpMetricCols()" :key="'omr_' + ri + '_' + col.type + '_' + col.yi + '_' + (col.mi ?? '')">
+                                                        <td>
+                                                            <template x-if="col.type === 'year'">
+                                                                <div style="font-size:12px;font-weight:600;text-align:center;padding:4px 2px"
+                                                                    x-text="new Intl.NumberFormat('ru-RU').format(opMetricAnnual(ri, col.yi))"></div>
+                                                            </template>
+                                                            <template x-if="col.type === 'month'">
+                                                                <input type="number"
+                                                                    :value="(form.op_metric_rows[ri].monthlyValues || [])[col.yi]?.[col.mi] || 0"
+                                                                    @focus="$event.target.select()"
+                                                                    @input="setOpMetricVal(ri, col.yi, col.mi, $event.target.value)"
+                                                                    style="width:70px">
+                                                            </template>
+                                                        </td>
+                                                    </template>
+                                                    <td>
+                                                        <button class="row-del" @click="form.op_metric_rows.splice(ri, 1)" title="Удалить строку">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+                                    <button class="btn btn-outline" type="button" @click="addOpMetricYear()">
+                                        <i class="fas fa-plus"></i> Добавить год
+                                    </button>
+                                    <button class="btn btn-outline" type="button" @click="addOpMetricRow()">
+                                        <i class="fas fa-plus"></i> Добавить метрику
+                                    </button>
+                                </div>
+                                <p class="hint" style="margin-top:6px">Выберите одну или несколько метрик и введите плановые значения по месяцам. Эти значения станут «планом» в таблице «План / Факт» утверждённого операционного проекта.</p>
                             </div>
                         </div>
                     </div>
@@ -2138,7 +2205,7 @@
                             <p><strong>МВЗ:</strong> <span x-text="[form.op_mvz_main, form.op_mvz_sub1, form.op_mvz_sub2].filter(Boolean).join(' / ') || '—'"></span></p>
                             <p><strong>Тип:</strong> <span x-text="form.op_investment_type||'—'"></span></p>
                             <p><strong>Value Drivers:</strong> <span x-text="form.op_value_drivers.map(d => d === '__other__' ? (form.op_value_drivers_other || 'other') : d).join(', ') || '—'"></span></p>
-                            <p><strong>Метрика:</strong> <span x-text="(form.op_metrics === '__custom__' ? (form.op_metrics_custom || '—') : form.op_metrics) || '—'"></span></p>
+                            <p><strong>Метрика:</strong> <span x-text="opMetricNames().join(', ') || '—'"></span></p>
                             <p style="margin-top:8px"><strong>Тезис:</strong></p>
                             <p x-text="thesisExpanded ? form.op_investment_thesis : (form.op_investment_thesis ? form.op_investment_thesis.slice(0,200)+(form.op_investment_thesis.length>200?'…':'') : '—')"></p>
                             <template x-if="form.op_investment_thesis?.length > 200">
@@ -2231,8 +2298,8 @@
                                 <i class="fas" :class="form.op_value_drivers.length ? 'fa-check-circle' : 'fa-times-circle'"></i>
                                 Value Drivers (минимум 1)
                             </p>
-                            <p :style="form.op_metrics ? 'color:var(--success)' : 'color:var(--danger)'">
-                                <i class="fas" :class="form.op_metrics ? 'fa-check-circle' : 'fa-times-circle'"></i>
+                            <p :style="hasOpMetric() ? 'color:var(--success)' : 'color:var(--danger)'">
+                                <i class="fas" :class="hasOpMetric() ? 'fa-check-circle' : 'fa-times-circle'"></i>
                                 Ключевая метрика
                             </p>
                             <p :style="form.op_baseline && form.op_target ? 'color:var(--success)' : 'color:var(--danger)'">
@@ -2477,6 +2544,7 @@ function wizardApp() {
         indexModalRates: [],
         costYearExpanded: [false, false, false, false, false],
         opBudgetYearExpanded: [false],
+        opMetricYearExpanded: [false],
 
         form: {
             projectType: 'investment',
@@ -2506,6 +2574,12 @@ function wizardApp() {
             op_budget_numYears: 1,
             op_budget_rows: [
                 { category: '', monthlyValues: [Array(12).fill(0)] }
+            ],
+
+            // ── Ключевые метрики (план по месяцам) ───────────────────────────
+            op_metric_numYears: 1,
+            op_metric_rows: [
+                { metric: '', metricCustom: '', monthlyValues: [Array(12).fill(0)] }
             ],
 
             // ── Value Score ───────────────────────────────────────────────
@@ -2674,6 +2748,8 @@ function wizardApp() {
                 this.costYearExpanded = Array(loadedNumYears).fill(false);
                 const loadedBudgetYears = this.form.op_budget_numYears || 1;
                 this.opBudgetYearExpanded = Array(loadedBudgetYears).fill(false);
+                const loadedMetricYears = this.form.op_metric_numYears || 1;
+                this.opMetricYearExpanded = Array(loadedMetricYears).fill(false);
                 // Ensure monthlyValues exist on all cost rows
                 this.form.costs = (this.form.costs || []).map(c => ({
                     ...c,
@@ -2683,6 +2759,12 @@ function wizardApp() {
                 this.form.op_budget_rows = (this.form.op_budget_rows || [{ category: '', monthlyValues: [Array(12).fill(0)] }]).map(r => ({
                     ...r,
                     monthlyValues: r.monthlyValues || Array.from({length: loadedBudgetYears}, () => Array(12).fill(0)),
+                }));
+                // Ensure op_metric_rows has monthlyValues
+                this.form.op_metric_numYears = this.form.op_metric_numYears || 1;
+                this.form.op_metric_rows = (this.form.op_metric_rows || [{ metric: '', metricCustom: '', monthlyValues: [Array(12).fill(0)] }]).map(r => ({
+                    metric: r.metric || '', metricCustom: r.metricCustom || '',
+                    monthlyValues: r.monthlyValues || Array.from({length: loadedMetricYears}, () => Array(12).fill(0)),
                 }));
                 // Override with top-level fields (authoritative source for display fields)
                 if (p.project_type) this.form.projectType = p.project_type;
@@ -2820,6 +2902,67 @@ function wizardApp() {
         opBudgetAnnual(ri, yi) {
             const mv = (this.form.op_budget_rows[ri]?.monthlyValues || [])[yi] || [];
             return mv.reduce((a, b) => a + b, 0);
+        },
+
+        // ── Op Metric helpers ──────────────────────────────────────────────
+        addOpMetricYear() {
+            this.form.op_metric_numYears += 1;
+            this.form.op_metric_rows = this.form.op_metric_rows.map(r => ({
+                ...r,
+                monthlyValues: [...(r.monthlyValues||[]).map(yr=>[...yr]), Array(12).fill(0)],
+            }));
+            this.opMetricYearExpanded = [...this.opMetricYearExpanded, false];
+        },
+
+        addOpMetricRow() {
+            const ny = this.form.op_metric_numYears;
+            this.form.op_metric_rows = [...this.form.op_metric_rows, {
+                metric: '', metricCustom: '',
+                monthlyValues: Array.from({length: ny}, () => Array(12).fill(0)),
+            }];
+        },
+
+        setOpMetricVal(ri, yi, mi, val) {
+            const rows = this.form.op_metric_rows.map(r => ({
+                ...r,
+                monthlyValues: (r.monthlyValues||[]).map(yr => [...yr]),
+            }));
+            if (!rows[ri].monthlyValues[yi]) rows[ri].monthlyValues[yi] = Array(12).fill(0);
+            rows[ri].monthlyValues[yi][mi] = parseFloat(val) || 0;
+            this.form.op_metric_rows = rows;
+        },
+
+        toggleOpMetricYear(yi) {
+            this.opMetricYearExpanded = this.opMetricYearExpanded.map((v, i) => i === yi ? !v : v);
+        },
+
+        visibleOpMetricCols() {
+            const cols = [];
+            for (let yi = 0; yi < this.form.op_metric_numYears; yi++) {
+                if (this.opMetricYearExpanded[yi]) {
+                    for (let mi = 0; mi < 12; mi++) cols.push({ type: 'month', yi, mi });
+                } else {
+                    cols.push({ type: 'year', yi });
+                }
+            }
+            return cols;
+        },
+
+        opMetricAnnual(ri, yi) {
+            const mv = (this.form.op_metric_rows[ri]?.monthlyValues || [])[yi] || [];
+            return mv.reduce((a, b) => a + b, 0);
+        },
+
+        // Resolved metric names (custom name if "__custom__")
+        opMetricNames() {
+            return (this.form.op_metric_rows || [])
+                .map(r => r.metric === '__custom__' ? (r.metricCustom || '').trim() : r.metric)
+                .filter(Boolean);
+        },
+
+        // At least one metric row has a name
+        hasOpMetric() {
+            return this.opMetricNames().length > 0;
         },
 
         // Cost preview for auto-computed cells
@@ -3102,8 +3245,7 @@ function wizardApp() {
                     if (!f.op_requested_resource || !f.op_requested_resource.trim()) return 'Опишите запрашиваемый ресурс';
                     if (!f.op_investment_thesis || !f.op_investment_thesis.trim()) return 'Введите инвестиционный тезис';
                     if (!f.op_value_drivers || f.op_value_drivers.length === 0) return 'Выберите хотя бы один драйвер роста стоимости компании';
-                    if (!f.op_metrics) return 'Выберите ключевую метрику';
-                    if (f.op_metrics === '__custom__' && !f.op_metrics_custom.trim()) return 'Введите название метрики вручную';
+                    if (!this.hasOpMetric()) return 'Добавьте хотя бы одну ключевую метрику';
                     if (!f.op_baseline || !f.op_baseline.trim()) return 'Введите Baseline';
                     if (!f.op_target || !f.op_target.trim()) return 'Введите Target';
                     if (!f.op_stop_loss || !f.op_stop_loss.trim()) return 'Введите Stop-loss критерии';
@@ -3218,6 +3360,9 @@ function wizardApp() {
             // usersMonthly → quarterly users so the backend always receives
             // quarterly data (it has no concept of granularity).
             const fm = { ...this.form };
+            // Derive a human-readable metric label from the metric table for
+            // downstream views (op-project card, project card, AI analysis).
+            fm.op_metrics = this.opMetricNames().join(', ');
             if (fm.granularity === 'month') {
                 const toQuarterly = (monthly, ny) =>
                     Array.from({ length: ny }, (_, y) =>
@@ -3376,7 +3521,7 @@ function wizardApp() {
                     op_requested_resource: this.form.op_requested_resource,
                     op_investment_thesis: this.form.op_investment_thesis,
                     op_value_drivers: this.form.op_value_drivers,
-                    op_metrics: this.form.op_metrics === '__custom__' ? (this.form.op_metrics_custom.trim() || 'Другая метрика') : this.form.op_metrics,
+                    op_metrics: this.opMetricNames().join(', '),
                     op_baseline: this.form.op_baseline,
                     op_target: this.form.op_target,
                     op_economics: this.form.op_economics,

@@ -14,9 +14,9 @@
             --danger: #FF3B30; --success: #34C759; --warn: #FF9500;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
-        body { background: #E5E5E5; padding: 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        body { background: #E5E5E5; padding: 8px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
         .mobile-menu-btn { display: none; position: fixed; top: 20px; left: 20px; z-index: 1000; background: var(--sb); color: #fff; border: none; padding: 12px; border-radius: 12px; cursor: pointer; }
-        .app-window { width: 100%; max-width: 1440px; height: 90vh; background: var(--bg); border-radius: 35px; display: flex; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,.1); position: relative; }
+        .app-window { width: 100%; max-width: 1700px; height: 90vh; background: var(--bg); border-radius: 35px; display: flex; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,.1); position: relative; }
         .sidebar { width: 260px; min-width: 260px; background: var(--sb); color: #fff; display: flex; flex-direction: column; padding: 60px 25px 40px; gap: 6px; transition: all .4s cubic-bezier(.4,0,.2,1); flex-shrink: 0; }
         .profile-section { text-align: center; margin-bottom: 50px; }
         .profile-section p { font-size: 13px; color: #8E8E93; line-height: 1.6; }
@@ -160,26 +160,29 @@
         <!-- Header -->
         <header class="top-header">
             <div>
-                <h1>Создание смарт-контракта</h1>
-                <p>Шаг <span x-text="step"></span> из 4 · Контракт с выплатой вознаграждения в coin</p>
+                <h1 x-text="isLeadership ? 'Создание лидерского контракта' : 'Создание смарт-контракта'"></h1>
+                <p x-text="'Шаг ' + step + ' из 4 · ' + (isLeadership ? 'Расчёт дохода в рублях (оклад + премии)' : 'Контракт с выплатой вознаграждения в coin')"></p>
             </div>
-            <span class="status-pill pill-coin"><i class="fas fa-coins"></i> Смарт-контракт</span>
+            <span class="status-pill pill-coin" x-show="!isLeadership"><i class="fas fa-coins"></i> Смарт-контракт</span>
+            <span class="status-pill" x-show="isLeadership" style="background:#FBECCB;color:#8A6D00"><i class="fas fa-crown"></i> Лидерский контракт</span>
         </header>
 
         <!-- AI banner -->
         <div class="ai-banner">
             <i class="fas fa-wand-magic-sparkles" style="font-size:22px;margin-top:2px"></i>
             <div>
-                <strong x-text="'Ксения · ' + aiModel"></strong>
+                <strong x-text="'AI-ассистент · ' + aiModel"></strong>
                 <p x-text="step === 2
-                    ? 'Ксения проверяет каждый milestone на измеримость. Кнопка «Далее» становится активной только после валидации всех критериев по SMART.'
-                    : 'Заполняйте шаги по очереди. Coins резервируются только при достижении milestone — без предоплаты.'"></p>
+                    ? 'AI-ассистент проверяет каждый milestone на измеримость. Кнопка «Далее» становится активной только после валидации всех критериев по SMART.'
+                    : (isLeadership
+                        ? 'Заполняйте шаги по очереди. Расчёт ведётся только в рублях: оклад выплачивается ежемесячно, премии — по факту достижения milestone.'
+                        : 'Заполняйте шаги по очереди. Coins резервируются только при достижении milestone — без предоплаты.')"></p>
             </div>
         </div>
 
         <!-- Step navigation -->
         <nav class="steps-nav">
-            <template x-for="(label, i) in ['1. Суть','2. Milestones','3. Команда и coins','4. Резюме']" :key="i">
+            <template x-for="(label, i) in stepLabels" :key="i">
                 <button class="step-btn"
                     :class="{ active: step === i+1, done: step > i+1 }"
                     @click="goTo(i+1)">
@@ -229,7 +232,7 @@
                     <button class="btn-ai" style="position:absolute;bottom:10px;right:10px"
                         @click="mockGptDescription()" :disabled="gptLoading">
                         <i class="fas fa-wand-magic-sparkles"></i>
-                        <span x-text="gptLoading ? 'Генерируем...' : 'Сформулировать с Ксенией'"></span>
+                        <span x-text="gptLoading ? 'Генерируем...' : 'Сформулировать с AI-ассистентом'"></span>
                     </button>
                 </div>
             </div>
@@ -278,6 +281,30 @@
                 </div>
             </div>
 
+            <!-- Лидерский контракт: структура дохода -->
+            <template x-if="isLeadership">
+                <div style="border:1.5px solid #FBECCB;background:#FFFDF6;border-radius:14px;padding:16px 18px">
+                    <p style="font-size:13px;font-weight:700;color:#8A6D00;margin-bottom:4px"><i class="fas fa-crown"></i> Структура дохода (только рубли)</p>
+                    <p class="hint" style="margin-bottom:12px">Оклад выплачивается ежемесячно безусловно. Переменная часть распределяется по milestones (премии задаются на шаге 2).</p>
+                    <div class="grid-3">
+                        <div class="field">
+                            <label>Дата начала</label>
+                            <input type="date" x-model="form.startDate">
+                            <span class="hint">Для помесячной разбивки дохода</span>
+                        </div>
+                        <div class="field">
+                            <label>Желаемая фиксированная часть (оклад), ₽/мес <span style="color:var(--danger)">*</span></label>
+                            <input type="number" x-model.number="form.fixedSalaryMonthly" placeholder="500000" min="0">
+                        </div>
+                        <div class="field">
+                            <label>Желаемая переменная часть за весь период, ₽ <span style="color:var(--danger)">*</span></label>
+                            <input type="number" x-model.number="form.variableTotal" placeholder="2200000" min="0">
+                            <span class="hint">Целевой бонусный фонд за период</span>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
             <div class="field">
                 <label>Прикреплённые документы</label>
                 <input type="file" accept=".pdf,.docx,.md" multiple @change="onDocsChange($event)" style="padding:8px 10px;font-size:13px">
@@ -292,13 +319,12 @@
                     <i class="fas fa-chevron-left"></i> Отмена
                 </a>
                 <div class="footer-right">
-                    <template x-if="form.name && form.businessUnit && form.shortDescription && form.businessEffect && form.deadline ? false : true">
+                    <template x-if="!stepValid(1)">
                         <span style="font-size:12px;color:var(--danger);align-self:center">
                             <i class="fas fa-exclamation-circle"></i> Заполните обязательные поля
                         </span>
                     </template>
-                    <button class="btn btn-primary" @click="goTo(2)"
-                        :disabled="!form.name || !form.businessUnit || !form.shortDescription || !form.businessEffect || !form.deadline">
+                    <button class="btn btn-primary" @click="goTo(2)" :disabled="!stepValid(1)">
                         Далее <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
@@ -359,9 +385,10 @@
                             <input type="text" x-model="ms.period" placeholder="напр.: 14 дней / 30 дней">
                         </div>
                         <div class="field">
-                            <label>Сумма вознаграждения (руб.)</label>
+                            <label x-text="isLeadership ? 'Премиальная часть (руб.)' : 'Сумма вознаграждения (руб.)'"></label>
                             <input type="number" x-model.number="ms.rewardRub" @input="recalcCoins(idx)" placeholder="1500000" min="0">
-                            <span class="hint">≈ <b x-text="(ms.coins||0).toLocaleString('ru-RU')"></b> coin по курсу NAV <span x-text="navRate"></span></span>
+                            <span class="hint" x-show="!isLeadership">≈ <b x-text="(ms.coins||0).toLocaleString('ru-RU')"></b> coin по курсу NAV <span x-text="navRate"></span></span>
+                            <span class="hint" x-show="isLeadership">Премия выплачивается при достижении milestone в срок</span>
                         </div>
                     </div>
 
@@ -396,7 +423,7 @@
                             </template>
                             <button class="btn-ai" @click="validateSmart(idx)" :disabled="ms.validating || !ms.criteria">
                                 <i class="fas fa-wand-magic-sparkles"></i>
-                                <span x-text="ms.validating ? 'Анализирую...' : 'Проверить с Ксенией'"></span>
+                                <span x-text="ms.validating ? 'Анализирую...' : 'Проверить с AI-ассистентом'"></span>
                             </button>
                         </div>
                         <!-- Validation feedback -->
@@ -420,14 +447,25 @@
                 </div>
             </template>
 
-            <!-- Total coins -->
+            <!-- Total -->
             <div style="background:#F0EFFF;border-radius:14px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center">
                 <span style="font-size:13px;font-weight:600;color:var(--accent)">
-                    <i class="fas fa-coins"></i> Итого по milestones:
+                    <i class="fas" :class="isLeadership ? 'fa-ruble-sign' : 'fa-coins'"></i>
+                    <span x-text="isLeadership ? ' Итого премий по milestones:' : ' Итого по milestones:'"></span>
                 </span>
                 <span style="font-size:16px;font-weight:800;color:var(--accent)"
-                    x-text="milestones.reduce((s,m)=>s+(m.rewardRub||0),0).toLocaleString('ru-RU') + ' ₽ · ' + milestones.reduce((s,m)=>s+(m.coins||0),0).toLocaleString('ru-RU') + ' coin'"></span>
+                    x-text="isLeadership
+                        ? milestones.reduce((s,m)=>s+(m.rewardRub||0),0).toLocaleString('ru-RU') + ' ₽'
+                        : milestones.reduce((s,m)=>s+(m.rewardRub||0),0).toLocaleString('ru-RU') + ' ₽ · ' + milestones.reduce((s,m)=>s+(m.coins||0),0).toLocaleString('ru-RU') + ' coin'"></span>
             </div>
+            <!-- Лидерский контракт: сверка с целевой переменной частью -->
+            <template x-if="isLeadership && form.variableTotal > 0">
+                <div style="background:#FFFDF6;border:1.5px solid #FBECCB;border-radius:12px;padding:10px 16px;font-size:12px;color:#8A6D00;display:flex;justify-content:space-between;align-items:center">
+                    <span>Целевая переменная часть: <b x-text="(form.variableTotal||0).toLocaleString('ru-RU') + ' ₽'"></b></span>
+                    <span x-text="(leadershipTotals().variableDiff === 0 ? '✓ распределено полностью' : 'Разница: ' + leadershipTotals().variableDiff.toLocaleString('ru-RU') + ' ₽')"
+                          :style="leadershipTotals().variableDiff === 0 ? 'color:#1A7A40;font-weight:700' : 'font-weight:700'"></span>
+                </div>
+            </template>
 
             <div class="panel-footer">
                 <button class="btn btn-outline" @click="goTo(1)">
@@ -450,9 +488,60 @@
         <section class="wizard-panel" x-show="step===3" x-transition>
             <div>
                 <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 3 из 4</span>
-                <h2 style="font-size:20px;font-weight:700;margin-top:4px">Состав участников</h2>
-                <p class="hint" style="margin-top:3px">Распределите вознаграждение между участниками. Сумма свободных coins не может быть отрицательной.</p>
+                <h2 style="font-size:20px;font-weight:700;margin-top:4px" x-text="isLeadership ? 'Доход по месяцам' : 'Состав участников'"></h2>
+                <p class="hint" style="margin-top:3px" x-show="!isLeadership">Распределите вознаграждение между участниками. Сумма свободных coins не может быть отрицательной.</p>
+                <p class="hint" style="margin-top:3px" x-show="isLeadership">Помесячная разбивка дохода: оклад ежемесячно + премии milestones в месяце их дедлайна.</p>
             </div>
+
+            <!-- Лидерский контракт: помесячная таблица дохода -->
+            <template x-if="isLeadership">
+                <div>
+                    <div style="border:1.5px solid #E5E5ED;border-radius:14px;overflow:hidden;margin-bottom:14px">
+                        <table class="team-table">
+                            <thead style="background:#F8F7F3">
+                                <tr>
+                                    <th>Месяц</th>
+                                    <th>Milestones</th>
+                                    <th style="text-align:right">Премия</th>
+                                    <th style="text-align:right">Оклад</th>
+                                    <th style="text-align:right">Итого</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="row in leadershipMonths()" :key="row.key">
+                                    <tr>
+                                        <td style="font-weight:600" x-text="row.label"></td>
+                                        <td style="color:var(--muted);font-size:12px" x-text="row.milestones.length ? row.milestones.join(', ') : '—'"></td>
+                                        <td style="text-align:right" x-text="row.bonus.toLocaleString('ru-RU') + ' ₽'"></td>
+                                        <td style="text-align:right" x-text="row.salary.toLocaleString('ru-RU') + ' ₽'"></td>
+                                        <td style="text-align:right;font-weight:700;color:var(--accent)" x-text="row.total.toLocaleString('ru-RU') + ' ₽'"></td>
+                                    </tr>
+                                </template>
+                                <template x-if="leadershipMonths().length === 0">
+                                    <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:14px">Укажите дату начала, дедлайн контракта и дедлайны milestones</td></tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="coins-summary">
+                        <div class="coin-card">
+                            <div class="coin-label">Оклад за период</div>
+                            <div class="coin-value" x-text="leadershipTotals().totalSalary.toLocaleString('ru-RU') + ' ₽'"></div>
+                            <div style="font-size:11px;color:var(--muted);margin-top:4px"><span x-text="leadershipTotals().numMonths"></span> мес.</div>
+                        </div>
+                        <div class="coin-card">
+                            <div class="coin-label">Премии за период</div>
+                            <div class="coin-value" x-text="leadershipTotals().totalBonus.toLocaleString('ru-RU') + ' ₽'"></div>
+                            <div style="font-size:11px;color:var(--muted);margin-top:4px">по milestones</div>
+                        </div>
+                        <div class="coin-card">
+                            <div class="coin-label">Итого за период</div>
+                            <div class="coin-value" x-text="leadershipTotals().grand.toLocaleString('ru-RU') + ' ₽'"></div>
+                            <div style="font-size:11px;color:var(--muted);margin-top:4px">≈ <span x-text="leadershipTotals().avgMonthly.toLocaleString('ru-RU')"></span> ₽/мес</div>
+                        </div>
+                    </div>
+                </div>
+            </template>
 
             <datalist id="emp-directory">
                 <template x-for="emp in directory" :key="emp.id">
@@ -460,13 +549,13 @@
                 </template>
             </datalist>
 
-            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;background:#F8F7F3;border-radius:12px;padding:12px 16px">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;background:#F8F7F3;border-radius:12px;padding:12px 16px" x-show="!isLeadership">
                 <input type="checkbox" x-model="form.needsRecruitment" style="accent-color:var(--accent);width:18px;height:18px">
                 <span style="font-size:14px;font-weight:600;color:#1C1C1E">Требуется набор участников после согласования</span>
             </label>
-            <p class="hint" x-show="form.needsRecruitment">Состав участников можно не заполнять на этапе создания заявки — он будет сформирован после согласования.</p>
+            <p class="hint" x-show="!isLeadership && form.needsRecruitment">Состав участников можно не заполнять на этапе создания заявки — он будет сформирован после согласования.</p>
 
-            <div class="grid-2" style="align-items:start" x-show="!form.needsRecruitment">
+            <div class="grid-2" style="align-items:start" x-show="!isLeadership && !form.needsRecruitment">
                 <div class="field">
                     <label>Общий бюджет контракта (руб.) <span style="color:var(--danger)">*</span></label>
                     <input type="number" x-model.number="form.totalBudget" placeholder="1000000" min="0">
@@ -480,7 +569,7 @@
             </div>
 
             <!-- Team table -->
-            <div style="border:1.5px solid #E5E5ED;border-radius:14px;overflow:hidden" x-show="!form.needsRecruitment">
+            <div style="border:1.5px solid #E5E5ED;border-radius:14px;overflow:hidden" x-show="!isLeadership && !form.needsRecruitment">
                 <table class="team-table">
                     <thead style="background:#F8F7F3">
                         <tr>
@@ -527,7 +616,7 @@
             </div>
 
             <!-- Coins summary -->
-            <div class="coins-summary" x-show="!form.needsRecruitment">
+            <div class="coins-summary" x-show="!isLeadership && !form.needsRecruitment">
                 <div class="coin-card">
                     <div class="coin-label">Всего coin</div>
                     <div class="coin-value" x-text="milestones.reduce((s,m)=>s+(m.coins||0),0).toLocaleString('ru-RU')"></div>
@@ -553,18 +642,17 @@
                     <i class="fas fa-chevron-left"></i> Назад
                 </button>
                 <div class="footer-right">
-                    <template x-if="!form.needsRecruitment && team.filter(m=>m.name).length === 0">
+                    <template x-if="!isLeadership && !form.needsRecruitment && team.filter(m=>m.name).length === 0">
                         <span style="font-size:12px;color:var(--danger);align-self:center">
                             <i class="fas fa-exclamation-circle"></i> Добавьте хотя бы одного участника
                         </span>
                     </template>
-                    <template x-if="!form.needsRecruitment && freeCoins() < 0">
+                    <template x-if="!isLeadership && !form.needsRecruitment && freeCoins() < 0">
                         <span style="font-size:12px;color:var(--danger);align-self:center">
                             <i class="fas fa-exclamation-circle"></i> Превышение бюджета coins
                         </span>
                     </template>
-                    <button class="btn btn-primary" @click="goTo(4)"
-                        :disabled="!form.needsRecruitment && (team.filter(m=>m.name).length === 0 || freeCoins() < 0)">
+                    <button class="btn btn-primary" @click="goTo(4)" :disabled="!stepValid(3)">
                         Далее <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
@@ -589,8 +677,11 @@
                 <div class="summary-row">
                     <span class="lbl">Тип</span>
                     <span class="val">
-                        <span class="status-pill pill-coin" style="padding:3px 10px;font-size:11px">
+                        <span class="status-pill pill-coin" style="padding:3px 10px;font-size:11px" x-show="!isLeadership">
                             <i class="fas fa-coins"></i> Смарт-контракт
+                        </span>
+                        <span class="status-pill" style="padding:3px 10px;font-size:11px;background:#FBECCB;color:#8A6D00" x-show="isLeadership">
+                            <i class="fas fa-crown"></i> Лидерский контракт
                         </span>
                         <span x-text="form.contractType === 'phased' ? ' · Поэтапный' : ' · Единый'"
                             style="font-size:12px;color:var(--muted)"></span>
@@ -612,6 +703,18 @@
                     <span class="lbl">Дедлайн</span>
                     <span class="val" x-text="form.deadline || '—'"></span>
                 </div>
+                <template x-if="isLeadership">
+                    <div>
+                        <div class="summary-row">
+                            <span class="lbl">Оклад</span>
+                            <span class="val" x-text="(form.fixedSalaryMonthly||0).toLocaleString('ru-RU') + ' ₽/мес'"></span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="lbl">Целевая переменная часть</span>
+                            <span class="val" x-text="(form.variableTotal||0).toLocaleString('ru-RU') + ' ₽ за период'"></span>
+                        </div>
+                    </div>
+                </template>
                 <div class="summary-row" x-show="form.shortDescription">
                     <span class="lbl">Краткое описание</span>
                     <span class="val" style="max-width:70%;font-weight:500;line-height:1.4" x-text="form.shortDescription"></span>
@@ -637,7 +740,7 @@
                                 <th>Название</th>
                                 <th>Дедлайн</th>
                                 <th>Период</th>
-                                <th>Вознаграждение</th>
+                                <th x-text="isLeadership ? 'Премия' : 'Вознаграждение'"></th>
                                 <th>Критерий (кратко)</th>
                             </tr>
                         </thead>
@@ -648,7 +751,7 @@
                                     <td style="font-weight:600" x-text="ms.name || '—'"></td>
                                     <td x-text="ms.deadline || '—'"></td>
                                     <td x-text="ms.period || '—'"></td>
-                                    <td style="font-weight:700;color:var(--accent)" x-text="(ms.rewardRub||0).toLocaleString('ru-RU') + ' ₽ · ' + (ms.coins||0).toLocaleString('ru-RU') + ' coin'"></td>
+                                    <td style="font-weight:700;color:var(--accent)" x-text="isLeadership ? (ms.rewardRub||0).toLocaleString('ru-RU') + ' ₽' : (ms.rewardRub||0).toLocaleString('ru-RU') + ' ₽ · ' + (ms.coins||0).toLocaleString('ru-RU') + ' coin'"></td>
                                     <td style="color:var(--muted);max-width:200px" x-text="(ms.criteria||'—').substring(0,80) + ((ms.criteria||'').length>80?'...':'')"></td>
                                 </tr>
                             </template>
@@ -657,8 +760,56 @@
                 </div>
             </div>
 
+            <!-- Leadership income summary -->
+            <template x-if="isLeadership">
+                <div class="summary-block">
+                    <h4><i class="fas fa-ruble-sign" style="color:var(--accent)"></i> Доход по периоду</h4>
+                    <div style="overflow-x:auto">
+                        <table class="milestone-summary-table">
+                            <thead>
+                                <tr>
+                                    <th>Месяц</th>
+                                    <th>Milestones</th>
+                                    <th style="text-align:right">Премия</th>
+                                    <th style="text-align:right">Оклад</th>
+                                    <th style="text-align:right">Итого</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="row in leadershipMonths()" :key="row.key">
+                                    <tr>
+                                        <td style="font-weight:600" x-text="row.label"></td>
+                                        <td style="color:var(--muted);font-size:12px" x-text="row.milestones.length ? row.milestones.join(', ') : '—'"></td>
+                                        <td style="text-align:right" x-text="row.bonus.toLocaleString('ru-RU') + ' ₽'"></td>
+                                        <td style="text-align:right" x-text="row.salary.toLocaleString('ru-RU') + ' ₽'"></td>
+                                        <td style="text-align:right;font-weight:700;color:var(--accent)" x-text="row.total.toLocaleString('ru-RU') + ' ₽'"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top:12px">
+                        <div class="coins-summary">
+                            <div class="coin-card">
+                                <div class="coin-label">Оклад за период</div>
+                                <div class="coin-value" x-text="leadershipTotals().totalSalary.toLocaleString('ru-RU') + ' ₽'"></div>
+                            </div>
+                            <div class="coin-card">
+                                <div class="coin-label">Премии за период</div>
+                                <div class="coin-value" x-text="leadershipTotals().totalBonus.toLocaleString('ru-RU') + ' ₽'"></div>
+                            </div>
+                            <div class="coin-card">
+                                <div class="coin-label">Итого · среднемес.</div>
+                                <div class="coin-value" x-text="leadershipTotals().grand.toLocaleString('ru-RU') + ' ₽'"></div>
+                                <div style="font-size:11px;color:var(--muted);margin-top:4px">≈ <span x-text="leadershipTotals().avgMonthly.toLocaleString('ru-RU')"></span> ₽/мес</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
             <!-- Team summary -->
-            <div class="summary-block">
+            <div class="summary-block" x-show="!isLeadership">
                 <h4><i class="fas fa-users" style="color:var(--accent)"></i> Команда и coins</h4>
                 <div style="overflow-x:auto">
                     <table class="milestone-summary-table">
@@ -704,7 +855,7 @@
             <div class="ai-summary-block">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
                     <p style="font-size:12px;font-weight:700;color:var(--accent)">
-                        <i class="fas fa-wand-magic-sparkles"></i> AI-резюме для финансового блока (Ксения)
+                        <i class="fas fa-wand-magic-sparkles"></i> AI-резюме для финансового блока
                     </p>
                     <button class="btn-ai" @click="generateAiSummary()" :disabled="aiSummaryLoading">
                         <i class="fas fa-wand-magic-sparkles"></i>
@@ -716,7 +867,7 @@
                 </template>
                 <template x-if="!aiSummary">
                     <p style="font-size:12px;color:var(--muted);font-style:italic">
-                        Нажмите «Сформировать резюме» — Ксения подготовит описание контракта для финансового блока.
+                        Нажмите «Сформировать резюме» — AI-ассистент подготовит описание контракта для финансового блока.
                     </p>
                 </template>
             </div>
@@ -750,10 +901,10 @@
                     <i class="fas fa-check-circle" style="color:#1A7A40;font-size:22px;margin-top:2px"></i>
                     <div>
                         <strong style="font-size:14px;color:#1A7A40">Контракт отправлен на согласование</strong>
-                        <p style="font-size:12px;color:#2D7A4A;margin-top:4px;line-height:1.5">
-                            Финансовый блок получил заявку с AI-резюме. После согласования coins будут зарезервированы на счёте контракта.
-                            Выплата — только по факту верификации каждого milestone куратором / CEO.
-                        </p>
+                        <p style="font-size:12px;color:#2D7A4A;margin-top:4px;line-height:1.5"
+                           x-text="isLeadership
+                                ? 'Финансовый блок получил заявку с AI-резюме. Оклад выплачивается ежемесячно, премии — по факту верификации каждого milestone куратором / CEO.'
+                                : 'Финансовый блок получил заявку с AI-резюме. После согласования coins будут зарезервированы на счёте контракта. Выплата — только по факту верификации каждого milestone куратором / CEO.'"></p>
                         <a href="/smart-contract" style="display:inline-block;margin-top:10px;font-size:12px;font-weight:600;color:var(--accent)">
                             Перейти к просмотру контракта →
                         </a>
@@ -777,17 +928,22 @@ function scWizard() {
 
         form: {
             type: 'smart_contract',
+            scType: 'smart',          // 'smart' | 'leadership'
             name: '',
             businessUnit: '',
             shortDescription: '',
             businessEffect: '',
             curator: '',
             deadline: '',
+            startDate: '',            // используется лидерским контрактом для помесячной разбивки
             contractType: 'phased',
             totalBudget: 0,
             distributionNote: '',
             needsRecruitment: false,
             documents: [],
+            // ── Лидерский контракт ──
+            fixedSalaryMonthly: 0,    // желаемая фиксированная часть (оклад), ₽/мес
+            variableTotal: 0,         // желаемая переменная часть за весь период, ₽
         },
 
         milestones: [],
@@ -804,8 +960,24 @@ function scWizard() {
             return d.toISOString().split('T')[0];
         },
 
+        get isLeadership() {
+            return this.form.scType === 'leadership';
+        },
+
+        get stepLabels() {
+            return this.isLeadership
+                ? ['1. Суть', '2. Milestones', '3. Доход', '4. Резюме']
+                : ['1. Суть', '2. Milestones', '3. Команда и coins', '4. Резюме'];
+        },
+
         init() {
             patchSidebar();
+            // Тип контракта из URL (?type=smart|leadership)
+            const urlType = new URLSearchParams(window.location.search).get('type');
+            if (urlType === 'leadership') {
+                this.form.scType = 'leadership';
+                this.form.needsRecruitment = false;
+            }
             this.userName = getUserName() || 'Текущий пользователь';
             const role = getUserRole();
             if (role === 'cfo' || role === 'manager') {
@@ -867,7 +1039,7 @@ function scWizard() {
                 if (!(m.rewardRub > 0)) miss.push('сумму вознаграждения');
                 if (!m.criteria) miss.push('критерий успеха');
                 if (!m.dataSource) miss.push('источник данных');
-                if (m.criteria && !m.smartValid) miss.push('проверку SMART (кнопка «Проверить с Ксенией»)');
+                if (m.criteria && !m.smartValid) miss.push('проверку SMART (кнопка «Проверить с AI-ассистентом»)');
                 if (miss.length) probs.push(`Milestone ${i + 1}: ${miss.join(', ')}`);
             });
             return probs.join('; ');
@@ -880,14 +1052,73 @@ function scWizard() {
         recalcCoins(idx) {
             const ms = this.milestones[idx];
             if (!ms) return;
+            if (this.isLeadership) { ms.coins = 0; return; }
             const rate = this.navRate || 10.1;
             ms.coins = Math.round((ms.rewardRub || 0) / rate);
         },
 
+        // ── Лидерский контракт: помесячная разбивка дохода ──────────────────
+        _monthKey(d) {
+            const dt = new Date(d);
+            return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0');
+        },
+
+        leadershipMonths() {
+            // Диапазон месяцев: от startDate (или самого раннего дедлайна milestone, или сегодня)
+            // до дедлайна контракта включительно.
+            const deadlines = this.milestones.map(m => m.deadline).filter(Boolean).sort();
+            const startStr = this.form.startDate || deadlines[0] || new Date().toISOString().slice(0, 10);
+            const endStr = this.form.deadline || deadlines[deadlines.length - 1] || startStr;
+            const start = new Date(startStr.slice(0, 7) + '-01');
+            const end = new Date(endStr.slice(0, 7) + '-01');
+            if (isNaN(start) || isNaN(end) || end < start) return [];
+            const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+            const rows = [];
+            const salary = this.form.fixedSalaryMonthly || 0;
+            let cur = new Date(start);
+            let guard = 0;
+            while (cur <= end && guard < 120) {
+                const key = cur.getFullYear() + '-' + String(cur.getMonth() + 1).padStart(2, '0');
+                const inMonth = this.milestones.filter(m => m.deadline && this._monthKey(m.deadline) === key);
+                const bonus = inMonth.reduce((s, m) => s + (m.rewardRub || 0), 0);
+                rows.push({
+                    key,
+                    label: monthNames[cur.getMonth()] + ' ' + cur.getFullYear(),
+                    milestones: inMonth.map(m => m.name || '—'),
+                    bonus, salary, total: salary + bonus,
+                });
+                cur.setMonth(cur.getMonth() + 1);
+                guard++;
+            }
+            return rows;
+        },
+
+        leadershipTotals() {
+            const months = this.leadershipMonths();
+            const totalSalary = months.reduce((s, r) => s + r.salary, 0);
+            const totalBonus = this.milestones.reduce((s, m) => s + (m.rewardRub || 0), 0);
+            const grand = totalSalary + totalBonus;
+            const n = months.length || 1;
+            return {
+                numMonths: months.length,
+                totalSalary, totalBonus, grand,
+                avgMonthly: Math.round(grand / n),
+                variableDiff: (this.form.variableTotal || 0) - totalBonus,
+            };
+        },
+
         stepValid(s) {
-            if (s === 1) return !!(this.form.name && this.form.businessUnit && this.form.shortDescription && this.form.businessEffect && this.form.deadline);
+            if (s === 1) {
+                const base = !!(this.form.name && this.form.businessUnit && this.form.shortDescription && this.form.businessEffect && this.form.deadline);
+                if (this.isLeadership) return base && (this.form.fixedSalaryMonthly > 0) && (this.form.variableTotal > 0);
+                return base;
+            }
             if (s === 2) return this.milestonesValid();
-            if (s === 3) return this.form.needsRecruitment || (this.team.filter(t => t.name).length > 0 && this.freeCoins() >= 0);
+            if (s === 3) {
+                // Лидерский контракт: команда необязательна, coins не используются
+                if (this.isLeadership) return true;
+                return this.form.needsRecruitment || (this.team.filter(t => t.name).length > 0 && this.freeCoins() >= 0);
+            }
             return true;
         },
 
@@ -970,7 +1201,7 @@ function scWizard() {
             ms.smartValid = passed === 5;
 
             if (ms.smartValid) {
-                ms.smartFeedback = '✅ Критерий соответствует всем требованиям SMART. Ксения подтверждает: milestone готов к согласованию.';
+                ms.smartFeedback = '✅ Критерий соответствует всем требованиям SMART. AI-ассистент подтверждает: milestone готов к согласованию.';
             } else {
                 const failed = Object.entries(ms.smart).filter(([,v]) => !v).map(([k]) => k);
                 const hints = {
@@ -1020,9 +1251,15 @@ function scWizard() {
         async generateAiSummary() {
             this.aiSummaryLoading = true;
             await new Promise(r => setTimeout(r, 2000));
+            if (this.isLeadership) {
+                const t = this.leadershipTotals();
+                this.aiSummary = `Лидерский контракт «${this.form.name || 'Контракт'}» (${this.form.businessUnit || 'бизнес-юнит не указан'}) для ${this.userName}. Куратор: ${this.form.curator || 'не назначен'}. Дедлайн: ${this.form.deadline || 'не указан'}.\n\nСтруктура дохода (только рубли, без coins): оклад ${(this.form.fixedSalaryMonthly||0).toLocaleString('ru-RU')} ₽/мес, целевая переменная часть за период — ${(this.form.variableTotal||0).toLocaleString('ru-RU')} ₽. Распределено по ${this.milestones.length} milestone(s): ${t.totalBonus.toLocaleString('ru-RU')} ₽ премий. Итого за ${t.numMonths} мес.: ${t.grand.toLocaleString('ru-RU')} ₽ (оклад ${t.totalSalary.toLocaleString('ru-RU')} ₽ + премии ${t.totalBonus.toLocaleString('ru-RU')} ₽). Среднемесячный доход — ${t.avgMonthly.toLocaleString('ru-RU')} ₽.\n\nПремия по milestone выплачивается только при достижении в срок; при двух milestone в месяце и достижении одного — пропорциональная часть. Ожидаемый эффект: ${this.form.businessEffect ? this.form.businessEffect.substring(0, 140) + '...' : 'не указан'}.\n\nРекомендация AI-ассистента: контракт готов к согласованию финансовым блоком.`;
+                this.aiSummaryLoading = false;
+                return;
+            }
             const totalCoins = this.milestones.reduce((s, m) => s + (m.coins || 0), 0);
             const totalRub = this.milestones.reduce((s, m) => s + (m.rewardRub || 0), 0);
-            this.aiSummary = `Контракт «${this.form.name || 'Смарт-контракт'}» (${this.form.businessUnit || 'бизнес-юнит не указан'}) инициирован ${this.userName}. Куратор: ${this.form.curator || 'не назначен'}. Дедлайн: ${this.form.deadline || 'не указан'}.\n\nФормат: ${this.form.contractType === 'phased' ? 'поэтапный' : 'единый'} смарт-контракт с ${this.milestones.length} milestone(s), общая сумма вознаграждения — ${totalRub.toLocaleString('ru-RU')} ₽ (≈ ${totalCoins.toLocaleString('ru-RU')} coin по курсу NAV ${this.navRate}). Все критерии успеха прошли SMART-валидацию.\n\nОжидаемый эффект: ${this.form.businessEffect ? this.form.businessEffect.substring(0, 140) + '...' : 'не указан'}. Источники верификации: ${this.milestones.map(m => m.dataSource).filter(Boolean).join(', ') || 'не указаны'}.\n\n${this.form.needsRecruitment ? 'Состав участников будет сформирован после согласования. ' : ''}Рекомендация Ксении: контракт готов к согласованию финансовым блоком. Риски — умеренные.`;
+            this.aiSummary = `Контракт «${this.form.name || 'Смарт-контракт'}» (${this.form.businessUnit || 'бизнес-юнит не указан'}) инициирован ${this.userName}. Куратор: ${this.form.curator || 'не назначен'}. Дедлайн: ${this.form.deadline || 'не указан'}.\n\nФормат: ${this.form.contractType === 'phased' ? 'поэтапный' : 'единый'} смарт-контракт с ${this.milestones.length} milestone(s), общая сумма вознаграждения — ${totalRub.toLocaleString('ru-RU')} ₽ (≈ ${totalCoins.toLocaleString('ru-RU')} coin по курсу NAV ${this.navRate}). Все критерии успеха прошли SMART-валидацию.\n\nОжидаемый эффект: ${this.form.businessEffect ? this.form.businessEffect.substring(0, 140) + '...' : 'не указан'}. Источники верификации: ${this.milestones.map(m => m.dataSource).filter(Boolean).join(', ') || 'не указаны'}.\n\n${this.form.needsRecruitment ? 'Состав участников будет сформирован после согласования. ' : ''}Рекомендация AI-ассистента: контракт готов к согласованию финансовым блоком. Риски — умеренные.`;
             this.aiSummaryLoading = false;
         },
 
@@ -1038,7 +1275,12 @@ function scWizard() {
                 this.submitError = 'Проверьте обязательные поля и SMART во всех milestones';
                 this.goTo(2); return;
             }
-            if (!this.form.needsRecruitment && (this.team.filter(t => t.name).length === 0 || this.freeCoins() < 0)) {
+            if (this.isLeadership) {
+                if (!(this.form.fixedSalaryMonthly > 0) || !(this.form.variableTotal > 0)) {
+                    this.submitError = 'Укажите фиксированную и переменную части дохода на шаге «Суть»';
+                    this.goTo(1); return;
+                }
+            } else if (!this.form.needsRecruitment && (this.team.filter(t => t.name).length === 0 || this.freeCoins() < 0)) {
                 this.submitError = 'Проверьте состав участников и распределение coins';
                 this.goTo(3); return;
             }
@@ -1049,25 +1291,33 @@ function scWizard() {
                 description: this.form.shortDescription,
                 status: 'pending_approval',
                 smart_contract_data: {
+                    scType: this.form.scType,
                     shortDescription: this.form.shortDescription,
                     businessEffect: this.form.businessEffect,
                     curator: this.form.curator,
                     deadline: this.form.deadline,
+                    startDate: this.form.startDate,
                     contractType: this.form.contractType,
-                    needsRecruitment: this.form.needsRecruitment,
+                    needsRecruitment: this.isLeadership ? false : this.form.needsRecruitment,
                     navRate: this.navRate,
                     totalBudget: this.form.totalBudget,
                     distributionNote: this.form.distributionNote,
                     documents: this.form.documents,
                     aiSummary: this.aiSummary,
+                    // Лидерский контракт: фикс/переменная части и помесячная разбивка (только рубли)
+                    fixedSalaryMonthly: this.form.fixedSalaryMonthly,
+                    variableTotal: this.form.variableTotal,
+                    monthlyBreakdown: this.isLeadership ? this.leadershipMonths() : [],
+                    leadershipTotals: this.isLeadership ? this.leadershipTotals() : null,
                     milestones: this.milestones.map(m => ({
                         name: m.name, deadline: m.deadline, period: m.period,
-                        rewardRub: m.rewardRub, coins: m.coins,
+                        rewardRub: m.rewardRub, coins: this.isLeadership ? 0 : m.coins,
+                        bonusRub: m.rewardRub,
                         baseline: m.baseline, target: m.target, criteria: m.criteria,
                         dataSource: m.dataSource, stopLoss: m.stopLoss,
                         smartValid: m.smartValid,
                     })),
-                    team: this.form.needsRecruitment ? [] : this.team
+                    team: (this.isLeadership || this.form.needsRecruitment) ? [] : this.team
                         .filter(t => t.name)
                         .map(t => ({ name: t.name, role: t.role, coins: t.coins })),
                 },

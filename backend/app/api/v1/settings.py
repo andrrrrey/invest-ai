@@ -12,9 +12,9 @@ ANTHROPIC_MODEL = "claude-sonnet-4-6"
 ROUTERAI_BASE_URL = "https://routerai.ru/api/v1"
 
 ROUTERAI_MODELS = {
-    "anthropic/claude-sonnet-4.5": "Claude Sonnet 4.5",
+    "anthropic/claude-opus-4.8": "Claude Opus 4.8",
+    "anthropic/claude-sonnet-4.6": "Claude Sonnet 4.6",
     "anthropic/claude-haiku-4.5": "Claude Haiku 4.5",
-    "anthropic/claude-opus-4.5": "Claude Opus 4.5",
 }
 
 

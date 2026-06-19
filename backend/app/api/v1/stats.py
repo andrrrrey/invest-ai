@@ -11,9 +11,9 @@ from ... import settings_store
 router = APIRouter(prefix="/stats", tags=["stats"])
 
 _ROUTERAI_LABELS = {
-    "anthropic/claude-sonnet-4.5": "Claude Sonnet 4.5",
+    "anthropic/claude-opus-4.8": "Claude Opus 4.8",
+    "anthropic/claude-sonnet-4.6": "Claude Sonnet 4.6",
     "anthropic/claude-haiku-4.5": "Claude Haiku 4.5",
-    "anthropic/claude-opus-4.5": "Claude Opus 4.5",
 }
 
 
@@ -61,15 +61,37 @@ def get_stats(
         if (p.project_type or "") == "smart_contract":
             scd = p.smart_contract_data or {}
             milestones = scd.get("milestones") or []
-            for m in milestones:
-                try:
-                    sc_reward_rub += float(m.get("rewardRub") or 0)
-                except (TypeError, ValueError):
-                    pass
-                try:
-                    sc_reward_coins += float(m.get("coins") or 0)
-                except (TypeError, ValueError):
-                    pass
+            if (scd.get("scType") or "smart") == "leadership":
+                # Лидерский контракт: расчёт только в рублях (оклад + премии), без coins
+                lt = scd.get("leadershipTotals") or {}
+                grand = lt.get("grand")
+                if grand is not None:
+                    try:
+                        sc_reward_rub += float(grand)
+                    except (TypeError, ValueError):
+                        pass
+                else:
+                    # Fallback: премии по milestones + оклад по месяцам
+                    for m in milestones:
+                        try:
+                            sc_reward_rub += float(m.get("rewardRub") or 0)
+                        except (TypeError, ValueError):
+                            pass
+                    try:
+                        months = len(scd.get("monthlyBreakdown") or [])
+                        sc_reward_rub += float(scd.get("fixedSalaryMonthly") or 0) * months
+                    except (TypeError, ValueError):
+                        pass
+            else:
+                for m in milestones:
+                    try:
+                        sc_reward_rub += float(m.get("rewardRub") or 0)
+                    except (TypeError, ValueError):
+                        pass
+                    try:
+                        sc_reward_coins += float(m.get("coins") or 0)
+                    except (TypeError, ValueError):
+                        pass
 
         st = p.status or "draft"
         by_status[st] = by_status.get(st, 0) + 1

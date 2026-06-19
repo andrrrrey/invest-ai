@@ -26,7 +26,7 @@
 
         body {
             background-color: #E5E5E5;
-            padding: 20px;
+            padding: 8px;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -42,7 +42,7 @@
         }
 
         .app-window {
-            width: 100%; max-width: 1400px; height: 90vh;
+            width: 100%; max-width: 1700px; height: 90vh;
             background: var(--bg-body); border-radius: var(--radius-lg);
             display: flex; overflow: hidden;
             box-shadow: 0 50px 100px rgba(0,0,0,0.1); position: relative;
@@ -69,7 +69,7 @@
         .nav-link i { font-size: 18px; width: 20px; text-align: center; }
 
         .main-content {
-            flex: 1; padding: 40px 50px; overflow-y: auto; background: var(--bg-body);
+            flex: 1; padding: 28px 36px; overflow-y: auto; background: var(--bg-body);
         }
 
         .page-header { margin-bottom: 32px; }
@@ -456,12 +456,12 @@
                     <span class="label">Модель</span>
                     <span class="value" x-text="
                         $store.settingsState?.aiProvider === 'anthropic' ? 'Claude Sonnet 4.6' :
-                        $store.settingsState?.aiProvider === 'routerai' ? ($store.settingsState?.routeraiModelLabel || $store.settingsState?.routeraiModel || 'anthropic/claude-sonnet-4-6') :
+                        $store.settingsState?.aiProvider === 'routerai' ? ($store.settingsState?.routeraiModelLabel || $store.settingsState?.routeraiModel || 'anthropic/claude-sonnet-4.6') :
                         'GPT-5.4'"></span>
                 </div>
                 <div class="info-row" x-show="$store.settingsState?.aiProvider === 'routerai'">
                     <span class="label">Идентификатор модели</span>
-                    <span class="value" style="font-size:12px;font-family:monospace" x-text="$store.settingsState?.routeraiModel || 'anthropic/claude-sonnet-4-6'"></span>
+                    <span class="value" style="font-size:12px;font-family:monospace" x-text="$store.settingsState?.routeraiModel || 'anthropic/claude-sonnet-4.6'"></span>
                 </div>
                 <div class="info-row">
                     <span class="label">Функции AI</span>
@@ -473,7 +473,7 @@
                 </div>
                 <div class="info-row">
                     <span class="label">Системный промпт</span>
-                    <span class="value">Ксения, AI-ассистент инвестора</span>
+                    <span class="value">AI-ассистент</span>
                 </div>
             </div>
 
@@ -555,11 +555,11 @@
             savingBudget: false,
             registrationDomain: '',
             savingDomain: false,
-            routeraiModel: 'anthropic/claude-sonnet-4.5',
+            routeraiModel: 'anthropic/claude-sonnet-4.6',
             routeraiModels: {
-                'anthropic/claude-sonnet-4.5': 'Claude Sonnet 4.5',
+                'anthropic/claude-opus-4.8': 'Claude Opus 4.8',
+                'anthropic/claude-sonnet-4.6': 'Claude Sonnet 4.6',
                 'anthropic/claude-haiku-4.5': 'Claude Haiku 4.5',
-                'anthropic/claude-opus-4.5': 'Claude Opus 4.5',
             },
 
             activeModelLabel() {
@@ -582,7 +582,7 @@
                         this.maskedOpenaiKey = data.openai_api_key_masked;
                         this.maskedAnthropicKey = data.anthropic_api_key_masked;
                         this.maskedRouteraiKey = data.routerai_api_key_masked;
-                        this.routeraiModel = data.routerai_model || 'anthropic/claude-sonnet-4-6';
+                        this.routeraiModel = data.routerai_model || 'anthropic/claude-sonnet-4.6';
                         if (data.routerai_models) this.routeraiModels = data.routerai_models;
                         if (this.aiProvider === 'routerai') {
                             this.apiKeySet = data.routerai_api_key_set;
