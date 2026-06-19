@@ -15,9 +15,9 @@
             --radius-md: 24px; --radius-lg: 35px;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
-        body { background: #E5E5E5; padding: 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        body { background: #E5E5E5; padding: 8px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
         .mobile-menu-btn { display: none; position: fixed; top: 20px; left: 20px; z-index: 1000; background: var(--sb); color: #fff; border: none; padding: 12px; border-radius: 12px; cursor: pointer; }
-        .app-window { width: 100%; max-width: 1440px; height: 90vh; background: var(--bg); border-radius: var(--radius-lg); display: flex; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,.1); position: relative; }
+        .app-window { width: 100%; max-width: 1700px; height: 90vh; background: var(--bg); border-radius: var(--radius-lg); display: flex; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,.1); position: relative; }
         .sidebar { width: 260px; min-width: 260px; background: var(--sb); color: #fff; display: flex; flex-direction: column; padding: 60px 25px 40px; transition: all .4s cubic-bezier(.4,0,.2,1); flex-shrink: 0; }
         .profile-section { text-align: center; margin-bottom: 50px; }
         .profile-section p { font-size: 13px; color: #8E8E93; line-height: 1.6; }
@@ -26,7 +26,7 @@
         .nav-link { display: flex; align-items: center; gap: 15px; padding: 14px 15px; border-radius: 12px; color: #8E8E93; text-decoration: none; font-size: 14px; font-weight: 500; margin-bottom: 8px; transition: .3s; }
         .nav-link i { font-size: 18px; width: 20px; text-align: center; }
         .nav-link:hover, .nav-link.active { background: #2C2C2E; color: #fff; }
-        .main-content { flex: 1; padding: 40px 50px; overflow-y: auto; background: var(--bg); }
+        .main-content { flex: 1; padding: 28px 36px; overflow-y: auto; background: var(--bg); }
         .card-block { background: white; border-radius: var(--radius-md); padding: 28px; box-shadow: 0 4px 15px rgba(0,0,0,.02); margin-bottom: 20px; }
         .block-title { font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 18px; text-transform: uppercase; letter-spacing: .5px; display: flex; align-items: center; gap: 8px; }
         .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #F2F2F7; font-size: 13px; }
@@ -159,7 +159,8 @@
                 </div>
                 <h1 style="font-size:22px;font-weight:800" x-text="contract.name"></h1>
                 <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-                    <span class="status-pill pill-coin"><i class="fas fa-coins"></i> Смарт-контракт</span>
+                    <span class="status-pill pill-coin" x-show="!isLeadership"><i class="fas fa-coins"></i> Смарт-контракт</span>
+                    <span class="status-pill" x-show="isLeadership" style="background:#FBECCB;color:#8A6D00"><i class="fas fa-crown"></i> Лидерский контракт</span>
                     <span class="status-pill" :class="statusClass(contract.status)" x-text="statusLabel(contract.status)"></span>
                     <span class="status-pill" style="background:#F2F2F7;color:var(--muted)" x-text="contract.contractType === 'phased' ? 'Поэтапный' : 'Единый'"></span>
                 </div>
@@ -174,14 +175,14 @@
         <!-- KPI row -->
         <div class="kpi-row">
             <div class="kpi-card card-coin">
-                <div class="kpi-label"><i class="fas fa-coins"></i> Всего coins</div>
-                <div class="kpi-value" style="color:var(--accent)" x-text="totalCoins().toLocaleString('ru-RU')"></div>
-                <div class="kpi-sub">зарезервировано</div>
+                <div class="kpi-label"><i class="fas" :class="isLeadership ? 'fa-ruble-sign' : 'fa-coins'"></i> <span x-text="isLeadership ? 'Доход за период' : 'Всего coins'"></span></div>
+                <div class="kpi-value" style="color:var(--accent)" x-text="isLeadership ? ((contract.leadershipTotals?.grand)||0).toLocaleString('ru-RU') + ' ₽' : totalCoins().toLocaleString('ru-RU')"></div>
+                <div class="kpi-sub" x-text="isLeadership ? 'оклад + премии' : 'зарезервировано'"></div>
             </div>
             <div class="kpi-card card-green">
-                <div class="kpi-label"><i class="fas fa-check-circle"></i> Выплачено</div>
-                <div class="kpi-value" style="color:#1A7A40" x-text="paidCoins().toLocaleString('ru-RU')"></div>
-                <div class="kpi-sub" x-text="paidMilestones() + ' из ' + contract.milestones.length + ' milestone'"></div>
+                <div class="kpi-label"><i class="fas fa-check-circle"></i> <span x-text="isLeadership ? 'Премии' : 'Выплачено'"></span></div>
+                <div class="kpi-value" style="color:#1A7A40" x-text="isLeadership ? ((contract.leadershipTotals?.totalBonus)||0).toLocaleString('ru-RU') + ' ₽' : paidCoins().toLocaleString('ru-RU')"></div>
+                <div class="kpi-sub" x-text="isLeadership ? 'по milestones' : (paidMilestones() + ' из ' + contract.milestones.length + ' milestone')"></div>
             </div>
             <div class="kpi-card card-warn">
                 <div class="kpi-label"><i class="fas fa-hourglass-half"></i> Дедлайн</div>
@@ -213,7 +214,7 @@
                 <i class="fas fa-flag-checkered"></i> Milestones
             </button>
             <button class="tab-btn" :class="{active: tab==='team'}" @click="tab='team'">
-                <i class="fas fa-users"></i> Команда
+                <i class="fas" :class="isLeadership ? 'fa-ruble-sign' : 'fa-users'"></i> <span x-text="isLeadership ? 'Доход' : 'Команда'"></span>
             </button>
             <button class="tab-btn" :class="{active: tab==='info'}" @click="tab='info'">
                 <i class="fas fa-info-circle"></i> Детали
@@ -235,7 +236,7 @@
                                 <th>Название</th>
                                 <th>Дедлайн</th>
                                 <th>Период</th>
-                                <th>Coins</th>
+                                <th x-text="isLeadership ? 'Премия' : 'Coins'"></th>
                                 <th>Критерий успеха</th>
                                 <th>Источник данных</th>
                                 <th>Статус</th>
@@ -252,7 +253,7 @@
                                     </td>
                                     <td style="white-space:nowrap" x-text="ms.deadline"></td>
                                     <td style="white-space:nowrap;color:var(--muted)" x-text="ms.period"></td>
-                                    <td style="font-weight:800;color:var(--accent);white-space:nowrap" x-text="ms.coins.toLocaleString('ru-RU') + ' ₵'"></td>
+                                    <td style="font-weight:800;color:var(--accent);white-space:nowrap" x-text="isLeadership ? (ms.rewardRub||0).toLocaleString('ru-RU') + ' ₽' : ms.coins.toLocaleString('ru-RU') + ' ₵'"></td>
                                     <td style="max-width:220px">
                                         <div style="font-size:12px;line-height:1.4;color:#333" x-text="ms.criteria"></div>
                                         <div class="smart-row">
@@ -303,8 +304,54 @@
         <!-- Tab: Team -->
         <template x-if="tab === 'team'">
             <div class="card-block">
-                <div class="block-title"><i class="fas fa-users" style="color:var(--accent)"></i> Команда и распределение coins</div>
-                <div style="overflow-x:auto">
+                <!-- Лидерский контракт: помесячный доход -->
+                <template x-if="isLeadership">
+                    <div>
+                        <div class="block-title"><i class="fas fa-ruble-sign" style="color:var(--accent)"></i> Доход по месяцам</div>
+                        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;font-size:13px">
+                            <span style="color:var(--muted)">Оклад: <b style="color:#1C1C1E" x-text="(contract.fixedSalaryMonthly||0).toLocaleString('ru-RU') + ' ₽/мес'"></b></span>
+                            <span style="color:var(--muted)">Целевая переменная: <b style="color:#1C1C1E" x-text="(contract.variableTotal||0).toLocaleString('ru-RU') + ' ₽'"></b></span>
+                        </div>
+                        <div style="overflow-x:auto">
+                            <table class="team-table">
+                                <thead>
+                                    <tr>
+                                        <th>Месяц</th>
+                                        <th>Milestones</th>
+                                        <th style="text-align:right">Премия</th>
+                                        <th style="text-align:right">Оклад</th>
+                                        <th style="text-align:right">Итого</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="(row, ri) in contract.monthlyBreakdown" :key="ri">
+                                        <tr>
+                                            <td style="font-weight:600" x-text="row.label"></td>
+                                            <td style="color:var(--muted);font-size:12px" x-text="(row.milestones && row.milestones.length) ? row.milestones.join(', ') : '—'"></td>
+                                            <td style="text-align:right" x-text="(row.bonus||0).toLocaleString('ru-RU') + ' ₽'"></td>
+                                            <td style="text-align:right" x-text="(row.salary||0).toLocaleString('ru-RU') + ' ₽'"></td>
+                                            <td style="text-align:right;font-weight:700;color:var(--accent)" x-text="(row.total||0).toLocaleString('ru-RU') + ' ₽'"></td>
+                                        </tr>
+                                    </template>
+                                    <template x-if="!contract.monthlyBreakdown || contract.monthlyBreakdown.length === 0">
+                                        <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:14px">Нет данных по месяцам</td></tr>
+                                    </template>
+                                </tbody>
+                                <tfoot style="border-top:2px solid #E5E5ED" x-show="contract.leadershipTotals">
+                                    <tr>
+                                        <td colspan="2" style="padding:12px;font-weight:700;font-size:13px" x-text="'Итого за ' + ((contract.leadershipTotals?.numMonths)||0) + ' мес.'"></td>
+                                        <td style="text-align:right;padding:12px;font-weight:800;color:var(--accent)" x-text="((contract.leadershipTotals?.totalBonus)||0).toLocaleString('ru-RU') + ' ₽'"></td>
+                                        <td style="text-align:right;padding:12px;font-weight:800;color:var(--accent)" x-text="((contract.leadershipTotals?.totalSalary)||0).toLocaleString('ru-RU') + ' ₽'"></td>
+                                        <td style="text-align:right;padding:12px;font-weight:800;color:var(--accent)" x-text="((contract.leadershipTotals?.grand)||0).toLocaleString('ru-RU') + ' ₽'"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </template>
+
+                <div class="block-title" x-show="!isLeadership"><i class="fas fa-users" style="color:var(--accent)"></i> Команда и распределение coins</div>
+                <div style="overflow-x:auto" x-show="!isLeadership">
                     <table class="team-table">
                         <thead>
                             <tr>
@@ -350,7 +397,7 @@
                         </tfoot>
                     </table>
                 </div>
-                <div style="margin-top:16px;background:#F8F7F3;border-radius:12px;padding:14px">
+                <div style="margin-top:16px;background:#F8F7F3;border-radius:12px;padding:14px" x-show="!isLeadership">
                     <p style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">ПРИНЦИП РАСПРЕДЕЛЕНИЯ</p>
                     <p style="font-size:13px;color:#333" x-text="contract.distributionNote"></p>
                 </div>
@@ -448,7 +495,16 @@ function scView() {
         tab: 'milestones',
         arbitrationResult: '',
 
+        get isLeadership() {
+            return this.contract.scType === 'leadership';
+        },
+
         contract: {
+            scType: 'smart',
+            monthlyBreakdown: [],
+            leadershipTotals: null,
+            fixedSalaryMonthly: 0,
+            variableTotal: 0,
             name: 'AI-автоматизация DevOps',
             businessUnit: 'Инженерия',
             initiator: 'Андрей Покровский',
@@ -516,7 +572,7 @@ function scView() {
                 { name: 'Светлана Попова',  role: 'Документация и onboarding', coins: 90000,  paid: 15000 },
             ],
             timeline: [
-                { step: 1, title: 'Создание заявки',          done: true,  active: false, date: '05.05.2026', description: 'Инициатор заполнил все шаги мастера. Ксения валидировала SMART-критерии всех milestones.' },
+                { step: 1, title: 'Создание заявки',          done: true,  active: false, date: '05.05.2026', description: 'Инициатор заполнил все шаги мастера. AI-ассистент валидировал SMART-критерии всех milestones.' },
                 { step: 2, title: 'Запрос на согласование',   done: true,  active: false, date: '06.05.2026', description: 'Финансовый блок получил заявку с AI-резюме. Проверка реалистичности coin-бюджета.' },
                 { step: 3, title: 'Выбор источника финансирования', done: true, active: false, date: '08.05.2026', description: 'CFO определил источник: ФОТ переменная часть, лимит Q3 2026.' },
                 { step: 4, title: 'Резервирование coins',      done: true,  active: false, date: '09.05.2026', description: 'Система автоматически зарезервировала 1 350 000 coin на счёте контракта. Карточка казначея создана в C1.' },
@@ -574,6 +630,11 @@ function scView() {
                     coins: t.coins || 0, paid: t.paid || 0,
                 }));
                 this.contract = {
+                    scType: scd.scType || 'smart',
+                    monthlyBreakdown: scd.monthlyBreakdown || [],
+                    leadershipTotals: scd.leadershipTotals || null,
+                    fixedSalaryMonthly: scd.fixedSalaryMonthly || 0,
+                    variableTotal: scd.variableTotal || 0,
                     name: p.name || '(без названия)',
                     businessUnit: p.business_unit || '—',
                     initiator: p.owner || '—',
