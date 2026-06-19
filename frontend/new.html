@@ -714,11 +714,10 @@
                         </div>
                     </div>
 
-                    <!-- Блок 3: Драйверы роста стоимости компании & Метрики -->
+                    <!-- Блок 3: Драйверы роста стоимости компании -->
                     <div class="subsection">
                         <h3>Драйверы роста стоимости компании</h3>
-                        <div class="grid-2">
-                            <div class="field" x-data="{ driversOpen: false }">
+                        <div class="field" x-data="{ driversOpen: false }" style="max-width:560px">
                                 <label>Драйверы роста стоимости компании <span style="color:var(--danger)">*</span></label>
                                 <!-- Trigger button -->
                                 <div @click="driversOpen = !driversOpen"
@@ -763,10 +762,13 @@
                                     </div>
                                 </template>
                                 <p class="hint" style="margin-top:6px">Нажмите на поле, чтобы выбрать несколько вариантов</p>
-                            </div>
-                            <div class="field">
-                                <label>Ключевая метрика <span style="color:var(--danger)">*</span></label>
-                                <div style="background:#F0EFFF;border-radius:10px;padding:12px 14px;margin-bottom:10px;font-size:12px;color:#3A38A0;line-height:1.6">
+                        </div>
+                    </div>
+
+                    <!-- Блок 3b: Ключевая метрика (на всю ширину) -->
+                    <div class="subsection">
+                        <h3>Ключевая метрика <span style="color:var(--danger)">*</span></h3>
+                                <div style="background:#F0EFFF;border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:12px;color:#3A38A0;line-height:1.6">
                                     <strong>Как метрика используется в расчётах операционного проекта:</strong><br>
                                     Для операционных инвестиций нет классического NPV/IRR — вместо них система строит <em>Value Score</em> (скоринг ценности, 0–50 баллов). Выбранная метрика влияет на оценку по двум критериям:<br>
                                     • <strong>ROI Predictability (вес ×1)</strong> — насколько легко спрогнозировать отдачу: чётко измеримые метрики (NRR, LTV/CAC, ROI) дают высокий балл; трудно измеримые — низкий.<br>
@@ -865,8 +867,6 @@
                                     </button>
                                 </div>
                                 <p class="hint" style="margin-top:6px">Выберите одну или несколько метрик и введите плановые значения по месяцам. Эти значения станут «планом» в таблице «План / Факт» утверждённого операционного проекта.</p>
-                            </div>
-                        </div>
                     </div>
 
                     <!-- Блок 4: Baseline & Target -->
