@@ -25,6 +25,7 @@ router = APIRouter(prefix="/export", tags=["export"])
 class ExportRequest(BaseModel):
     format: Literal["pdf", "excel"]
     project_ids: list[int] | None = None   # None = all projects
+    project_kind: Literal["all", "regular", "smart"] = "all"
     period_label: str = "Весь период"
     detail_level: Literal["summary", "full"] = "summary"
     include_ai: bool = False
@@ -33,7 +34,7 @@ class ExportRequest(BaseModel):
 def _compute_stats(projects: list[Project]) -> dict:
     """Compute portfolio stats from a list of Project ORM objects."""
     by_status = {"draft": 0, "pending_approval": 0, "approved": 0, "rejected": 0}
-    by_type   = {"investment": 0, "operational": 0}
+    by_type   = {"investment": 0, "operational": 0, "smart_contract": 0}
     total_npv = 0.0
     irr_values: list[float] = []
     high_risk_count = 0
@@ -101,13 +102,17 @@ def _project_to_dict(p: Project) -> dict:
         "owner":          p.owner,
         "stage":          p.stage,
         "start_date":     str(p.start_date) if p.start_date else None,
+        "platform":       p.platform,
         "project_type":   p.project_type,
         "financial_model": p.financial_model,
         "metrics":        p.metrics,
         "risks_data":     p.risks_data,
         "value_score_data": p.value_score_data,
+        "smart_contract_data": p.smart_contract_data,
         "status":         p.status,
         "decision_route": p.decision_route,
+        "forecast_data":  p.forecast_data,
+        "status_history": p.status_history,
     }
 
 
@@ -121,6 +126,16 @@ def export_report(
     q = db.query(Project)
     if req.project_ids:
         q = q.filter(Project.id.in_(req.project_ids))
+
+    # Filter by project kind: regular (investment/operational/legacy) vs smart contracts
+    if req.project_kind == "smart":
+        q = q.filter(Project.project_type == "smart_contract")
+    elif req.project_kind == "regular":
+        q = q.filter(
+            (Project.project_type != "smart_contract")
+            | (Project.project_type.is_(None))
+        )
+
     projects_orm = q.order_by(Project.created_at.desc()).all()
 
     if not projects_orm:

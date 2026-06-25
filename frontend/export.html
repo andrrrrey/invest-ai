@@ -212,7 +212,7 @@
                     <div class="export-icon pdf-icon"><i class="fas fa-file-pdf"></i></div>
                     <div class="export-info">
                         <h3>PDF</h3>
-                        <p>Управленческий отчёт</p>
+                        <p>Подробный отчёт по проектам</p>
                     </div>
                 </div>
                 <div class="export-card" :class="{ selected: format === 'excel' }" @click="format = 'excel'">
@@ -228,14 +228,25 @@
             <div class="settings-card">
                 <div class="form-row">
                     <div class="form-group">
+                        <label>Тип проектов</label>
+                        <select class="input-field" x-model="projectKind" @change="selectedProjectId = ''">
+                            <option value="all">Все</option>
+                            <option value="regular">Обычные проекты</option>
+                            <option value="smart">Смарт-контракты</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label>Выбор проектов</label>
                         <select class="input-field" x-model="selectedProjectId">
                             <option value="">Все проекты</option>
-                            <template x-for="p in projects" :key="p.id">
+                            <template x-for="p in filteredProjects()" :key="p.id">
                                 <option :value="p.id" x-text="p.name"></option>
                             </template>
                         </select>
                     </div>
+                </div>
+
+                <div class="form-row">
                     <div class="form-group">
                         <label>Выбор периода</label>
                         <select class="input-field" x-model="periodLabel">
@@ -249,9 +260,6 @@
                             <option value="2025 год">2025 год</option>
                         </select>
                     </div>
-                </div>
-
-                <div class="form-row">
                     <div class="form-group">
                         <label>Уровень детализации</label>
                         <select class="input-field" x-model="detailLevel">
@@ -259,6 +267,9 @@
                             <option value="full">Full (Полный отчет)</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="form-row">
                     <div class="form-group" style="justify-content: center;">
                         <label class="checkbox-group">
                             <input type="checkbox" x-model="includeAi">
@@ -309,6 +320,7 @@
             return {
                 format: 'pdf',
                 selectedProjectId: '',
+                projectKind: 'all',
                 periodLabel: 'Весь период',
                 detailLevel: 'summary',
                 includeAi: true,
@@ -327,6 +339,16 @@
                     }
                 },
 
+                filteredProjects() {
+                    if (this.projectKind === 'smart') {
+                        return this.projects.filter(p => p.project_type === 'smart_contract');
+                    }
+                    if (this.projectKind === 'regular') {
+                        return this.projects.filter(p => p.project_type !== 'smart_contract');
+                    }
+                    return this.projects;
+                },
+
                 async generate() {
                     this.loading = true;
                     this.error = null;
@@ -334,6 +356,7 @@
                         const body = {
                             format: this.format,
                             project_ids: this.selectedProjectId ? [parseInt(this.selectedProjectId)] : null,
+                            project_kind: this.projectKind,
                             period_label: this.periodLabel,
                             detail_level: this.detailLevel,
                             include_ai: this.includeAi,
