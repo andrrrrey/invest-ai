@@ -565,15 +565,12 @@
 
                         <!-- Sub-tab navigation -->
                         <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
-                            <button @click="factSubTab='ytd'"
-                                :style="factSubTab==='ytd' ? 'background:#1C1C1E;color:white' : 'background:#F2F2F7;color:#8E8E93'"
-                                style="border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">Накопленный YTD</button>
-                            <button @click="factSubTab='monthly'"
-                                :style="factSubTab==='monthly' ? 'background:#1C1C1E;color:white' : 'background:#F2F2F7;color:#8E8E93'"
-                                style="border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">Помесячный</button>
-                            <button @click="factSubTab='forecast'"
-                                :style="factSubTab==='forecast' ? 'background:#1C1C1E;color:white' : 'background:#F2F2F7;color:#8E8E93'"
-                                style="border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">Прогноз</button>
+                            <button class="tab-btn" @click="factSubTab='ytd'"
+                                :style="factSubTab==='ytd' ? 'background:#DDF0E1;border-color:#A8DDB5;color:#2D9B63' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93'">Накопленный YTD</button>
+                            <button class="tab-btn" @click="factSubTab='monthly'"
+                                :style="factSubTab==='monthly' ? 'background:#DDF0E1;border-color:#A8DDB5;color:#2D9B63' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93'">Помесячный</button>
+                            <button class="tab-btn" @click="factSubTab='forecast'"
+                                :style="factSubTab==='forecast' ? 'background:#DDF0E1;border-color:#A8DDB5;color:#2D9B63' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93'">Прогноз</button>
                         </div>
 
                         <!-- ─── Накопленный YTD ─────────────────────────────── -->
