@@ -5,6 +5,9 @@ Accessible to CEO, CFO, manager (owner role is blocked via require_not_owner).
 """
 
 from typing import Literal
+import json
+import re
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -20,6 +23,52 @@ from ...services.export_excel import build_excel
 from ...services.export_pdf import build_pdf
 
 router = APIRouter(prefix="/export", tags=["export"])
+
+
+def _clean_ai_text(value) -> str:
+    """
+    Return human-readable text from an AI value that may be a dict, a JSON
+    string, a truncated/broken JSON string, or plain text.
+
+    AI helpers (analyze_project / generate_risk_score) sometimes fall back to
+    returning the raw model output when JSON parsing fails or the response was
+    truncated. Without this, that raw `{"comment": "...", "anomalies": [...]}`
+    blob would be rendered verbatim in the report.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, dict):
+        value = value.get("comment") or ""
+    s = str(value).strip()
+    if not s:
+        return ""
+    # Strip markdown code fences (```json ... ```)
+    if s.startswith("```"):
+        s = re.sub(r"^```[a-zA-Z]*\n?", "", s)
+        s = re.sub(r"\n?```$", "", s).strip()
+    # Looks like a JSON object — extract the human-readable "comment"
+    if s.startswith("{"):
+        try:
+            obj = json.loads(s)
+            if isinstance(obj, dict) and obj.get("comment"):
+                return str(obj["comment"]).strip()
+        except json.JSONDecodeError:
+            pass
+        # Salvage the "comment" field from broken/truncated JSON
+        m = re.search(r'"comment"\s*:\s*"((?:[^"\\]|\\.)*)"', s)
+        if m:
+            return (
+                m.group(1)
+                .replace('\\"', '"')
+                .replace("\\n", "\n")
+                .replace("\\/", "/")
+                .replace("\\\\", "\\")
+                .strip()
+            )
+        # Could not salvage anything readable — drop the JSON noise
+        return ""
+    return s
+
 
 
 class ExportRequest(BaseModel):
@@ -138,6 +187,13 @@ def export_report(
     projects = [_project_to_dict(p) for p in projects_orm]
     stats    = _compute_stats(projects_orm)
 
+    # Sanitize any AI-stored commentary already on the project (risk-score output
+    # may contain truncated JSON) so the report never renders raw JSON blobs.
+    for p in projects:
+        rd = p.get("risks_data")
+        if isinstance(rd, dict) and rd.get("commentary"):
+            rd["commentary"] = _clean_ai_text(rd["commentary"])
+
     # AI generation (optional) — per-project commentary only
     ai_commentaries: dict[int, str] = {}
     portfolio_commentary = ""
@@ -146,8 +202,7 @@ def export_report(
         for p in projects:
             try:
                 result = ai_service.analyze_project(p, p.get("metrics") or {})
-                comment = result.get("comment", "")
-                ai_commentaries[p["id"]] = comment
+                ai_commentaries[p["id"]] = _clean_ai_text(result)
             except Exception:
                 ai_commentaries[p["id"]] = ""
 
