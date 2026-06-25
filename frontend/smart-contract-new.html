@@ -907,6 +907,24 @@
                 </template>
             </div>
 
+            <!-- SMART рекомендация (не блокирует отправку) -->
+            <template x-if="smartPending().length > 0">
+                <div style="background:#FFF8E8;border:1.5px solid #F0C36D;border-radius:14px;padding:14px 18px;margin-top:4px">
+                    <p style="font-size:13px;font-weight:700;color:#8A5A00;margin-bottom:6px">
+                        <i class="fas fa-lightbulb"></i> Рекомендация: не все критерии прошли SMART-проверку
+                    </p>
+                    <p style="font-size:12px;color:#7A5200;line-height:1.5;margin-bottom:10px">
+                        Без подтверждённой SMART-проверки: <span x-text="smartPending().join(', ')"></span>.
+                        Рекомендуем доработать формулировки критериев успеха. Вы можете отправить заявку в текущем виде —
+                        она уйдёт в финансовый блок на согласование по решению лидера.
+                    </p>
+                    <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;color:#5A3D00;cursor:pointer">
+                        <input type="checkbox" x-model="smartConfirmed" style="margin-top:2px">
+                        <span>Подтверждаю отправку контракта на согласование в текущем виде (как лидер инициативы)</span>
+                    </label>
+                </div>
+            </template>
+
             <div class="panel-footer">
                 <button class="btn btn-outline" @click="goTo(4)">
                     <i class="fas fa-chevron-left"></i> Назад
@@ -988,6 +1006,7 @@ function scWizard() {
         aiModel: 'AI-ассистент',
         submitError: '',
         navError: '',
+        smartConfirmed: false,
 
         get minDeadline() {
             const d = new Date();
@@ -1060,8 +1079,9 @@ function scWizard() {
         },
 
         milestonesValid() {
+            // SMART больше не блокирует: это рекомендация (см. smartRecommendation()).
             return this.milestones.length > 0 && this.milestones.every(m =>
-                m.name && m.deadline && (m.rewardRub > 0) && m.criteria && m.dataSource && m.smartValid
+                m.name && m.deadline && (m.rewardRub > 0) && m.criteria && m.dataSource
             );
         },
 
@@ -1074,10 +1094,17 @@ function scWizard() {
                 if (!(m.rewardRub > 0)) miss.push('сумму вознаграждения');
                 if (!m.criteria) miss.push('критерий успеха');
                 if (!m.dataSource) miss.push('источник данных');
-                if (m.criteria && !m.smartValid) miss.push('проверку SMART (кнопка «Проверить с AI-ассистентом»)');
                 if (miss.length) probs.push(`Milestone ${i + 1}: ${miss.join(', ')}`);
             });
             return probs.join('; ');
+        },
+
+        // SMART теперь рекомендация: возвращает список milestone без подтверждённой SMART-проверки
+        smartPending() {
+            return this.milestones
+                .map((m, i) => ({ m, i }))
+                .filter(({ m }) => m.criteria && !m.smartValid)
+                .map(({ i }) => `Milestone ${i + 1}`);
         },
 
         onDocsChange(e) {
@@ -1295,7 +1322,7 @@ function scWizard() {
             }
             const totalCoins = this.milestones.reduce((s, m) => s + (m.coins || 0), 0);
             const totalRub = this.milestones.reduce((s, m) => s + (m.rewardRub || 0), 0);
-            this.aiSummary = `Контракт «${this.form.name || 'Смарт-контракт'}» (${this.form.businessUnit || 'бизнес-юнит не указан'}) инициирован ${this.userName}. Куратор: ${this.form.curator || 'не назначен'}. Дедлайн: ${this.form.deadline || 'не указан'}.\n\nФормат: ${this.form.contractType === 'phased' ? 'поэтапный' : 'единый'} смарт-контракт с ${this.milestones.length} milestone(s), общая сумма вознаграждения — ${totalRub.toLocaleString('ru-RU')} ₽ (≈ ${totalCoins.toLocaleString('ru-RU')} coin по курсу NAV ${this.navRate}). Все критерии успеха прошли SMART-валидацию.\n\nОжидаемый эффект: ${this.form.businessEffect ? this.form.businessEffect.substring(0, 140) + '...' : 'не указан'}. Источники верификации: ${this.milestones.map(m => m.dataSource).filter(Boolean).join(', ') || 'не указаны'}.\n\n${this.form.needsRecruitment ? 'Состав участников будет сформирован после согласования. ' : ''}Рекомендация AI-ассистента: контракт готов к согласованию финансовым блоком. Риски — умеренные.`;
+            this.aiSummary = `Контракт «${this.form.name || 'Смарт-контракт'}» (${this.form.businessUnit || 'бизнес-юнит не указан'}) инициирован ${this.userName}. Куратор: ${this.form.curator || 'не назначен'}. Дедлайн: ${this.form.deadline || 'не указан'}.\n\nФормат: ${this.form.contractType === 'phased' ? 'поэтапный' : 'единый'} смарт-контракт с ${this.milestones.length} milestone(s), общая сумма вознаграждения — ${totalRub.toLocaleString('ru-RU')} ₽ (≈ ${totalCoins.toLocaleString('ru-RU')} coin по курсу NAV ${this.navRate}). ${this.smartPending().length === 0 ? 'Все критерии успеха прошли SMART-валидацию.' : ('Не все критерии прошли SMART-проверку (' + this.smartPending().join(', ') + ') — отправляется по решению лидера.')}\n\nОжидаемый эффект: ${this.form.businessEffect ? this.form.businessEffect.substring(0, 140) + '...' : 'не указан'}. Источники верификации: ${this.milestones.map(m => m.dataSource).filter(Boolean).join(', ') || 'не указаны'}.\n\n${this.form.needsRecruitment ? 'Состав участников будет сформирован после согласования. ' : ''}Рекомендация AI-ассистента: контракт готов к согласованию финансовым блоком. Риски — умеренные.`;
             this.aiSummaryLoading = false;
         },
 
@@ -1308,8 +1335,13 @@ function scWizard() {
                 this.goTo(2); return;
             }
             if (!this.milestonesValid()) {
-                this.submitError = 'Проверьте обязательные поля и SMART во всех milestones';
+                this.submitError = 'Проверьте обязательные поля во всех milestones';
                 this.goTo(3); return;
+            }
+            // SMART — рекомендация: если не все прошли, требуется явное подтверждение лидера
+            if (this.smartPending().length > 0 && !this.smartConfirmed) {
+                this.submitError = 'Не все критерии прошли SMART-проверку. Подтвердите отправку в текущем виде (галочка ниже) или доработайте критерии.';
+                return;
             }
             if (this.isLeadership) {
                 if (!(this.form.fixedSalaryMonthly > 0) || !(this.form.variableTotal > 0)) {
@@ -1340,6 +1372,8 @@ function scWizard() {
                     distributionNote: this.form.distributionNote,
                     documents: this.form.documents,
                     aiSummary: this.aiSummary,
+                    // SMART не пройден полностью, но лидер подтвердил отправку на согласование
+                    smartOverride: this.smartPending().length > 0 && this.smartConfirmed,
                     // Лидерский контракт: фикс/переменная части и помесячная разбивка (только рубли)
                     fixedSalaryMonthly: this.form.fixedSalaryMonthly,
                     variableTotal: this.form.variableTotal,

@@ -42,6 +42,12 @@ class FactEntryRead(BaseModel):
         from_attributes = True
 
 
+class ForecastRowIn(BaseModel):
+    month: str                      # "YYYY-MM"
+    forecast: Optional[float] = None
+    comment: Optional[str] = None
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _deviation(plan: float | None, fact: float | None) -> tuple[float | None, float | None]:
@@ -124,6 +130,36 @@ def upsert_fact(
     for e in updated:
         db.refresh(e)
     return [_to_read(e) for e in updated]
+
+
+@router.get("/projects/{project_id}/fact/forecast-data")
+def get_forecast_data(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Stored quarterly re-forecast (no versioning)."""
+    project = db.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Проект не найден")
+    return project.forecast_data or []
+
+
+@router.put("/projects/{project_id}/fact/forecast-data")
+def save_forecast_data(
+    project_id: int,
+    rows: List[ForecastRowIn],
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Persist the re-forecast for open periods (overwrites previous, no versions)."""
+    project = db.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Проект не найден")
+    project.forecast_data = [r.model_dump() for r in rows]
+    db.commit()
+    db.refresh(project)
+    return project.forecast_data or []
 
 
 @router.post("/projects/{project_id}/fact/import", response_model=List[FactEntryRead])

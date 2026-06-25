@@ -40,6 +40,7 @@
         .pill-done { background: #DDF0E1; color: #1A7A40; }
         .pill-verify { background: #FFF0EF; color: #CC2A22; }
         .pill-paid { background: #DDF0E1; color: #0A5E2A; }
+        .pill-rework { background: #E8F2FE; color: #0055CC; }
         /* KPI row */
         .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
         .kpi-card { padding: 20px; border-radius: 18px; }
@@ -165,10 +166,93 @@
                     <span class="status-pill" style="background:#F2F2F7;color:var(--muted)" x-text="contract.contractType === 'phased' ? 'Поэтапный' : 'Единый'"></span>
                 </div>
             </div>
-            <div style="display:flex;gap:10px">
-                <a href="/smart-contract-new" style="display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:12px;background:white;border:1.5px solid #E5E5E5;font-size:13px;font-weight:600;color:#1C1C1E;text-decoration:none">
-                    <i class="fas fa-plus"></i> Новый контракт
-                </a>
+            <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-end">
+                <div style="display:flex;gap:10px">
+                    <a href="/smart-contract-new" style="display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:12px;background:white;border:1.5px solid #E5E5E5;font-size:13px;font-weight:600;color:#1C1C1E;text-decoration:none">
+                        <i class="fas fa-plus"></i> Новый контракт
+                    </a>
+                </div>
+
+                <!-- Действия со статусом -->
+                <div x-show="projectId && (canApprove || canEditDraft || contract.status === 'pending_approval')"
+                     style="display:flex;flex-direction:column;gap:8px;min-width:260px;background:white;border:1.5px solid #E5E5ED;border-radius:14px;padding:14px">
+                    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px">Действия</div>
+
+                    <!-- draft -->
+                    <template x-if="contract.status === 'draft'">
+                        <div style="display:flex;flex-direction:column;gap:8px">
+                            <button @click="changeStatus('pending_approval')"
+                                style="padding:11px;border-radius:12px;border:none;background:var(--accent);color:white;font-weight:700;cursor:pointer;font-size:13px">
+                                Отправить на согласование
+                            </button>
+                        </div>
+                    </template>
+
+                    <!-- pending_approval -->
+                    <template x-if="contract.status === 'pending_approval' && canApprove">
+                        <div style="display:flex;flex-direction:column;gap:8px">
+                            <div style="display:flex;gap:8px">
+                                <button @click="changeStatus('approved')"
+                                    style="flex:1;padding:11px;border-radius:12px;border:none;background:#34C759;color:white;font-weight:700;cursor:pointer;font-size:13px">
+                                    Утвердить
+                                </button>
+                                <button @click="changeStatus('rejected')"
+                                    style="flex:1;padding:11px;border-radius:12px;border:none;background:#FF3B30;color:white;font-weight:700;cursor:pointer;font-size:13px">
+                                    Отклонить
+                                </button>
+                            </div>
+                            <button @click="changeStatus('rework_needed')"
+                                style="padding:11px;border-radius:12px;border:none;background:#E8F2FE;color:#0055CC;font-weight:700;cursor:pointer;font-size:13px">
+                                <i class="fas fa-pen-to-square" style="margin-right:6px"></i>На доработку
+                            </button>
+                            <button @click="changeStatus('draft')"
+                                style="padding:11px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-weight:600;cursor:pointer;font-size:13px">
+                                Вернуть в черновик
+                            </button>
+                        </div>
+                    </template>
+
+                    <!-- approved / in_progress -->
+                    <template x-if="(contract.status === 'approved' || contract.status === 'in_progress') && canApprove">
+                        <div style="display:flex;flex-direction:column;gap:8px">
+                            <button @click="changeStatus('draft')"
+                                style="padding:11px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-weight:600;cursor:pointer;font-size:13px">
+                                Вернуть в черновик
+                            </button>
+                            <button @click="changeStatus('rejected')"
+                                style="padding:11px;border-radius:12px;border:none;background:#FF3B30;color:white;font-weight:700;cursor:pointer;font-size:13px">
+                                Отклонить
+                            </button>
+                        </div>
+                    </template>
+
+                    <!-- rework_needed -->
+                    <template x-if="contract.status === 'rework_needed' && (canApprove || canEditDraft)">
+                        <div style="display:flex;flex-direction:column;gap:8px">
+                            <button @click="changeStatus('pending_approval')"
+                                style="padding:11px;border-radius:12px;border:none;background:#34C759;color:white;font-weight:700;cursor:pointer;font-size:13px">
+                                Отправить на согласование
+                            </button>
+                            <button @click="changeStatus('draft')"
+                                style="padding:11px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-weight:600;cursor:pointer;font-size:13px">
+                                Вернуть в черновик
+                            </button>
+                        </div>
+                    </template>
+
+                    <!-- rejected -->
+                    <template x-if="contract.status === 'rejected' && canApprove">
+                        <button @click="changeStatus('draft')"
+                            style="padding:11px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-weight:600;cursor:pointer;font-size:13px">
+                            Вернуть в черновик
+                        </button>
+                    </template>
+
+                    <template x-if="statusMsg">
+                        <p :style="statusMsgType === 'ok' ? 'color:#1A7A40' : 'color:#CC2A22'"
+                            style="font-size:12px;font-weight:600;text-align:center;margin:0" x-text="statusMsg"></p>
+                    </template>
+                </div>
             </div>
         </div>
 
@@ -494,9 +578,22 @@ function scView() {
     return {
         tab: 'milestones',
         arbitrationResult: '',
+        projectId: null,
+        statusMsg: '',
+        statusMsgType: 'ok',
 
         get isLeadership() {
             return this.contract.scType === 'leadership';
+        },
+
+        get canApprove() {
+            const r = getUserRole();
+            return r === 'cfo' || r === 'manager';
+        },
+
+        get canEditDraft() {
+            const r = getUserRole();
+            return r === 'cfo' || r === 'manager' || r === 'owner';
         },
 
         contract: {
@@ -608,6 +705,7 @@ function scView() {
 
         async loadContract(id) {
             this.loading = true;
+            this.projectId = id;
             try {
                 const res = await authFetch('/api/v1/projects/' + id);
                 if (!res.ok) { this.notFound = true; return; }
@@ -661,9 +759,34 @@ function scView() {
             }
         },
 
+        async changeStatus(newStatus) {
+            if (!this.projectId) return;
+            this.statusMsg = '';
+            try {
+                const res = await authFetch('/api/v1/projects/' + this.projectId + '/status', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ status: newStatus }),
+                });
+                if (res.ok) {
+                    const p = await res.json();
+                    this.contract.status = p.status;
+                    this.contract.timeline = this._buildTimeline(p);
+                    this.statusMsgType = 'ok';
+                    this.statusMsg = 'Статус изменён: ' + this.statusLabel(p.status);
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    this.statusMsgType = 'err';
+                    this.statusMsg = err.detail || 'Ошибка смены статуса';
+                }
+            } catch (e) {
+                this.statusMsgType = 'err';
+                this.statusMsg = 'Ошибка: ' + e.message;
+            }
+        },
+
         _buildTimeline(p) {
             const created = p.created_at ? new Date(p.created_at).toLocaleDateString('ru-RU') : '';
-            const labels = { draft: 'Черновик', pending_approval: 'На согласовании', approved: 'Согласован', rejected: 'Отклонён' };
+            const labels = { draft: 'Черновик', pending_approval: 'На согласовании', approved: 'Согласован', rejected: 'Отклонён', rework_needed: 'На доработку' };
             const tl = [
                 { step: 1, title: 'Создание заявки', done: true, active: false, date: created, description: 'Инициатор заполнил мастер создания смарт-контракта.' },
                 { step: 2, title: 'Согласование', done: ['approved', 'rejected'].includes(p.status), active: p.status === 'pending_approval', date: '', description: 'Финансовый блок рассматривает заявку.' },
@@ -694,11 +817,11 @@ function scView() {
         },
 
         statusClass(s) {
-            return { draft: 'pill-pending', approved: 'pill-done', in_progress: 'pill-progress', pending_approval: 'pill-pending', rejected: 'pill-verify' }[s] || 'pill-pending';
+            return { draft: 'pill-pending', approved: 'pill-done', in_progress: 'pill-progress', pending_approval: 'pill-pending', rejected: 'pill-verify', rework_needed: 'pill-rework' }[s] || 'pill-pending';
         },
 
         statusLabel(s) {
-            return { draft: 'Черновик', approved: 'Утверждён', in_progress: 'В работе', pending_approval: 'На согласовании', rejected: 'Отклонён' }[s] || s;
+            return { draft: 'Черновик', approved: 'Утверждён', in_progress: 'В работе', pending_approval: 'На согласовании', rejected: 'Отклонён', rework_needed: 'На доработку' }[s] || s;
         },
 
         msStatusClass(s) {
