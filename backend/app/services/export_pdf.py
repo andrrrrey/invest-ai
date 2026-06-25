@@ -5,7 +5,6 @@ PDF export service — renders a management report HTML page to PDF bytes via We
 import io
 import html as _htmllib
 import re
-from datetime import datetime
 
 from weasyprint import HTML
 
@@ -165,7 +164,7 @@ tr:nth-child(even) td { background: #F8F7F3; }
             border-radius: 0 6px 6px 0; margin-top: 12px; font-size: 9pt; font-style: italic; }
 
 /* Detailed per-project report */
-.project-report { page-break-before: always; }
+.project-report + .project-report { page-break-before: always; }
 .report-doc-title { font-size: 18pt; font-weight: 700; color: #1C1C1E; margin-bottom: 4px; }
 .report-doc-sub { font-size: 10pt; color: #777; margin-bottom: 16px; }
 .summary-box { background: #E2F3E7; border-radius: 8px; padding: 12px 14px; margin-bottom: 18px; }
@@ -180,171 +179,6 @@ tr:nth-child(even) td { background: #F8F7F3; }
 .prose ul { margin: 6px 0 6px 18px; }
 .level-badge { display: inline-block; padding: 1px 8px; border-radius: 20px; color: white;
                font-size: 8pt; font-weight: 600; }
-"""
-
-
-# ---------------------------------------------------------------------------
-# Section renderers
-# ---------------------------------------------------------------------------
-
-def _cover_page(stats: dict, period_label: str, generated_by: str) -> str:
-    total     = stats.get("total", 0)
-    total_npv = _fmt(stats.get("total_npv"), " ₽")
-    avg_irr   = _fmt(stats.get("avg_irr"), "%", 2)
-    budget    = _fmt(stats.get("investment_budget"), " ₽") if stats.get("investment_budget") else "не задан"
-    now       = datetime.now().strftime("%d.%m.%Y %H:%M")
-
-    return f"""
-<div class="cover">
-  <div class="cover-title">Управленческий отчёт</div>
-  <div class="cover-subtitle">Инвестиционный портфель &mdash; {period_label}</div>
-  <div class="cover-meta">Сформировал: {generated_by} &nbsp;|&nbsp; {now}</div>
-  <div class="cover-kpi-grid">
-    <div class="cover-kpi-card">
-      <div class="cover-kpi-value">{total}</div>
-      <div class="cover-kpi-label">Всего проектов</div>
-    </div>
-    <div class="cover-kpi-card">
-      <div class="cover-kpi-value">{total_npv}</div>
-      <div class="cover-kpi-label">Суммарный NPV</div>
-    </div>
-    <div class="cover-kpi-card">
-      <div class="cover-kpi-value">{avg_irr}</div>
-      <div class="cover-kpi-label">Средний IRR</div>
-    </div>
-    <div class="cover-kpi-card">
-      <div class="cover-kpi-value">{stats.get("by_status", {}).get("approved", 0)}</div>
-      <div class="cover-kpi-label">Одобрено</div>
-    </div>
-    <div class="cover-kpi-card">
-      <div class="cover-kpi-value">{stats.get("high_risk_count", 0)}</div>
-      <div class="cover-kpi-label">Высокорисковых</div>
-    </div>
-    <div class="cover-kpi-card">
-      <div class="cover-kpi-value">{budget}</div>
-      <div class="cover-kpi-label">Инвест. бюджет</div>
-    </div>
-  </div>
-</div>
-"""
-
-
-def _portfolio_kpi_section(stats: dict) -> str:
-    by_status = stats.get("by_status", {})
-    by_type   = stats.get("by_type", {})
-    avail     = stats.get("available_for_investment")
-    rows = [
-        ("Всего проектов",              stats.get("total", 0)),
-        ("&nbsp;&nbsp;Черновик",               by_status.get("draft", 0)),
-        ("&nbsp;&nbsp;На рассмотрении",        by_status.get("pending_approval", 0)),
-        ("&nbsp;&nbsp;Одобрено",               by_status.get("approved", 0)),
-        ("&nbsp;&nbsp;Отклонено",              by_status.get("rejected", 0)),
-        ("Инвестиционные / Операционные",
-            f"{by_type.get('investment', 0)} / {by_type.get('operational', 0)}"),
-        ("Суммарный NPV",               _fmt(stats.get("total_npv"), " ₽")),
-        ("Средний IRR",                 _fmt(stats.get("avg_irr"), "%", 2)),
-        ("Высокорисковых проектов",     stats.get("high_risk_count", 0)),
-        ("Инвестиционный бюджет",       _fmt(stats.get("investment_budget"), " ₽") if stats.get("investment_budget") else "не задан"),
-        ("Одобренные инвестиции",       _fmt(stats.get("approved_investment"), " ₽")),
-        ("Доступно для инвестиций",     _fmt(avail, " ₽") if avail is not None else "н/д"),
-    ]
-    rows_html = "".join(
-        f"<tr><td>{label}</td><td class='num'>{value}</td></tr>" for label, value in rows
-    )
-    return f"""
-<div class="section page-break">
-  <div class="section-title">1. KPI портфеля</div>
-  <table>
-    <thead><tr><th>Показатель</th><th style="text-align:right">Значение</th></tr></thead>
-    <tbody>{rows_html}</tbody>
-  </table>
-</div>
-"""
-
-
-def _top_projects_table(projects: list[dict]) -> str:
-    # Sort by NPV desc, take top 10
-    def npv_val(p):
-        try:
-            return float((p.get("metrics") or {}).get("npv") or 0)
-        except (TypeError, ValueError):
-            return 0.0
-
-    top = sorted(
-        [p for p in projects if p.get("project_type") == "investment"],
-        key=npv_val, reverse=True
-    )[:10]
-
-    rows_html = ""
-    for p in top:
-        m = p.get("metrics") or {}
-        risk_level = _get_risk_level(p)
-        color = _risk_color(risk_level)
-        rows_html += (
-            f"<tr>"
-            f"<td>{p.get('name', '—')}</td>"
-            f"<td>{_status_label(p.get('status'))}</td>"
-            f"<td>{_type_label(p.get('project_type'))}</td>"
-            f"<td class='num'>{_fmt(m.get('npv'), ' ₽')}</td>"
-            f"<td class='num'>{_fmt(m.get('irr'), '%', 2)}</td>"
-            f"<td class='num'>{_fmt(m.get('dpp'), ' лет', 1)}</td>"
-            f"<td><span class='risk-badge' style='background:{color}'>{risk_level}</span></td>"
-            f"</tr>"
-        )
-
-    if not rows_html:
-        rows_html = "<tr><td colspan='7'>Инвестиционные проекты отсутствуют</td></tr>"
-
-    return f"""
-<div class="section">
-  <div class="section-title">2. Топ проекты по NPV</div>
-  <table>
-    <thead>
-      <tr>
-        <th>Название</th><th>Статус</th><th>Тип</th>
-        <th style="text-align:right">NPV</th><th style="text-align:right">IRR</th>
-        <th style="text-align:right">DPP</th><th>Риск</th>
-      </tr>
-    </thead>
-    <tbody>{rows_html}</tbody>
-  </table>
-</div>
-"""
-
-
-def _risk_breakdown_section(projects: list[dict]) -> str:
-    counts: dict[str, int] = {}
-    for p in projects:
-        rl = _get_risk_level(p)
-        counts[rl] = counts.get(rl, 0) + 1
-
-    rows_html = ""
-    for rl, cnt in sorted(counts.items()):
-        color = _risk_color(rl)
-        rows_html += (
-            f"<tr><td><span class='risk-badge' style='background:{color}'>{rl}</span></td>"
-            f"<td class='num'>{cnt}</td></tr>"
-        )
-    if not rows_html:
-        rows_html = "<tr><td colspan='2'>Нет данных</td></tr>"
-
-    return f"""
-<div class="section">
-  <div class="section-title">3. Распределение по риску</div>
-  <table>
-    <thead><tr><th>Уровень риска</th><th style="text-align:right">Кол-во</th></tr></thead>
-    <tbody>{rows_html}</tbody>
-  </table>
-</div>
-"""
-
-
-def _ai_portfolio_section(commentary: str) -> str:
-    return f"""
-<div class="section">
-  <div class="section-title">4. AI-резюме портфеля</div>
-  <div class="ai-block">{commentary}</div>
-</div>
 """
 
 
@@ -746,34 +580,25 @@ def build_pdf(
     generated_by: str,
 ) -> io.BytesIO:
     """
-    Build a PDF management report and return it as a BytesIO stream.
+    Build a detailed per-project PDF report and return it as a BytesIO stream.
+
+    The report always starts directly with the per-project «Сводный отчёт по проекту»
+    (no portfolio cover / KPI summary).
 
     :param projects:             List of project dicts
-    :param stats:                Portfolio stats dict
-    :param detail_level:         "summary" or "full"
-    :param include_ai:           Whether AI sections are included
-    :param portfolio_commentary: Plain-text AI summary (empty string if not requested)
+    :param stats:                Portfolio stats dict (unused; kept for call-site compat)
+    :param detail_level:         Kept for compatibility — report is always detailed
+    :param include_ai:           Whether AI commentary is included
+    :param portfolio_commentary: Unused; kept for call-site compatibility
     :param ai_commentaries:      {project_id: commentary_text}
-    :param period_label:         Human-readable period, e.g. "Q1 2026"
+    :param period_label:         Unused; kept for call-site compatibility
     :param generated_by:         Current user's display name
     """
     parts = [
         f"<html><head><meta charset='utf-8'><style>{_CSS}</style></head><body>",
-        _cover_page(stats, period_label, generated_by),
-        _portfolio_kpi_section(stats),
-        _top_projects_table(projects),
-        _risk_breakdown_section(projects),
+        _detailed_projects_section(projects, ai_commentaries if include_ai else {}),
+        "</body></html>",
     ]
-
-    if include_ai and portfolio_commentary:
-        parts.append(_ai_portfolio_section(portfolio_commentary))
-
-    if detail_level == "full":
-        parts.append(
-            _detailed_projects_section(projects, ai_commentaries if include_ai else {})
-        )
-
-    parts.append("</body></html>")
     html_str = "".join(parts)
 
     pdf_bytes = HTML(string=html_str).write_pdf()

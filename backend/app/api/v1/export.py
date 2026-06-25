@@ -122,19 +122,13 @@ def export_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_not_owner),
 ):
-    # Load projects
-    q = db.query(Project)
-    if req.project_ids:
-        q = q.filter(Project.id.in_(req.project_ids))
+    # A report is always built for a specific project (or projects) — a project
+    # must be selected on the client. Reports over the whole portfolio are not allowed.
+    if not req.project_ids:
+        raise HTTPException(status_code=400, detail="Необходимо выбрать проект")
 
-    # Filter by project kind: regular (investment/operational/legacy) vs smart contracts
-    if req.project_kind == "smart":
-        q = q.filter(Project.project_type == "smart_contract")
-    elif req.project_kind == "regular":
-        q = q.filter(
-            (Project.project_type != "smart_contract")
-            | (Project.project_type.is_(None))
-        )
+    # Load projects
+    q = db.query(Project).filter(Project.id.in_(req.project_ids))
 
     projects_orm = q.order_by(Project.created_at.desc()).all()
 
@@ -144,16 +138,11 @@ def export_report(
     projects = [_project_to_dict(p) for p in projects_orm]
     stats    = _compute_stats(projects_orm)
 
-    # AI generation (optional)
-    portfolio_commentary = ""
+    # AI generation (optional) — per-project commentary only
     ai_commentaries: dict[int, str] = {}
+    portfolio_commentary = ""
 
     if req.include_ai:
-        try:
-            portfolio_commentary = ai_service.generate_portfolio_commentary(projects, stats)
-        except Exception:
-            portfolio_commentary = ""
-
         for p in projects:
             try:
                 result = ai_service.analyze_project(p, p.get("metrics") or {})
