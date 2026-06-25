@@ -177,7 +177,7 @@ def change_status(
     current_user: User = Depends(get_current_user),
 ):
     """Change project status with role-based permission checks."""
-    allowed_statuses = {"draft", "pending_approval", "approved", "rejected"}
+    allowed_statuses = {"draft", "pending_approval", "approved", "rejected", "rework_needed"}
     new_status = body.get("status")
     if new_status not in allowed_statuses:
         raise HTTPException(
@@ -189,8 +189,8 @@ def change_status(
 
     role = current_user.role
 
-    if new_status in ("approved", "rejected"):
-        # Only CFO and Manager can approve/reject
+    if new_status in ("approved", "rejected", "rework_needed"):
+        # Only CFO and Manager can approve / reject / send back for rework
         if role not in ("cfo", "manager"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -241,7 +241,7 @@ def change_status(
         if new_status == "pending_approval":
             notify_approvers(db, project.id, project_name, current_user.full_name)
             db.commit()
-        elif new_status in ("approved", "rejected", "draft") and project.user_id:
+        elif new_status in ("approved", "rejected", "draft", "rework_needed") and project.user_id:
             notify_owner(db, project.user_id, project.id, project_name, new_status)
             db.commit()
     except Exception:
@@ -263,7 +263,7 @@ def change_status(
                     recipients, project_name, current_user.full_name
                 )
 
-        elif new_status in ("approved", "rejected", "draft"):
+        elif new_status in ("approved", "rejected", "draft", "rework_needed"):
             owner = db.get(User, project.user_id) if project.user_id else None
             if owner and owner.email:
                 send_status_notification_email(

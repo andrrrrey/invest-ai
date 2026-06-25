@@ -9,6 +9,7 @@ Active provider is controlled via settings_store.get_ai_provider() ('openai' | '
 """
 
 import json
+import re
 from typing import Optional
 from openai import OpenAI
 
@@ -85,11 +86,31 @@ def _chat(prompt: str, max_tokens: int = 700) -> str:
 
 
 def _strip_fences(text: str) -> str:
-    if text.startswith("```"):
-        parts = text.split("```")
-        text = parts[1]
-        if text.startswith("json"):
-            text = text[4:]
+    """Extract a JSON payload from an LLM response robustly.
+
+    Handles plain JSON, ```json fenced blocks, and responses with a
+    preamble/trailer around the JSON (e.g. "Вот анализ:\n```json{...}```").
+    Falls back to the substring between the first '{' and the last '}'.
+    """
+    if not text:
+        return ""
+    text = text.strip()
+
+    # 1) Prefer the content of a fenced code block, if present anywhere.
+    fence = re.search(r"```(?:json)?\s*(.*?)```", text, re.DOTALL | re.IGNORECASE)
+    if fence:
+        text = fence.group(1).strip()
+
+    # 2) Otherwise (or if the fenced content still has noise), narrow down to
+    #    the outermost JSON object/array by the first/last brace or bracket.
+    start_candidates = [i for i in (text.find("{"), text.find("[")) if i != -1]
+    end_candidates = [i for i in (text.rfind("}"), text.rfind("]")) if i != -1]
+    if start_candidates and end_candidates:
+        start = min(start_candidates)
+        end = max(end_candidates)
+        if end > start:
+            text = text[start:end + 1]
+
     return text.strip()
 
 

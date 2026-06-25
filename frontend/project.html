@@ -871,17 +871,39 @@
                                                 <i class="fas fa-pen" style="margin-right:6px"></i>Редактировать проект
                                             </button>
                                             <template x-if="canApprove">
-                                                <div style="display:flex;gap:10px">
-                                                    <button @click="changeStatus('approved')"
-                                                        style="flex:1;padding:14px;border-radius:14px;border:none;background:#34C759;color:white;font-weight:700;cursor:pointer">
-                                                        Утвердить
-                                                    </button>
-                                                    <button @click="changeStatus('rejected')"
-                                                        style="flex:1;padding:14px;border-radius:14px;border:none;background:#FF3B30;color:white;font-weight:700;cursor:pointer">
-                                                        Отклонить
+                                                <div style="display:flex;flex-direction:column;gap:10px">
+                                                    <div style="display:flex;gap:10px">
+                                                        <button @click="changeStatus('approved')"
+                                                            style="flex:1;padding:14px;border-radius:14px;border:none;background:#34C759;color:white;font-weight:700;cursor:pointer">
+                                                            Утвердить
+                                                        </button>
+                                                        <button @click="changeStatus('rejected')"
+                                                            style="flex:1;padding:14px;border-radius:14px;border:none;background:#FF3B30;color:white;font-weight:700;cursor:pointer">
+                                                            Отклонить
+                                                        </button>
+                                                    </div>
+                                                    <button @click="changeStatus('rework_needed')"
+                                                        style="padding:14px;border-radius:14px;border:none;background:#E8F2FE;color:#0055CC;font-weight:700;cursor:pointer;font-size:13px">
+                                                        <i class="fas fa-pen-to-square" style="margin-right:6px"></i>На доработку
                                                     </button>
                                                 </div>
                                             </template>
+                                            <button @click="changeStatus('draft')"
+                                                style="padding:14px;border-radius:14px;border:1px solid #E5E5E5;background:white;font-weight:700;cursor:pointer;font-size:13px">
+                                                Вернуть в черновик
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <template x-if="project.status === 'rework_needed' && (canApprove || project.user_id === authUserId)">
+                                        <div style="display:flex;flex-direction:column;gap:10px">
+                                            <button @click="window.location.href='/new?id=' + project.id"
+                                                style="padding:14px;border-radius:14px;border:1.5px solid var(--accent-purple);background:white;color:var(--accent-purple);font-weight:700;cursor:pointer;font-size:13px">
+                                                <i class="fas fa-pen" style="margin-right:6px"></i>Доработать заявку
+                                            </button>
+                                            <button @click="changeStatus('pending_approval')"
+                                                style="padding:14px;border-radius:14px;border:none;background:#34C759;color:white;font-weight:700;cursor:pointer;font-size:13px">
+                                                Отправить на согласование
+                                            </button>
                                             <button @click="changeStatus('draft')"
                                                 style="padding:14px;border-radius:14px;border:1px solid #E5E5E5;background:white;font-weight:700;cursor:pointer;font-size:13px">
                                                 Вернуть в черновик
@@ -1374,7 +1396,7 @@
                 },
 
                 get statusLabel() {
-                    const map = { draft: 'Черновик', pending_approval: 'На согласовании', approved: 'Утверждён', rejected: 'Отклонён' };
+                    const map = { draft: 'Черновик', pending_approval: 'На согласовании', approved: 'Утверждён', rejected: 'Отклонён', rework_needed: 'На доработку' };
                     return map[this.project?.status] || this.project?.status || '—';
                 },
 
@@ -1383,6 +1405,7 @@
                     if (s === 'approved') return 'background:#DDF0E1;color:#2D9B63';
                     if (s === 'rejected') return 'background:#FFE5E5;color:#EB5757';
                     if (s === 'pending_approval') return 'background:#FFF4E5;color:#FF9500';
+                    if (s === 'rework_needed') return 'background:#E8F2FE;color:#0055CC';
                     return 'background:#F0F0F0;color:#8E8E93';
                 },
 
@@ -1391,6 +1414,7 @@
                     if (s === 'approved') return 'background:#DDF0E1;color:#2D9B63';
                     if (s === 'rejected') return 'background:#FFE5E5;color:#EB5757';
                     if (s === 'pending_approval') return 'background:#FFF4E5;color:#FF9500';
+                    if (s === 'rework_needed') return 'background:#E8F2FE;color:#0055CC';
                     return 'background:#F0F0F0;color:#8E8E93';
                 },
 
@@ -1399,6 +1423,7 @@
                     if (s === 'approved') return 'fas fa-check-circle';
                     if (s === 'rejected') return 'fas fa-times-circle';
                     if (s === 'pending_approval') return 'fas fa-clock';
+                    if (s === 'rework_needed') return 'fas fa-pen-to-square';
                     return 'fas fa-edit';
                 },
 

@@ -164,6 +164,10 @@
                         :style="activeTab==='fact' ? 'background:#DDF0E1;border-color:#A8DDB5;color:#2D9B63' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93'">
                         Факт
                     </button>
+                    <button class="tab-btn" x-show="project.status === 'approved'" @click="activeTab='metrics'"
+                        :style="activeTab==='metrics' ? 'background:#EEF0FF;border-color:#C7C9FF;color:#5E5CE6' : 'background:#F2F2F7;border-color:#E5E5ED;color:#8E8E93'">
+                        Метрики
+                    </button>
                 </div>
 
                 <div x-show="activeTab==='main'">
@@ -388,6 +392,27 @@
                                                 Отклонить
                                             </button>
                                         </div>
+                                        <button @click="changeStatus('rework_needed')"
+                                            style="padding:12px;border-radius:12px;border:none;background:#E8F2FE;color:#0055CC;font-weight:700;cursor:pointer;font-size:13px">
+                                            <i class="fas fa-pen-to-square" style="margin-right:6px"></i>На доработку
+                                        </button>
+                                        <button @click="changeStatus('draft')"
+                                            style="padding:12px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-weight:600;cursor:pointer;font-size:13px">
+                                            Вернуть в черновик
+                                        </button>
+                                    </div>
+                                </template>
+                                <!-- rework_needed: edit / resubmit / back to draft -->
+                                <template x-if="project.status === 'rework_needed' && (canApprove || canEditDraft)">
+                                    <div style="display:flex;flex-direction:column;gap:8px">
+                                        <button @click="window.location.href='/new?id=' + project.id"
+                                            style="padding:12px;border-radius:12px;border:1.5px solid var(--accent-purple);background:white;color:var(--accent-purple);font-weight:700;cursor:pointer;font-size:13px">
+                                            <i class="fas fa-pen" style="margin-right:6px"></i>Доработать заявку
+                                        </button>
+                                        <button @click="changeStatus('pending_approval')"
+                                            style="padding:12px;border-radius:12px;border:none;background:#34C759;color:white;font-weight:700;cursor:pointer;font-size:13px">
+                                            Отправить на согласование
+                                        </button>
                                         <button @click="changeStatus('draft')"
                                             style="padding:12px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-weight:600;cursor:pointer;font-size:13px">
                                             Вернуть в черновик
@@ -537,6 +562,90 @@
                     <!-- Plan / Fact -->
                     <div class="card-block" style="margin-top:20px">
                         <div x-data="opFactApp()" x-init="loadFact()">
+
+                        <!-- Sub-tab navigation -->
+                        <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
+                            <button @click="factSubTab='ytd'"
+                                :style="factSubTab==='ytd' ? 'background:#1C1C1E;color:white' : 'background:#F2F2F7;color:#8E8E93'"
+                                style="border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">Накопленный YTD</button>
+                            <button @click="factSubTab='monthly'"
+                                :style="factSubTab==='monthly' ? 'background:#1C1C1E;color:white' : 'background:#F2F2F7;color:#8E8E93'"
+                                style="border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">Помесячный</button>
+                            <button @click="factSubTab='forecast'"
+                                :style="factSubTab==='forecast' ? 'background:#1C1C1E;color:white' : 'background:#F2F2F7;color:#8E8E93'"
+                                style="border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">Прогноз</button>
+                        </div>
+
+                        <!-- ─── Накопленный YTD ─────────────────────────────── -->
+                        <div x-show="factSubTab==='ytd'">
+                            <div style="background:#EEF3FF;border-radius:12px;padding:12px 16px;margin-bottom:18px;font-size:12px;color:#2A4B8D;line-height:1.5">
+                                <b>Ключевая метрика инвест-контроля</b> — накопленное YTD-отклонение. Помесячные колебания нивелируются; важно, что итог не превышает утверждённый транш.
+                            </div>
+                            <div style="display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start">
+                                <div>
+                                    <div style="background:#F8F7F3;border-radius:16px;padding:18px 20px;margin-bottom:14px">
+                                        <p style="font-size:11px;font-weight:700;color:#8E8E93;text-transform:uppercase;letter-spacing:0.4px">Утверждённый бюджет</p>
+                                        <p style="font-size:28px;font-weight:800;margin:6px 0 2px" x-text="opFmtMoney(budgetTotal)"></p>
+                                        <p style="font-size:12px;color:#8E8E93" x-text="'Транш #' + trancheCount"></p>
+                                        <div style="height:8px;background:#E5E5ED;border-radius:5px;margin-top:12px;overflow:hidden">
+                                            <div style="height:100%;background:#34C759;border-radius:5px" :style="'width:' + budgetUsedPct + '%'"></div>
+                                        </div>
+                                        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:#8E8E93">
+                                            <span x-text="'YTD: ' + opFmtMoney(factYtdTotal)"></span>
+                                            <span x-text="budgetUsedPct + '%'"></span>
+                                        </div>
+                                    </div>
+                                    <div style="background:#F8F7F3;border-radius:16px;padding:18px 20px">
+                                        <p style="font-size:11px;font-weight:700;color:#8E8E93;text-transform:uppercase;letter-spacing:0.4px">Остаток бюджета</p>
+                                        <p style="font-size:24px;font-weight:800;color:#2D9B63;margin-top:6px" x-text="opFmtMoney(budgetTotal - factYtdTotal)"></p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p style="font-size:11px;font-weight:700;color:#8E8E93;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:12px" x-text="'Отклонение по статьям (YTD ' + ytdRangeLabel + ')'"></p>
+                                    <template x-for="name in budgetNames" :key="'ytd_'+name">
+                                        <div style="display:flex;justify-content:space-between;align-items:center;background:#F8F7F3;border-radius:14px;padding:14px 18px;margin-bottom:10px;gap:14px">
+                                            <div style="min-width:0">
+                                                <p style="font-size:14px;font-weight:700;color:#1C1C1E" x-text="name"></p>
+                                                <p style="font-size:11px;color:#8E8E93" x-text="ytdRangeLabel"></p>
+                                            </div>
+                                            <div style="display:flex;gap:18px;align-items:center;flex-shrink:0">
+                                                <div style="text-align:right">
+                                                    <p style="font-size:10px;font-weight:700;color:#8E8E93;text-transform:uppercase">План YTD</p>
+                                                    <p style="font-size:14px;font-weight:700;color:#5E5CE6" x-text="opFmtMoney(planYtd(name))"></p>
+                                                </div>
+                                                <div style="text-align:right">
+                                                    <p style="font-size:10px;font-weight:700;color:#8E8E93;text-transform:uppercase">Факт YTD</p>
+                                                    <p style="font-size:14px;font-weight:700;color:#1C1C1E" x-text="opFmtMoney(factYtd(name))"></p>
+                                                </div>
+                                                <span style="padding:5px 10px;border-radius:10px;font-size:12px;font-weight:800;min-width:54px;text-align:center"
+                                                    :style="ytdDeviation(name) > 0 ? 'background:#FFE5E5;color:#FF3B30' : ytdDeviation(name) < 0 ? 'background:#DDF0E1;color:#2D9B63' : 'background:#F0F0F0;color:#8E8E93'"
+                                                    x-text="ytdDeviation(name) !== null ? (ytdDeviation(name) > 0 ? '+' : '') + ytdDeviation(name) + '%' : '—'"></span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <div style="display:flex;justify-content:space-between;align-items:center;border:1.5px solid #E5E5ED;border-radius:14px;padding:14px 18px;gap:14px">
+                                        <p style="font-size:15px;font-weight:800;color:#1C1C1E">Итого</p>
+                                        <div style="display:flex;gap:18px;align-items:center;flex-shrink:0">
+                                            <div style="text-align:right">
+                                                <p style="font-size:10px;font-weight:700;color:#8E8E93;text-transform:uppercase">План YTD</p>
+                                                <p style="font-size:14px;font-weight:700;color:#5E5CE6" x-text="opFmtMoney(planYtdTotal)"></p>
+                                            </div>
+                                            <div style="text-align:right">
+                                                <p style="font-size:10px;font-weight:700;color:#8E8E93;text-transform:uppercase">Факт YTD</p>
+                                                <p style="font-size:14px;font-weight:700;color:#1C1C1E" x-text="opFmtMoney(factYtdTotal)"></p>
+                                            </div>
+                                            <span style="padding:5px 10px;border-radius:10px;font-size:12px;font-weight:800;min-width:54px;text-align:center"
+                                                :style="ytdTotalDeviation > 0 ? 'background:#FFE5E5;color:#FF3B30' : ytdTotalDeviation < 0 ? 'background:#DDF0E1;color:#2D9B63' : 'background:#F0F0F0;color:#8E8E93'"
+                                                x-text="ytdTotalDeviation !== null ? (ytdTotalDeviation > 0 ? '+' : '') + ytdTotalDeviation + '%' : '—'"></span>
+                                        </div>
+                                    </div>
+                                    <p x-show="!budgetNames.length" style="font-size:13px;color:#8E8E93;margin-top:10px">Статьи бюджета не заданы в финансовой модели.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ─── Помесячный ──────────────────────────────────── -->
+                        <div x-show="factSubTab==='monthly'">
                         <div class="block-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
                             <span>План / Факт <i class="fas fa-chart-mixed" style="color:var(--accent-purple)"></i></span>
                             <button @click="getAiFactCommentary()" :disabled="factAiLoading"
@@ -590,7 +699,7 @@
                                         </template>
                                     </tr>
                                 </thead>
-                                <template x-for="metric in metricNames" :key="metric">
+                                <template x-for="metric in budgetNames" :key="metric">
                                     <tbody>
                                         <tr>
                                             <td style="position:sticky;left:0;z-index:1;background:#F8F8FF;padding:5px 14px;font-weight:600;color:#5E5CE6;border-bottom:1px solid #F0F0F8;white-space:nowrap;font-size:11px">
@@ -638,10 +747,146 @@
                         <div x-show="hasData" style="background:white;border-radius:14px;padding:16px 20px;border:1.5px solid #E5E5ED">
                             <canvas x-ref="factChart" style="max-height:300px"></canvas>
                         </div>
+                        </div><!-- /factSubTab monthly -->
+
+                        <!-- ─── Прогноз ─────────────────────────────────────── -->
+                        <div x-show="factSubTab==='forecast'">
+                            <div style="background:#EEF3FF;border-radius:12px;padding:12px 16px;margin-bottom:18px;font-size:12px;color:#2A4B8D;line-height:1.5">
+                                <b>Квартальный ре-форекаст</b> — обновление прогноза расходов на остаток периода <b>без изменения суммы транша</b>.
+                            </div>
+                            <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px">
+                                <div style="flex:1;min-width:160px;background:#F8F7F3;border-radius:14px;padding:16px 18px">
+                                    <p style="font-size:11px;font-weight:700;color:#8E8E93;text-transform:uppercase">Утверждённый транш</p>
+                                    <p style="font-size:22px;font-weight:800;margin-top:6px" x-text="opFmtMoney(budgetTotal)"></p>
+                                </div>
+                                <div style="flex:1;min-width:160px;background:#F8F7F3;border-radius:14px;padding:16px 18px">
+                                    <p style="font-size:11px;font-weight:700;color:#8E8E93;text-transform:uppercase" x-text="'Факт YTD (' + ytdRangeLabel + ')'"></p>
+                                    <p style="font-size:22px;font-weight:800;margin-top:6px" x-text="opFmtMoney(factYtdTotal)"></p>
+                                </div>
+                                <div style="flex:1;min-width:160px;background:#EEF0FF;border-radius:14px;padding:16px 18px">
+                                    <p style="font-size:11px;font-weight:700;color:#5E5CE6;text-transform:uppercase">Доступно для прогноза</p>
+                                    <p style="font-size:22px;font-weight:800;color:#5E5CE6;margin-top:6px" x-text="opFmtMoney(budgetTotal - factYtdTotal)"></p>
+                                </div>
+                            </div>
+                            <div style="overflow-x:auto;border:1.5px solid #E5E5ED;border-radius:12px">
+                                <table style="border-collapse:collapse;font-size:13px;width:100%;min-width:640px">
+                                    <thead>
+                                        <tr style="background:#F8F7F3;color:#8E8E93;font-size:11px;text-transform:uppercase">
+                                            <th style="text-align:left;padding:10px 14px;font-weight:700">Месяц</th>
+                                            <th style="text-align:right;padding:10px 14px;font-weight:700">Исходный план</th>
+                                            <th style="text-align:right;padding:10px 14px;font-weight:700">Прогноз</th>
+                                            <th style="text-align:right;padding:10px 14px;font-weight:700">Откл.</th>
+                                            <th style="text-align:left;padding:10px 14px;font-weight:700">Комментарий</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="row in forecastRows" :key="row.key">
+                                            <tr style="border-bottom:1px solid #F0F0F8">
+                                                <td style="padding:10px 14px;font-weight:600" x-text="row.label"></td>
+                                                <td style="padding:10px 14px;text-align:right;color:#5E5CE6;font-weight:600" x-text="opFmtMoney(row.plan)"></td>
+                                                <td style="padding:8px 14px;text-align:right">
+                                                    <template x-if="row.closed">
+                                                        <span style="color:#8E8E93;font-weight:600" x-text="opFmtMoney(row.forecast)"></span>
+                                                    </template>
+                                                    <template x-if="!row.closed">
+                                                        <input type="text" inputmode="decimal" :value="fmtNum(row.forecast)"
+                                                            @change="setForecast(row.key, parseNum($event.target.value))"
+                                                            style="width:120px;padding:6px 8px;border:1.5px solid #C7C9FF;border-radius:8px;font-size:13px;text-align:right;outline:none">
+                                                    </template>
+                                                </td>
+                                                <td style="padding:10px 14px;text-align:right;font-weight:700"
+                                                    :style="(row.forecast-row.plan) > 0 ? 'color:#FF3B30' : (row.forecast-row.plan) < 0 ? 'color:#2D9B63' : 'color:#8E8E93'"
+                                                    x-text="forecastDelta(row)"></td>
+                                                <td style="padding:8px 14px">
+                                                    <template x-if="row.closed">
+                                                        <span style="color:#8E8E93" x-text="row.comment || ''"></span>
+                                                    </template>
+                                                    <template x-if="!row.closed">
+                                                        <input type="text" :value="row.comment"
+                                                            @change="setForecastComment(row.key, $event.target.value)"
+                                                            placeholder="Комментарий"
+                                                            style="width:100%;min-width:140px;padding:6px 8px;border:1.5px solid #E5E5ED;border-radius:8px;font-size:13px;outline:none">
+                                                    </template>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                        <tr style="border-top:2px solid #E5E5ED;background:#FAFAF8">
+                                            <td style="padding:12px 14px;font-weight:800">Итого прогноз</td>
+                                            <td style="padding:12px 14px;text-align:right;font-weight:800;color:#5E5CE6" x-text="opFmtMoney(forecastPlanTotal)"></td>
+                                            <td style="padding:12px 14px;text-align:right;font-weight:800" x-text="opFmtMoney(forecastTotal)"></td>
+                                            <td colspan="2" style="padding:12px 14px;font-weight:800"
+                                                :style="forecastVsBudget === 0 ? 'color:#2D9B63' : 'color:#FF3B30'"
+                                                x-text="forecastVsBudget === 0 ? '= бюджет ✓' : (forecastVsBudget > 0 ? '+' : '') + opFmtMoney(forecastVsBudget) + ' к бюджету'"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p x-show="!forecastRows.length" style="font-size:13px;color:#8E8E93;margin-top:10px">Нет данных плана для построения прогноза.</p>
+                            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
+                                <button @click="loadForecast()" style="background:#F0F0F0;border:none;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer">Отмена</button>
+                                <button @click="saveForecast()" :disabled="forecastSaving"
+                                    style="background:var(--accent-purple);color:white;border:none;border-radius:12px;padding:8px 24px;font-size:13px;font-weight:600;cursor:pointer">
+                                    <i class="fas" :class="forecastSaving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+                                    <span x-text="forecastSaving ? 'Сохраняем...' : 'Сохранить ре-форекаст'"></span>
+                                </button>
+                            </div>
+                        </div><!-- /factSubTab forecast -->
+
                         </div>
                     </div>
 
                 </div><!-- /activeTab fact -->
+
+                <!-- ═══ METRICS TAB ════════════════════════════════════════════ -->
+                <div x-show="activeTab==='metrics' && project.status === 'approved'">
+                    <div class="card-block" style="margin-top:20px">
+                        <div x-data="opMetricsApp()" x-init="loadMetrics()">
+                            <div class="block-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                                <div>
+                                    <span>Метрики проекта <i class="fas fa-bullseye" style="color:var(--accent-purple)"></i></span>
+                                    <p style="font-size:12px;color:#8E8E93;font-weight:400;margin-top:2px">Целевые показатели, достигаемые за счёт инвестиции</p>
+                                </div>
+                            </div>
+                            <div x-show="cards.length" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:6px">
+                                <template x-for="c in cards" :key="c.name">
+                                    <div :style="'border:1.5px solid ' + c.borderColor + ';border-radius:18px;padding:18px 20px'">
+                                        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                                            <div>
+                                                <p style="font-size:16px;font-weight:800;color:#1C1C1E" x-text="c.name"></p>
+                                                <p x-show="c.source" style="font-size:11px;color:#8E8E93;margin-top:2px" x-text="'Источник: ' + c.source"></p>
+                                            </div>
+                                            <span :style="'width:12px;height:12px;border-radius:50%;background:' + c.dotColor + ';flex-shrink:0;margin-top:4px'"></span>
+                                        </div>
+                                        <p style="font-size:11px;font-weight:700;color:#8E8E93;text-transform:uppercase;letter-spacing:0.4px;margin-top:16px" x-text="'Факт (' + c.factPeriod + ')'"></p>
+                                        <p style="font-size:30px;font-weight:800;color:#1C1C1E;margin-top:2px" x-text="c.factLabel"></p>
+                                        <div style="border-top:1px solid #F0F0F0;margin-top:14px;padding-top:12px">
+                                            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
+                                                <span style="color:#8E8E93">Цель</span>
+                                                <span style="font-weight:700;color:#1C1C1E" x-text="c.targetLabel"></span>
+                                            </div>
+                                            <div style="display:flex;justify-content:space-between;font-size:13px">
+                                                <span style="color:#8E8E93">Достижение</span>
+                                                <span style="font-weight:800" :style="'color:' + c.dotColor" x-text="c.achievement !== null ? c.achievement + '%' : '—'"></span>
+                                            </div>
+                                            <div style="height:8px;background:#F0F0F0;border-radius:5px;margin-top:8px;overflow:hidden">
+                                                <div style="height:100%;border-radius:5px" :style="'width:' + c.barPct + '%;background:' + c.dotColor"></div>
+                                            </div>
+                                        </div>
+                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+                                            <span style="font-size:11px;color:#8E8E93" x-text="c.factDate"></span>
+                                            <button @click="activeTab='fact'"
+                                                style="background:white;border:1.5px solid #E5E5ED;border-radius:10px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">Внести факт</button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                            <div x-show="redZoneCount > 0" style="background:#FFF8E8;border-radius:14px;padding:14px 18px;margin-top:18px;font-size:13px;color:#8A5A00;line-height:1.5">
+                                <b>⚠️ <span x-text="redZoneCount"></span> <span x-text="redZoneCount === 1 ? 'метрика' : 'метрик'"></span> в красной зоне</b> — показатель ниже порогового значения. Рекомендуется эскалация до одобрения следующего транша.
+                            </div>
+                            <p x-show="!cards.length && !loadingMetrics" style="font-size:13px;color:#8E8E93;margin-top:10px">Целевые метрики не заданы в финансовой модели проекта.</p>
+                        </div>
+                    </div>
+                </div><!-- /activeTab metrics -->
 
             </div>
         </template>
@@ -863,6 +1108,8 @@
     function opFactApp() {
         return {
             metricNames: [],
+            budgetNames: [],
+            targetNames: [],
             periods: [],
             _gridPlan: {},
             _gridFact: {},
@@ -872,6 +1119,12 @@
             factAiLoading: false,
             factAiData: null,
             _chart: null,
+            // sub-tabs + budget + forecast
+            factSubTab: 'ytd',
+            budgetTotal: 0,
+            trancheCount: 1,
+            _forecast: {},          // { "YYYY-MM": {forecast, comment} }
+            forecastSaving: false,
 
             periodKey(p) { return p.year + '/' + String(p.month).padStart(2,'0'); },
             _cellKey(metric, p) { return metric + '||' + this.periodKey(p); },
@@ -953,21 +1206,28 @@
                             this.initPeriods(startYear, 1, numYears * 12);
                             const newPlan = {};
                             const names = [];
-                            const addRow = (name, monthlyValues) => {
+                            const budgetNames = [], targetNames = [];
+                            const addRow = (name, monthlyValues, group) => {
                                 if (!name) return;
                                 if (!names.includes(name)) names.push(name);
+                                if (group === 'budget' && !budgetNames.includes(name)) budgetNames.push(name);
+                                if (group === 'target' && !targetNames.includes(name)) targetNames.push(name);
                                 (monthlyValues || []).forEach((yearVals, yi) => {
                                     (yearVals || []).forEach((val, mi) => {
                                         if (val) newPlan[this._cellKey(name, {year: startYear + yi, month: mi + 1})] = val;
                                     });
                                 });
                             };
-                            (fm.op_budget_rows || []).forEach(row => addRow(row.category, row.monthlyValues));
-                            metricRows.forEach(row => addRow(row.name, row.monthlyValues));
+                            (fm.op_budget_rows || []).forEach(row => addRow(row.category, row.monthlyValues, 'budget'));
+                            metricRows.forEach(row => addRow(row.name, row.monthlyValues, 'target'));
                             this.metricNames = names;
+                            this.budgetNames = budgetNames;
+                            this.targetNames = targetNames;
                             this._gridPlan = newPlan;
                         }
                     }
+                    await this.loadBudget();
+                    await this.loadForecast();
                     // Overlay saved entries on top of pre-populated values
                     const res = await authFetch('/api/v1/projects/' + id + '/fact');
                     if (res.ok) {
@@ -983,7 +1243,11 @@
                             const savedMetrics = [];
                             for (const e of entries) if (!savedMetrics.includes(e.metric_name)) savedMetrics.push(e.metric_name);
                             const merged = [...this.metricNames];
-                            for (const m of savedMetrics) if (!merged.includes(m)) merged.push(m);
+                            for (const m of savedMetrics) {
+                                if (!merged.includes(m)) merged.push(m);
+                                // Unknown saved metrics default to budget statia
+                                if (!this.budgetNames.includes(m) && !this.targetNames.includes(m)) this.budgetNames.push(m);
+                            }
                             this.metricNames = merged;
 
                             const newPlan = {...this._gridPlan};
@@ -1035,7 +1299,7 @@
             _renderChart() {
                 if (!this.$refs.factChart || typeof Chart==='undefined') return;
                 if (this._chart) { this._chart.destroy(); this._chart=null; }
-                if (!this.metricNames.length||!this.hasData) return;
+                if (!this.budgetNames.length||!this.hasData) return;
                 const M=['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
                 const labels = this.periods.map(p=>M[p.month-1]+'\''+String(p.year).slice(2));
                 const PALETTE=[
@@ -1044,12 +1308,196 @@
                     {plan:'#FF2D55',fact:'#5AC8FA'},
                 ];
                 const datasets=[];
-                this.metricNames.forEach((metric,i) => {
+                this.budgetNames.forEach((metric,i) => {
                     const c=PALETTE[i%PALETTE.length];
                     datasets.push({label:metric+' (план)',data:this.periods.map(p=>this.getPlan(metric,p)),borderColor:c.plan,backgroundColor:'rgba(94,92,230,0.07)',borderDash:[7,4],borderWidth:2,fill:true,tension:0.35,pointRadius:4,spanGaps:true});
                     datasets.push({label:metric+' (факт)',data:this.periods.map(p=>this.getFact(metric,p)),borderColor:c.fact,backgroundColor:'rgba(52,199,89,0.09)',borderWidth:2.5,fill:true,tension:0.35,pointRadius:5,spanGaps:true});
                 });
                 this._chart = new Chart(this.$refs.factChart, {type:'line',data:{labels,datasets},options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'bottom'}},scales:{x:{grid:{color:'#F5F5F8'}},y:{beginAtZero:false,grid:{color:'#F5F5F8'}}}}});
+            },
+
+            // ─── Бюджет (из траншей) ───────────────────────────────────────
+            async loadBudget() {
+                try {
+                    const res = await authFetch('/api/v1/projects/' + _opProjectId() + '/tranches');
+                    if (res.ok) {
+                        const tranches = await res.json();
+                        const approved = tranches.filter(t => t.status === 'approved').reduce((s,t) => s + t.amount, 0);
+                        const all = tranches.reduce((s,t) => s + t.amount, 0);
+                        this.budgetTotal = approved || all || 0;
+                        this.trancheCount = tranches.length || 1;
+                    }
+                } catch(e) {}
+            },
+
+            // ─── YTD (накопленный) ─────────────────────────────────────────
+            get _ytdYear() { return new Date().getFullYear(); },
+            get _ytdMonth() { return new Date().getMonth() + 1; },
+            _ytdPeriods() {
+                return this.periods.filter(p => p.year < this._ytdYear || (p.year === this._ytdYear && p.month <= this._ytdMonth));
+            },
+            get ytdRangeLabel() {
+                const M = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+                return 'янв–' + M[this._ytdMonth - 1] + ' ' + this._ytdYear;
+            },
+            planYtd(name) { return this._ytdPeriods().reduce((s,p) => s + (this.getPlan(name,p) || 0), 0); },
+            factYtd(name) { return this._ytdPeriods().reduce((s,p) => s + (this.getFact(name,p) || 0), 0); },
+            ytdDeviation(name) {
+                const plan = this.planYtd(name), fact = this.factYtd(name);
+                if (!plan) return null;
+                return Math.round((fact - plan) / plan * 1000) / 10;
+            },
+            get planYtdTotal() { return this.budgetNames.reduce((s,n) => s + this.planYtd(n), 0); },
+            get factYtdTotal() { return this.budgetNames.reduce((s,n) => s + this.factYtd(n), 0); },
+            get ytdTotalDeviation() {
+                const plan = this.planYtdTotal;
+                if (!plan) return null;
+                return Math.round((this.factYtdTotal - plan) / plan * 1000) / 10;
+            },
+            get budgetUsedPct() {
+                if (!this.budgetTotal) return 0;
+                return Math.min(100, Math.round(this.factYtdTotal / this.budgetTotal * 100));
+            },
+
+            // ─── Прогноз (ре-форекаст) ─────────────────────────────────────
+            _monthKey(p) { return p.year + '-' + String(p.month).padStart(2,'0'); },
+            _monthPlanTotal(p) { return this.budgetNames.reduce((s,n) => s + (this.getPlan(n,p) || 0), 0); },
+            _monthFactTotal(p) { return this.budgetNames.reduce((s,n) => s + (this.getFact(n,p) || 0), 0); },
+            get forecastRows() {
+                return this.periods.filter(p => p.year === this._ytdYear).map(p => {
+                    const key = this._monthKey(p);
+                    const plan = this._monthPlanTotal(p);
+                    const closed = p.month <= this._ytdMonth;
+                    const saved = this._forecast[key];
+                    let forecast;
+                    if (closed) forecast = this._monthFactTotal(p);
+                    else forecast = (saved && saved.forecast != null) ? saved.forecast : plan;
+                    return {
+                        key, label: this.formatPeriodLabel(p), plan, closed, forecast,
+                        comment: saved ? (saved.comment || '') : '',
+                    };
+                });
+            },
+            forecastDelta(row) {
+                const d = (row.forecast || 0) - (row.plan || 0);
+                if (!d) return '—';
+                return (d > 0 ? '+' : '') + opFmtMoney(d);
+            },
+            get forecastPlanTotal() { return this.forecastRows.reduce((s,r) => s + (r.plan || 0), 0); },
+            get forecastTotal() { return this.forecastRows.reduce((s,r) => s + (r.forecast || 0), 0); },
+            get forecastVsBudget() {
+                if (!this.budgetTotal) return 0;
+                return Math.round(this.forecastTotal - this.budgetTotal);
+            },
+            setForecast(key, val) {
+                this._forecast = {...this._forecast, [key]: {...(this._forecast[key] || {}), forecast: val}};
+            },
+            setForecastComment(key, val) {
+                this._forecast = {...this._forecast, [key]: {...(this._forecast[key] || {}), comment: val}};
+            },
+            async loadForecast() {
+                try {
+                    const res = await authFetch('/api/v1/projects/' + _opProjectId() + '/fact/forecast-data');
+                    if (res.ok) {
+                        const rows = await res.json();
+                        const map = {};
+                        (rows || []).forEach(r => { if (r.month) map[r.month] = {forecast: r.forecast, comment: r.comment}; });
+                        this._forecast = map;
+                    }
+                } catch(e) {}
+            },
+            async saveForecast() {
+                this.forecastSaving = true;
+                // Persist only open (editable) periods
+                const payload = this.forecastRows
+                    .filter(r => !r.closed)
+                    .map(r => ({month: r.key, forecast: r.forecast, comment: r.comment}));
+                try {
+                    const res = await authFetch('/api/v1/projects/' + _opProjectId() + '/fact/forecast-data', {
+                        method:'PUT', body:JSON.stringify(payload),
+                    });
+                    if (!res.ok) { const err=await res.json().catch(()=>({})); alert(err.detail||'Ошибка сохранения прогноза'); }
+                } catch(e) { alert('Ошибка: '+e.message); }
+                finally { this.forecastSaving=false; }
+            },
+        };
+    }
+
+    function opMetricsApp() {
+        return {
+            cards: [],
+            redZoneCount: 0,
+            loadingMetrics: true,
+            async loadMetrics() {
+                this.loadingMetrics = true;
+                const id = _opProjectId();
+                if (!id) { this.loadingMetrics = false; return; }
+                try {
+                    // Target metrics defined in the financial model (op_metric_rows)
+                    const projRes = await authFetch('/api/v1/projects/' + id);
+                    const targets = [];           // {name, source, plan: {key: val}}
+                    let startYear = new Date().getFullYear();
+                    if (projRes.ok) {
+                        const proj = await projRes.json();
+                        const fm = proj.financial_model || {};
+                        startYear = proj.start_date ? parseInt(proj.start_date.slice(0,4)) : startYear;
+                        (fm.op_metric_rows || []).forEach(r => {
+                            const name = r.metric === '__custom__' ? (r.metricCustom || '').trim() : r.metric;
+                            if (!name) return;
+                            const plan = {};
+                            (r.monthlyValues || []).forEach((yearVals, yi) => {
+                                (yearVals || []).forEach((val, mi) => {
+                                    if (val) plan[(startYear + yi) + '-' + String(mi + 1).padStart(2,'0')] = val;
+                                });
+                            });
+                            targets.push({name, source: r.source || '', plan});
+                        });
+                    }
+                    // Fact values
+                    const factByMetric = {};      // name -> [{ym, fact}]
+                    const factRes = await authFetch('/api/v1/projects/' + id + '/fact');
+                    if (factRes.ok) {
+                        const entries = await factRes.json();
+                        entries.forEach(e => {
+                            if (e.fact_value == null) return;
+                            const ym = e.year + '-' + String(e.month).padStart(2,'0');
+                            (factByMetric[e.metric_name] = factByMetric[e.metric_name] || []).push({ym, fact: e.fact_value, plan: e.plan_value});
+                        });
+                    }
+                    const M = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+                    const fmtVal = (v) => v == null ? '—' : Number(v).toLocaleString('ru-RU');
+                    let red = 0;
+                    this.cards = targets.map(t => {
+                        // Latest fact
+                        const facts = (factByMetric[t.name] || []).slice().sort((a,b) => a.ym < b.ym ? 1 : -1);
+                        const latest = facts[0];
+                        const factVal = latest ? latest.fact : null;
+                        // Target = max plan value (peak goal)
+                        const planVals = Object.values(t.plan);
+                        const targetVal = planVals.length ? Math.max(...planVals) : (latest && latest.plan != null ? latest.plan : null);
+                        const achievement = (factVal != null && targetVal) ? Math.round(factVal / targetVal * 1000) / 10 : null;
+                        let dotColor = '#34C759', borderColor = '#DDF0E1';
+                        if (achievement == null) { dotColor = '#C7C7CC'; borderColor = '#E5E5ED'; }
+                        else if (achievement >= 100) { dotColor = '#34C759'; borderColor = '#DDF0E1'; }
+                        else if (achievement >= 80) { dotColor = '#FF9500'; borderColor = '#FFE9C7'; }
+                        else { dotColor = '#FF3B30'; borderColor = '#FFD9D6'; red++; }
+                        let factPeriod = '—', factDate = '';
+                        if (latest) {
+                            const [y, mo] = latest.ym.split('-');
+                            factPeriod = M[parseInt(mo) - 1] + ' ' + y;
+                            factDate = factPeriod;
+                        }
+                        return {
+                            name: t.name, source: t.source,
+                            factLabel: fmtVal(factVal), factPeriod, factDate,
+                            targetLabel: fmtVal(targetVal),
+                            achievement, barPct: achievement == null ? 0 : Math.min(100, achievement),
+                            dotColor, borderColor,
+                        };
+                    });
+                    this.redZoneCount = red;
+                } catch(e) {}
+                finally { this.loadingMetrics = false; }
             },
         };
     }
@@ -1069,6 +1517,7 @@
                 pending_approval: 'На согласовании',
                 approved: 'Утверждён',
                 rejected: 'Отклонён',
+                rework_needed: 'На доработку',
             },
 
             get canApprove() {

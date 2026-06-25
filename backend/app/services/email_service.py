@@ -119,7 +119,8 @@ def _email_wrapper(project_name: str) -> tuple:
 _STATUS_LABELS = {
     "approved": ("Утверждён", "#34C759", "#DDF0E1"),
     "rejected": ("Отклонён", "#FF3B30", "#FFE5E5"),
-    "draft": ("Возвращён на доработку", "#FF9500", "#FFF4E5"),
+    "draft": ("Возвращён в черновик", "#FF9500", "#FFF4E5"),
+    "rework_needed": ("Отправлен на доработку", "#0055CC", "#E8F2FE"),
 }
 
 

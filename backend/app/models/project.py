@@ -52,6 +52,9 @@ class Project(Base):
     # Status change history [{status, changed_at, changed_by, changed_by_id}]
     status_history = Column(JSON, nullable=True)
 
+    # Quarterly re-forecast (no versioning): [{month: "YYYY-MM", forecast, comment}]
+    forecast_data = Column(JSON, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

@@ -44,7 +44,8 @@ def notify_owner(db: Session, owner_id: int, project_id: int, project_name: str,
     status_labels = {
         "approved": "Утверждён",
         "rejected": "Отклонён",
-        "draft": "Возвращён на доработку",
+        "draft": "Возвращён в черновик",
+        "rework_needed": "Отправлен на доработку",
         "pending_approval": "Отправлен на согласование",
     }
     label = status_labels.get(new_status, new_status)
