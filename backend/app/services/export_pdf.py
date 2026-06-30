@@ -242,12 +242,17 @@ def _render_operational_detail(p: dict, ai_comment: str | None) -> str:
     )
 
     # Ключевые факты
-    key_facts = _kv_table([
-        ("Запрашиваемый бюджет", budget_str),
-        ("Запрашиваемый ресурс", _html_or_text(fm.get("op_requested_resource"))),
+    resource_str = _html_or_text(fm.get("op_requested_resource"))
+    key_facts_rows = [("Запрашиваемый бюджет", budget_str)]
+    # When no numeric budget is set, budget_str already falls back to the
+    # requested-resource text — avoid showing the same value twice.
+    if resource_str != budget_str:
+        key_facts_rows.append(("Запрашиваемый ресурс", resource_str))
+    key_facts_rows += [
         ("Ключевая метрика", _esc(fm.get("op_metrics"))),
         ("Результат маршрутизации", _route_label(route)),
-    ])
+    ]
+    key_facts = _kv_table(key_facts_rows)
 
     # 1. Паспорт проекта
     mvz = " / ".join(

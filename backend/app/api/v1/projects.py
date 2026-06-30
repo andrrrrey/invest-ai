@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -91,6 +92,16 @@ def list_projects(
         q = q.filter(Project.status == status)
     if project_type:
         q = q.filter(Project.project_type == project_type)
+    else:
+        # Smart contracts live in the same table but have their own dedicated
+        # section. They must never leak into the general projects list.
+        # (NULL project_type means a legacy investment project — keep it.)
+        q = q.filter(
+            or_(
+                Project.project_type.is_(None),
+                Project.project_type != "smart_contract",
+            )
+        )
     return q.order_by(Project.created_at.desc()).all()
 
 
