@@ -15,6 +15,35 @@ const ROLE_LABELS = {
     owner: 'Заявитель',
 };
 
+/**
+ * Escape HTML special characters so a string renders as plain text.
+ */
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+/**
+ * Sanitize rich-text (Quill) HTML before injecting it into the DOM via x-html.
+ * Prevents stored XSS. Uses DOMPurify when loaded; if the sanitizer is missing
+ * it fails safe by escaping the content as plain text (never injects raw HTML).
+ */
+function sanitizeRichText(content) {
+    if (!content) return '';
+    const looksLikeHtml = /<[a-z][\s\S]*>/i.test(content);
+    if (looksLikeHtml) {
+        if (window.DOMPurify) {
+            return window.DOMPurify.sanitize(content);
+        }
+        // No sanitizer available — do NOT inject untrusted HTML.
+        return escapeHtml(content).replace(/\n/g, '<br>');
+    }
+    // Plain text — escape and preserve line breaks.
+    return escapeHtml(content).replace(/\n/g, '<br>');
+}
+
 function getToken()      { return localStorage.getItem('invest_token'); }
 function getUserId()     { return parseInt(localStorage.getItem('invest_user_id') || '0', 10); }
 function getUserRole()   { return localStorage.getItem('invest_role') || ''; }

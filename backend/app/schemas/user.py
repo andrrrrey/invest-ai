@@ -4,6 +4,24 @@ from datetime import datetime
 
 VALID_ROLES = {"ceo", "cfo", "manager", "owner"}
 
+MIN_PASSWORD_LENGTH = 8
+
+
+def validate_password_strength(password: str) -> None:
+    """Enforce a minimal password policy.
+
+    Raises ValueError with a Russian message if the password is too weak.
+    Policy: at least 8 characters, containing both letters and digits.
+    """
+    if password is None or len(password) < MIN_PASSWORD_LENGTH:
+        raise ValueError(
+            f"Пароль должен содержать не менее {MIN_PASSWORD_LENGTH} символов."
+        )
+    has_letter = any(c.isalpha() for c in password)
+    has_digit = any(c.isdigit() for c in password)
+    if not (has_letter and has_digit):
+        raise ValueError("Пароль должен содержать буквы и цифры.")
+
 ROLE_LABELS = {
     "ceo": "CEO",
     "cfo": "CFO",

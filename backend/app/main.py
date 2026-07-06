@@ -51,6 +51,8 @@ app.include_router(fact_router.router, prefix="/api/v1")
 
 @app.on_event("startup")
 def on_startup():
+    # Fail fast on insecure production configuration (default SECRET_KEY, CORS *, ...)
+    settings.validate_for_production()
     init_db()
 
 

@@ -179,6 +179,12 @@ def export_report(
     # Load projects
     q = db.query(Project).filter(Project.id.in_(req.project_ids))
 
+    # An owner may only export their own projects — never another owner's data
+    # via a directly-supplied project_id (IDOR). CEO/CFO/manager see the whole
+    # portfolio by design.
+    if current_user.role == "owner":
+        q = q.filter(Project.user_id == current_user.id)
+
     projects_orm = q.order_by(Project.created_at.desc()).all()
 
     if not projects_orm:
@@ -194,11 +200,13 @@ def export_report(
         if isinstance(rd, dict) and rd.get("commentary"):
             rd["commentary"] = _clean_ai_text(rd["commentary"])
 
-    # AI generation (optional) — per-project commentary only
+    # AI generation (optional) — per-project commentary only.
+    # Respect the global AI egress gate: never call external providers when
+    # AI is disabled, even if the client requested include_ai.
     ai_commentaries: dict[int, str] = {}
     portfolio_commentary = ""
 
-    if req.include_ai:
+    if req.include_ai and settings_store.is_ai_enabled():
         for p in projects:
             try:
                 result = ai_service.analyze_project(p, p.get("metrics") or {})

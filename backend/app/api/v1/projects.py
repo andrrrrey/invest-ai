@@ -77,6 +77,18 @@ def _check_project_access(project: Project, current_user: User):
         )
 
 
+def get_accessible_project(project_id: int, db: Session, current_user: User) -> Project:
+    """Load a project by id (404 if missing) and enforce access control.
+
+    Reusable across all nested resource endpoints (attachments, comments,
+    tranches, fact, export) so that an owner cannot reach another owner's
+    project via a direct id (IDOR).
+    """
+    project = _get_project_or_404(project_id, db)
+    _check_project_access(project, current_user)
+    return project
+
+
 @router.get("/", response_model=List[ProjectRead])
 def list_projects(
     status: str | None = None,

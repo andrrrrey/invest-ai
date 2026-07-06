@@ -1,3 +1,5 @@
+import secrets
+import string
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -15,8 +17,11 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token", auto_error=False)
 
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8 hours
+ALGORITHM = settings.JWT_ALGORITHM
+# Token lifetime is configurable via JWT_EXPIRE_MINUTES (default 120 min).
+# Shorter sessions limit the blast radius of a stolen token (defense-in-depth
+# alongside XSS sanitisation; httpOnly-cookie migration is a separate epic).
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.JWT_EXPIRE_MINUTES
 
 
 # ---------- password helpers ----------
@@ -27,6 +32,12 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def hash_password(plain: str) -> str:
     return pwd_context.hash(plain)
+
+
+def generate_password(length: int = 16) -> str:
+    """Generate a cryptographically strong random password."""
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 # ---------- JWT helpers ----------
