@@ -9,6 +9,7 @@ from ...database import get_db
 from ...models.comment import Comment
 from ...models.project import Project
 from ...auth import get_current_user
+from .projects import get_accessible_project
 
 router = APIRouter(tags=["comments"])
 
@@ -33,8 +34,7 @@ def list_comments(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    if not db.get(Project, project_id):
-        raise HTTPException(status_code=404, detail="Проект не найден")
+    get_accessible_project(project_id, db, current_user)
     rows = (
         db.query(Comment)
         .filter(Comment.project_id == project_id)
@@ -59,8 +59,7 @@ def create_comment(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    if not db.get(Project, project_id):
-        raise HTTPException(status_code=404, detail="Проект не найден")
+    get_accessible_project(project_id, db, current_user)
     if not body.text.strip():
         raise HTTPException(status_code=400, detail="Комментарий не может быть пустым")
     c = Comment(project_id=project_id, user_id=current_user.id, text=body.text.strip())

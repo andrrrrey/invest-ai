@@ -52,24 +52,29 @@ def init_db():
 
 def _seed_admin():
     from .models.user import User
-    from .auth import hash_password
+    from .auth import hash_password, generate_password
     from .config import settings
 
     db = SessionLocal()
     try:
         if db.query(User).count() == 0:
+            # Use env-provided seed passwords when set; otherwise generate a
+            # strong random password that is never printed or persisted in
+            # plaintext. The account is then recovered via "forgot password".
+            ceo_pw = settings.SEED_CEO_PASSWORD or generate_password()
+            cfo_pw = settings.SEED_CFO_PASSWORD or generate_password()
             seed_users = [
                 User(
                     email=settings.SEED_CEO_EMAIL,
                     full_name=settings.SEED_CEO_NAME,
-                    hashed_password=hash_password(settings.SEED_CEO_PASSWORD),
+                    hashed_password=hash_password(ceo_pw),
                     role="ceo",
                     is_active=True,
                 ),
                 User(
                     email=settings.SEED_CFO_EMAIL,
                     full_name=settings.SEED_CFO_NAME,
-                    hashed_password=hash_password(settings.SEED_CFO_PASSWORD),
+                    hashed_password=hash_password(cfo_pw),
                     role="cfo",
                     is_active=True,
                 ),
@@ -77,8 +82,12 @@ def _seed_admin():
             for u in seed_users:
                 db.add(u)
             db.commit()
-            print(f"[init_db] Seed users created:")
-            print(f"  CEO: {settings.SEED_CEO_EMAIL} / {settings.SEED_CEO_PASSWORD}")
-            print(f"  CFO: {settings.SEED_CFO_EMAIL} / {settings.SEED_CFO_PASSWORD}")
+            print("[init_db] Seed users created (CEO, CFO).")
+            if not settings.SEED_CEO_PASSWORD or not settings.SEED_CFO_PASSWORD:
+                print(
+                    "[init_db] A random password was generated for accounts without "
+                    "SEED_*_PASSWORD set. Use «Забыли пароль?» to set a password, or "
+                    "provide SEED_CEO_PASSWORD / SEED_CFO_PASSWORD via environment."
+                )
     finally:
         db.close()

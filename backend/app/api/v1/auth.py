@@ -1,6 +1,5 @@
 import os
 import secrets
-import string
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -11,19 +10,21 @@ from sqlalchemy.orm import Session
 
 from ...database import get_db
 from ...models.user import User
-from ...auth import verify_password, hash_password, create_access_token, get_current_user
+from ...auth import (
+    verify_password,
+    hash_password,
+    create_access_token,
+    get_current_user,
+    generate_password,
+)
 from ...schemas.user import Token, UserRead, UserProfileUpdate, ChangePasswordRequest
+from ...schemas.user import validate_password_strength
 from ... import settings_store
 from ...services.email_service import send_registration_email, send_password_reset_email
 
 AVATARS_DIR = os.environ.get("AVATARS_DIR", "/data/avatars")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-
-def _generate_password(length: int = 12) -> str:
-    alphabet = string.ascii_letters + string.digits
-    return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 class RegisterRequest(BaseModel):
@@ -71,7 +72,7 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/register", status_code=201)
-def register(body: RegisterRequest, db: Session = Depends(get_db)):
+def register(body: RegisterRequest, request: Request, db: Session = Depends(get_db)):
     """Self-registration for applicants (owner role). Email domain must match CFO-configured domain."""
     allowed_domain = settings_store.get_registration_domain()
     if not allowed_domain:
@@ -98,21 +99,30 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
             detail="Пользователь с таким email уже зарегистрирован.",
         )
 
-    password = _generate_password()
+    # Create the account with an unknown, cryptographically-random password.
+    # The user never receives a plaintext password by email — instead we send a
+    # one-time invite link (reset token) so they set their own password. This
+    # avoids leaking credentials via email.
+    invite_token = secrets.token_urlsafe(32)
     user = User(
         email=email,
         full_name=body.full_name.strip(),
-        hashed_password=hash_password(password),
+        hashed_password=hash_password(generate_password()),
         role="owner",
         is_active=True,
+        password_reset_token=invite_token,
+        password_reset_expires=datetime.now(timezone.utc) + timedelta(hours=24),
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
     )
     db.add(user)
     db.commit()
 
+    base_url = str(request.base_url).rstrip("/")
+    invite_url = f"{base_url}/reset-password.html?token={invite_token}"
+
     try:
-        send_registration_email(email, body.full_name.strip(), password)
+        send_registration_email(email, body.full_name.strip(), invite_url)
     except Exception as exc:
         # Roll back user creation if email sending fails so the user can retry
         db.delete(user)
@@ -122,7 +132,7 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
             detail=f"Не удалось отправить письмо: {exc}",
         )
 
-    return {"detail": "Регистрация успешна. Пароль отправлен на ваш email."}
+    return {"detail": "Регистрация успешна. Ссылка для установки пароля отправлена на ваш email."}
 
 
 @router.put("/me", response_model=UserRead)
@@ -162,8 +172,10 @@ def change_password(
     """Change own password. Requires current password for verification."""
     if not verify_password(body.current_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Неверный текущий пароль.")
-    if len(body.new_password) < 6:
-        raise HTTPException(status_code=422, detail="Новый пароль должен содержать не менее 6 символов.")
+    try:
+        validate_password_strength(body.new_password)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     current_user.hashed_password = hash_password(body.new_password)
     current_user.updated_at = datetime.utcnow()
     db.commit()
@@ -218,8 +230,10 @@ def forgot_password(body: ForgotPasswordRequest, request: Request, db: Session =
 @router.post("/reset-password", status_code=200)
 def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
     """Reset password using a valid token."""
-    if len(body.new_password) < 6:
-        raise HTTPException(status_code=422, detail="Пароль должен содержать не менее 6 символов.")
+    try:
+        validate_password_strength(body.new_password)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
     user = db.query(User).filter(User.password_reset_token == body.token).first()
     if not user:
@@ -273,7 +287,9 @@ async def upload_avatar(
                 pass
 
     ext = "jpg" if file.content_type == "image/jpeg" else file.content_type.split("/")[1]
-    filename = f"{current_user.id}_{uuid.uuid4().hex[:8]}.{ext}"
+    # Unguessable filename: 128-bit random token, no user-id prefix, so avatar
+    # URLs cannot be enumerated from a user id (the static mount is public).
+    filename = f"{uuid.uuid4().hex}.{ext}"
     filepath = os.path.join(AVATARS_DIR, filename)
 
     with open(filepath, "wb") as f:

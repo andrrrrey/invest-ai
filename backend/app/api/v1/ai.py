@@ -37,6 +37,12 @@ class ExtractAmountRequest(BaseModel):
 
 
 def _check_api_key():
+    if not settings_store.is_ai_enabled():
+        raise HTTPException(
+            status_code=403,
+            detail="AI-функции отключены. Включите их в Настройках (передача данных "
+                   "во внешние AI-провайдеры разрешается ответственным лицом).",
+        )
     provider = settings_store.get_ai_provider()
     key = settings_store.get_anthropic_key() if provider == "anthropic" else settings_store.get_openai_key()
     if not key:

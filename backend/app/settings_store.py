@@ -2,19 +2,91 @@
 File-based settings store.
 Stores configuration (OpenAI/Anthropic API keys, active AI provider, etc.) in a JSON file on disk.
 Environment variables OPENAI_API_KEY / ANTHROPIC_API_KEY always take precedence over file-stored keys.
+
+Secret fields (``*_api_key``) are encrypted at rest with Fernet when the
+``SETTINGS_ENCRYPTION_KEY`` environment variable is set. Any passphrase works —
+it is stretched to a valid Fernet key via SHA-256. Values written before a key
+was configured (or plaintext values) are read transparently and re-encrypted on
+the next save (backward compatible).
 """
 
+import base64
+import hashlib
 import json
+import logging
 import os
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 _SETTINGS_FILE = Path(os.getenv("SETTINGS_PATH", "/data/settings.json"))
+
+# Fields that must be encrypted at rest.
+_SECRET_FIELDS = ("openai_api_key", "anthropic_api_key", "routerai_api_key")
+_ENC_PREFIX = "enc:v1:"
+
+_warned_no_key = False
+
+
+def _get_fernet():
+    """Return a Fernet instance if SETTINGS_ENCRYPTION_KEY is configured, else None."""
+    global _warned_no_key
+    passphrase = os.getenv("SETTINGS_ENCRYPTION_KEY")
+    if not passphrase:
+        if not _warned_no_key:
+            logger.warning(
+                "SETTINGS_ENCRYPTION_KEY не задан — API-ключи AI хранятся в открытом "
+                "виде. Задайте SETTINGS_ENCRYPTION_KEY для шифрования на диске."
+            )
+            _warned_no_key = True
+        return None
+    try:
+        from cryptography.fernet import Fernet
+        # Stretch any passphrase into a 32-byte urlsafe-base64 Fernet key.
+        digest = hashlib.sha256(passphrase.encode("utf-8")).digest()
+        return Fernet(base64.urlsafe_b64encode(digest))
+    except Exception:
+        logger.exception("Не удалось инициализировать шифрование настроек")
+        return None
+
+
+def _decrypt_secrets(data: dict) -> dict:
+    """Decrypt secret fields in-place-ish and return the dict (for reading)."""
+    fernet = _get_fernet()
+    for field in _SECRET_FIELDS:
+        val = data.get(field)
+        if isinstance(val, str) and val.startswith(_ENC_PREFIX):
+            token = val[len(_ENC_PREFIX):]
+            if fernet is None:
+                # Cannot decrypt without the key — treat as unavailable.
+                data[field] = None
+                continue
+            try:
+                data[field] = fernet.decrypt(token.encode("utf-8")).decode("utf-8")
+            except Exception:
+                logger.exception("Не удалось расшифровать поле %s", field)
+                data[field] = None
+    return data
+
+
+def _encrypt_secrets(data: dict) -> dict:
+    """Return a copy of data with secret fields encrypted (when a key is set)."""
+    fernet = _get_fernet()
+    if fernet is None:
+        return data  # no key configured — store as-is (plaintext, dev fallback)
+    out = dict(data)
+    for field in _SECRET_FIELDS:
+        val = out.get(field)
+        if isinstance(val, str) and val and not val.startswith(_ENC_PREFIX):
+            token = fernet.encrypt(val.encode("utf-8")).decode("utf-8")
+            out[field] = _ENC_PREFIX + token
+    return out
 
 
 def _load() -> dict:
     if _SETTINGS_FILE.exists():
         try:
-            return json.loads(_SETTINGS_FILE.read_text(encoding="utf-8"))
+            return _decrypt_secrets(json.loads(_SETTINGS_FILE.read_text(encoding="utf-8")))
         except Exception:
             return {}
     return {}
@@ -22,7 +94,8 @@ def _load() -> dict:
 
 def _save(data: dict) -> None:
     _SETTINGS_FILE.write_text(
-        json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
+        json.dumps(_encrypt_secrets(data), indent=2, ensure_ascii=False),
+        encoding="utf-8",
     )
 
 
@@ -112,6 +185,27 @@ def get_routerai_model() -> str:
 def set_routerai_model(model: str) -> None:
     data = _load()
     data["routerai_model"] = model.strip()
+    _save(data)
+
+
+def is_ai_enabled() -> bool:
+    """Whether outbound calls to external AI providers are allowed.
+
+    Sending project data (financial models, risks, plan/fact) to OpenAI /
+    Anthropic / RouterAI is a data-egress decision. It is therefore opt-in:
+    disabled by default in production (must be enabled explicitly by the CFO in
+    Settings), enabled by default only in development for convenience.
+    """
+    from .config import settings
+    val = _load().get("ai_enabled")
+    if val is None:
+        return not settings.is_production
+    return bool(val)
+
+
+def set_ai_enabled(enabled: bool) -> None:
+    data = _load()
+    data["ai_enabled"] = bool(enabled)
     _save(data)
 
 

@@ -1301,6 +1301,7 @@
         </main>
     </div>
 
+    <script src="/js/purify.min.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/finance.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
@@ -1390,9 +1391,8 @@
                 },
 
                 renderRichText(content) {
-                    if (!content) return '';
-                    if (/<[a-z][\s\S]*>/i.test(content)) return content;
-                    return content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+                    // Sanitize rich-text HTML before x-html injection (prevents stored XSS).
+                    return sanitizeRichText(content);
                 },
 
                 get statusLabel() {

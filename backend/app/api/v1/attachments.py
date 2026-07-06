@@ -12,6 +12,7 @@ from ...database import get_db
 from ...models.attachment import Attachment
 from ...models.project import Project
 from ...auth import get_current_user, require_approver
+from .projects import get_accessible_project
 
 router = APIRouter(tags=["attachments"])
 
@@ -50,8 +51,7 @@ async def upload_attachment(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    if not db.get(Project, project_id):
-        raise HTTPException(status_code=404, detail="Проект не найден")
+    get_accessible_project(project_id, db, current_user)
 
     ext = _ext(file.filename or "")
     if ext not in ALLOWED_EXTENSIONS:
@@ -98,8 +98,7 @@ def list_attachments(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    if not db.get(Project, project_id):
-        raise HTTPException(status_code=404, detail="Проект не найден")
+    get_accessible_project(project_id, db, current_user)
     rows = (
         db.query(Attachment)
         .filter(Attachment.project_id == project_id)
@@ -127,6 +126,7 @@ def download_attachment(
     att = db.get(Attachment, attachment_id)
     if not att:
         raise HTTPException(status_code=404, detail="Файл не найден")
+    get_accessible_project(att.project_id, db, current_user)
     file_path = os.path.join(ATTACHMENTS_DIR, str(att.project_id), att.filename)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Файл не найден на диске")

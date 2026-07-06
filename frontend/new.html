@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+    <script src="/js/purify.min.js"></script>
     <script src="/js/auth.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
     <script src="/js/finance.js"></script>
@@ -2490,7 +2491,8 @@ function richEditor(formObj, field, placeholder) {
             this._quill = q;
 
             const initVal = formObj[field] || '';
-            if (initVal) q.root.innerHTML = initVal;
+            // Sanitize server-loaded HTML before injecting into the editor (prevents stored XSS).
+            if (initVal) q.root.innerHTML = window.DOMPurify ? DOMPurify.sanitize(initVal) : '';
 
             // Quill → form
             q.on('text-change', () => {
@@ -2501,7 +2503,9 @@ function richEditor(formObj, field, placeholder) {
 
             // form → Quill (e.g. AI-generated content)
             Alpine.effect(() => {
-                const val = formObj[field] || '';
+                const raw = formObj[field] || '';
+                // Sanitize before injection; DOMPurify is stable on clean Quill HTML so this converges.
+                const val = raw && window.DOMPurify ? DOMPurify.sanitize(raw) : raw;
                 const cur = q.root.innerHTML === '<p><br></p>' ? '' : q.root.innerHTML;
                 if (val !== cur) {
                     this._syncing = true;

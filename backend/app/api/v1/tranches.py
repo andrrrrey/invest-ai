@@ -9,6 +9,7 @@ from ...database import get_db
 from ...models.project import Project
 from ...models.tranche import Tranche, TriggerChecklistItem, TrancheHistory
 from ...auth import get_current_user, require_approver
+from .projects import get_accessible_project
 
 router = APIRouter(tags=["tranches"])
 
@@ -89,6 +90,13 @@ def _get_tranche_or_404(db: Session, tranche_id: int) -> Tranche:
     return t
 
 
+def _get_accessible_tranche(db: Session, tranche_id: int, current_user) -> Tranche:
+    """Load a tranche (404 if missing) and enforce access to its parent project."""
+    t = _get_tranche_or_404(db, tranche_id)
+    get_accessible_project(t.project_id, db, current_user)
+    return t
+
+
 # ── Project tranches ──────────────────────────────────────────────────────────
 
 @router.get("/projects/{project_id}/tranches", response_model=List[TrancheRead])
@@ -97,8 +105,7 @@ def list_tranches(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    if not db.get(Project, project_id):
-        raise HTTPException(status_code=404, detail="Проект не найден")
+    get_accessible_project(project_id, db, current_user)
     return db.query(Tranche).filter(Tranche.project_id == project_id).order_by(Tranche.order_index).all()
 
 
@@ -109,8 +116,7 @@ def create_tranche(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    if not db.get(Project, project_id):
-        raise HTTPException(status_code=404, detail="Проект не найден")
+    get_accessible_project(project_id, db, current_user)
     t = Tranche(project_id=project_id, **body.model_dump())
     db.add(t)
     db.flush()
@@ -132,7 +138,7 @@ def update_tranche(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    t = _get_tranche_or_404(db, tranche_id)
+    t = _get_accessible_tranche(db, tranche_id, current_user)
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(t, field, value)
     db.commit()
@@ -146,7 +152,7 @@ def delete_tranche(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    t = _get_tranche_or_404(db, tranche_id)
+    t = _get_accessible_tranche(db, tranche_id, current_user)
     db.delete(t)
     db.commit()
 
@@ -189,7 +195,7 @@ def get_triggers(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    _get_tranche_or_404(db, tranche_id)
+    _get_accessible_tranche(db, tranche_id, current_user)
     return db.query(TriggerChecklistItem).filter(TriggerChecklistItem.tranche_id == tranche_id).all()
 
 
@@ -200,7 +206,7 @@ def replace_triggers(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    t = _get_tranche_or_404(db, tranche_id)
+    t = _get_accessible_tranche(db, tranche_id, current_user)
     # Delete existing and replace with new list
     db.query(TriggerChecklistItem).filter(TriggerChecklistItem.tranche_id == tranche_id).delete()
     new_items = []
@@ -233,7 +239,7 @@ def get_history(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    _get_tranche_or_404(db, tranche_id)
+    _get_accessible_tranche(db, tranche_id, current_user)
     rows = (
         db.query(TrancheHistory)
         .filter(TrancheHistory.tranche_id == tranche_id)

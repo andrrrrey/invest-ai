@@ -13,6 +13,7 @@ from ...models.project import Project
 from ...auth import get_current_user
 from ...services import ai_service
 from ... import settings_store
+from .projects import get_accessible_project
 
 router = APIRouter(tags=["fact"])
 
@@ -105,8 +106,7 @@ def get_fact(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    if not db.get(Project, project_id):
-        raise HTTPException(status_code=404, detail="Проект не найден")
+    get_accessible_project(project_id, db, current_user)
     rows = (
         db.query(FactEntry)
         .filter(FactEntry.project_id == project_id)
@@ -123,8 +123,7 @@ def upsert_fact(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    if not db.get(Project, project_id):
-        raise HTTPException(status_code=404, detail="Проект не найден")
+    get_accessible_project(project_id, db, current_user)
     updated = [_upsert(db, project_id, item) for item in items]
     db.commit()
     for e in updated:
@@ -139,9 +138,7 @@ def get_forecast_data(
     current_user=Depends(get_current_user),
 ):
     """Stored quarterly re-forecast (no versioning)."""
-    project = db.get(Project, project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Проект не найден")
+    project = get_accessible_project(project_id, db, current_user)
     return project.forecast_data or []
 
 
@@ -153,9 +150,7 @@ def save_forecast_data(
     current_user=Depends(get_current_user),
 ):
     """Persist the re-forecast for open periods (overwrites previous, no versions)."""
-    project = db.get(Project, project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Проект не найден")
+    project = get_accessible_project(project_id, db, current_user)
     project.forecast_data = [r.model_dump() for r in rows]
     db.commit()
     db.refresh(project)
@@ -169,8 +164,7 @@ async def import_fact(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    if not db.get(Project, project_id):
-        raise HTTPException(status_code=404, detail="Проект не найден")
+    get_accessible_project(project_id, db, current_user)
 
     content = await file.read()
     filename = (file.filename or "").lower()
@@ -235,8 +229,7 @@ def get_forecast(
     compute average month-over-month delta and project forward to fill missing months.
     Returns only the projected (non-existing) entries as a preview — does not write to DB.
     """
-    if not db.get(Project, project_id):
-        raise HTTPException(status_code=404, detail="Проект не найден")
+    get_accessible_project(project_id, db, current_user)
 
     rows = (
         db.query(FactEntry)
@@ -289,14 +282,17 @@ def ai_commentary(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ) -> dict:
+    if not settings_store.is_ai_enabled():
+        raise HTTPException(
+            status_code=403,
+            detail="AI-функции отключены. Включите их в Настройках.",
+        )
     provider = settings_store.get_ai_provider()
     key = settings_store.get_anthropic_key() if provider == "anthropic" else settings_store.get_openai_key()
     if not key:
         raise HTTPException(status_code=503, detail="AI не настроен")
 
-    project = db.get(Project, project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Проект не найден")
+    project = get_accessible_project(project_id, db, current_user)
 
     rows = (
         db.query(FactEntry)

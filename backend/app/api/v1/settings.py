@@ -24,6 +24,7 @@ class SettingsUpdate(BaseModel):
     routerai_api_key: Optional[str] = None
     routerai_model: Optional[str] = None
     ai_provider: Optional[str] = None  # "openai" | "anthropic" | "routerai"
+    ai_enabled: Optional[bool] = None
     investment_budget: Optional[float] = None
     registration_domain: Optional[str] = None
 
@@ -60,6 +61,7 @@ def get_settings(_=Depends(require_cfo)) -> dict:
         "routerai_models": ROUTERAI_MODELS,
         "ai_provider": provider,
         "ai_model": active_model,
+        "ai_enabled": settings_store.is_ai_enabled(),
         "investment_budget": settings_store.get_investment_budget(),
         "registration_domain": settings_store.get_registration_domain(),
     }
@@ -80,6 +82,8 @@ def update_settings(body: SettingsUpdate, _=Depends(require_cfo)) -> dict:
         if body.ai_provider not in ("openai", "anthropic", "routerai"):
             raise HTTPException(status_code=400, detail="Неверное значение ai_provider. Допустимо: openai, anthropic, routerai")
         settings_store.set_ai_provider(body.ai_provider)
+    if body.ai_enabled is not None:
+        settings_store.set_ai_enabled(body.ai_enabled)
     if body.investment_budget is not None:
         settings_store.set_investment_budget(body.investment_budget)
     if body.registration_domain is not None:

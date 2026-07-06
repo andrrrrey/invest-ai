@@ -34,8 +34,12 @@ def _send_email(to_email: str, subject: str, html_body: str, text_body: str) -> 
         server.sendmail(settings.SMTP_FROM, to_email, msg.as_string())
 
 
-def send_registration_email(to_email: str, full_name: str, password: str) -> None:
-    """Send registration email with generated password to the new user."""
+def send_registration_email(to_email: str, full_name: str, invite_url: str) -> None:
+    """Send a registration invite with a one-time link to set the password.
+
+    The password is never sent by email — the user follows the link and chooses
+    their own password.
+    """
     subject = "Добро пожаловать в Инвестиционный процессор"
 
     html_body = f"""
@@ -61,25 +65,25 @@ def send_registration_email(to_email: str, full_name: str, password: str) -> Non
     </h1>
     <p style="font-size: 14px; color: #8E8E93; margin: 0 0 28px;">
       Здравствуйте, {full_name}! Вы успешно зарегистрированы как <strong>Заявитель</strong>.
+      Установите пароль по ссылке ниже, чтобы войти в систему.
     </p>
 
     <div style="background: #F2F2F7; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-      <div style="font-size: 12px; font-weight: 700; color: #8E8E93; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
-        Ваши данные для входа
-      </div>
-      <div style="margin-bottom: 10px;">
+      <div style="margin-bottom: 4px;">
         <span style="font-size: 13px; color: #8E8E93;">Email:</span>
         <span style="font-size: 13px; font-weight: 600; color: #1C1C1E; margin-left: 8px;">{to_email}</span>
       </div>
-      <div>
-        <span style="font-size: 13px; color: #8E8E93;">Пароль:</span>
-        <span style="font-size: 15px; font-weight: 700; color: #5E5CE6; margin-left: 8px;
-                     font-family: 'Courier New', monospace; letter-spacing: 1px;">{password}</span>
-      </div>
     </div>
 
+    <a href="{invite_url}"
+       style="display: block; text-align: center; background: #5E5CE6; color: white;
+              padding: 14px 28px; border-radius: 12px; font-size: 15px; font-weight: 700;
+              text-decoration: none; margin-bottom: 20px;">
+      Установить пароль
+    </a>
+
     <p style="font-size: 13px; color: #FF9500; margin: 0 0 24px;">
-      ⚠️ Рекомендуем сменить пароль после первого входа.
+      ⚠️ Ссылка действительна 24 часа. Если вы не запрашивали регистрацию — проигнорируйте письмо.
     </p>
 
     <p style="font-size: 12px; color: #C7C7CC; margin: 0; text-align: center;">
@@ -94,8 +98,8 @@ def send_registration_email(to_email: str, full_name: str, password: str) -> Non
         f"Здравствуйте, {full_name}!\n\n"
         f"Вы успешно зарегистрированы в Инвестиционном процессоре в роли Заявителя.\n\n"
         f"Email: {to_email}\n"
-        f"Пароль: {password}\n\n"
-        f"Рекомендуем сменить пароль после первого входа."
+        f"Установите пароль по ссылке (действительна 24 часа):\n{invite_url}\n\n"
+        f"Если вы не запрашивали регистрацию — проигнорируйте это письмо."
     )
 
     _send_email(to_email, subject, html_body, text_body)
