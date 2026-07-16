@@ -7,7 +7,10 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      - DATABASE_URL=sqlite:////data/invest_ai.db
+      # Respect DATABASE_URL from .env; fall back to SQLite when it is unset.
+      # To use PostgreSQL, set DATABASE_URL in .env and uncomment the `db`
+      # service below (and the `depends_on` block).
+      - DATABASE_URL=${DATABASE_URL:-sqlite:////data/invest_ai.db}
     volumes:
       - db_data:/data
       - ./backend/app:/app/app           # live code — no rebuild needed
@@ -19,6 +22,30 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    # Uncomment to make the backend wait for the Postgres service below.
+    # depends_on:
+    #   db:
+    #     condition: service_healthy
+
+  # Optional PostgreSQL service (recommended for production).
+  # To enable: uncomment this block, set in .env
+  #   DATABASE_URL=postgresql+psycopg2://invest:invest@db:5432/invest_ai
+  # and uncomment the backend `depends_on` block above.
+  # db:
+  #   image: postgres:16-alpine
+  #   container_name: invest_db
+  #   restart: unless-stopped
+  #   environment:
+  #     - POSTGRES_USER=invest
+  #     - POSTGRES_PASSWORD=invest
+  #     - POSTGRES_DB=invest_ai
+  #   volumes:
+  #     - pg_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U invest -d invest_ai"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
   nginx:
     image: nginx:1.25-alpine
@@ -37,3 +64,4 @@ services:
 volumes:
   db_data:
   nginx_logs:
+  # pg_data:   # uncomment together with the `db` service above
