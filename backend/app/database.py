@@ -26,25 +26,41 @@ def init_db():
     from . import models  # noqa: F401 — imports __init__.py, registers all models
     Base.metadata.create_all(bind=engine)
 
-    # Idempotent column migrations for existing databases
-    from sqlalchemy import text
-    with engine.connect() as conn:
-        for col_def in [
-            "ALTER TABLE projects ADD COLUMN value_score_data JSON",
-            "ALTER TABLE projects ADD COLUMN decision_route VARCHAR",
-            "ALTER TABLE projects ADD COLUMN user_id INTEGER REFERENCES users(id)",
-            "ALTER TABLE users ADD COLUMN avatar_url VARCHAR",
-            "ALTER TABLE projects ADD COLUMN status_history JSON",
-            "ALTER TABLE users ADD COLUMN password_reset_token VARCHAR",
-            "ALTER TABLE users ADD COLUMN password_reset_expires DATETIME",
-            "ALTER TABLE projects ADD COLUMN smart_contract_data JSON",
-            "ALTER TABLE projects ADD COLUMN forecast_data JSON",
-        ]:
+    # Idempotent column migrations for databases created by an older schema.
+    # (table, column, DDL type used in "ADD COLUMN <column> <type>")
+    migrations = [
+        ("projects", "value_score_data", "JSON"),
+        ("projects", "decision_route", "VARCHAR"),
+        ("projects", "user_id", "INTEGER REFERENCES users(id)"),
+        ("users", "avatar_url", "VARCHAR"),
+        ("projects", "status_history", "JSON"),
+        ("users", "password_reset_token", "VARCHAR"),
+        ("users", "password_reset_expires", "TIMESTAMP"),
+        ("projects", "smart_contract_data", "JSON"),
+        ("projects", "forecast_data", "JSON"),
+    ]
+
+    # Check which columns already exist via the dialect-agnostic Inspector,
+    # then add only the missing ones. Each ALTER runs in its own transaction
+    # with an explicit rollback on error so a single failure can't leave a
+    # PostgreSQL connection in an aborted-transaction state (unlike the old
+    # swallow-every-exception loop, which only worked on SQLite).
+    from sqlalchemy import inspect, text
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+
+    for table, column, ddl_type in migrations:
+        if table not in existing_tables:
+            continue  # create_all above already built the full current schema
+        existing_columns = {col["name"] for col in inspector.get_columns(table)}
+        if column in existing_columns:
+            continue
+        with engine.connect() as conn:
             try:
-                conn.execute(text(col_def))
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl_type}"))
                 conn.commit()
             except Exception:
-                pass  # column already exists
+                conn.rollback()  # keep the connection usable on Postgres
 
     # Seed initial CEO user if no users exist yet
     _seed_admin()
