@@ -148,6 +148,41 @@
         }
 
         .register-link a:hover { text-decoration: underline; }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 20px 0;
+            color: #C7C7CC;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .divider::before, .divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: #E5E5E5;
+        }
+
+        .btn-sso {
+            width: 100%;
+            padding: 14px;
+            background: white;
+            color: #1C1C1E;
+            border: 1.5px solid #E5E5E5;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-sso:hover { border-color: #5E5CE6; color: #5E5CE6; transform: translateY(-1px); }
     </style>
 </head>
 <body>
@@ -182,6 +217,12 @@
             <div class="error-msg" id="errorMsg"></div>
         </form>
 
+        <div class="divider">или</div>
+        <a href="/api/v1/auth/sso/login" class="btn-sso" id="ssoBtn">
+            <i class="fas fa-key"></i>
+            Войти через SSO
+        </a>
+
         <div class="register-link" style="margin-top:12px">
             <a href="/reset-password.html" style="color:#5E5CE6;font-weight:600;text-decoration:none">Восстановить пароль</a>
         </div>
@@ -192,6 +233,25 @@
 
     <script src="/js/auth.js"></script>
     <script>
+        // SSO callback: the backend redirects here with the token in the URL
+        // *fragment* (never the query string, so it can't leak into server logs
+        // or the Referer header). Consume it, persist auth, then scrub the URL.
+        (function handleSSOCallback() {
+            if (!window.location.hash || window.location.hash.length < 2) return;
+            const params = new URLSearchParams(window.location.hash.slice(1));
+            const token = params.get('access_token');
+            if (!token) return;
+            saveAuth({
+                access_token: token,
+                user_id: params.get('user_id'),
+                role: params.get('role'),
+                full_name: params.get('full_name'),
+            });
+            // Remove the token from history before navigating on.
+            history.replaceState(null, '', window.location.pathname);
+            window.location.replace('/');
+        })();
+
         // Already logged in → redirect
         if (isLoggedIn()) {
             window.location.href = '/';

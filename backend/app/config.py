@@ -30,6 +30,14 @@ class Settings(BaseSettings):
     SMTP_USER: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
     SMTP_FROM: str = "noreply@invest-ai.local"
+    # SSO / OIDC settings (Keycloak or any OpenID Connect-compatible provider).
+    # SSO is OFF unless OIDC_ISSUER_URL is set. When configured, users can sign
+    # in via /api/v1/auth/sso/login; new accounts are provisioned with SSO_DEFAULT_ROLE.
+    OIDC_ISSUER_URL: Optional[str] = None   # e.g. https://keycloak.example.com/realms/myrealm
+    OIDC_CLIENT_ID: Optional[str] = None
+    OIDC_CLIENT_SECRET: Optional[str] = None
+    OIDC_REDIRECT_URI: str = "http://localhost/api/v1/auth/sso/callback"
+    SSO_DEFAULT_ROLE: str = "owner"         # role assigned to new users created via SSO
 
     class Config:
         env_file = ".env"
@@ -59,6 +67,14 @@ class Settings(BaseSettings):
             errors.append(
                 "CORS_ORIGINS must list explicit origins in production; "
                 "'*' together with credentials is not allowed."
+            )
+
+        # If SSO is enabled, its credentials must be fully configured, otherwise
+        # the login flow would 5xx on every attempt.
+        if self.OIDC_ISSUER_URL and not (self.OIDC_CLIENT_ID and self.OIDC_CLIENT_SECRET):
+            errors.append(
+                "OIDC_ISSUER_URL is set, so OIDC_CLIENT_ID and OIDC_CLIENT_SECRET "
+                "must also be provided to enable SSO."
             )
 
         if errors:

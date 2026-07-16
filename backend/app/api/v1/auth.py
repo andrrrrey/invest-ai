@@ -2,12 +2,18 @@ import os
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
+from typing import Optional
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status, UploadFile, File
+import httpx
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, status, UploadFile, File
+from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
+from jose import JWTError, jwt
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from ...config import settings
 from ...database import get_db
 from ...models.user import User
 from ...auth import (
@@ -300,3 +306,190 @@ async def upload_avatar(
     db.commit()
     db.refresh(current_user)
     return current_user
+
+
+# ─────────────────────────── SSO / OIDC ────────────────────────────
+# Optional single sign-on via any OpenID Connect provider (e.g. Keycloak).
+# Enabled only when OIDC_ISSUER_URL is configured; otherwise these endpoints
+# return 501. The flow: /sso/login redirects to the IdP, the IdP redirects back
+# to /sso/callback, we validate the id_token, provision the user if new, and
+# issue our OWN JWT so the rest of the app is identical to password login.
+
+_oidc_config_cache: dict = {}
+_jwks_cache: dict = {}
+
+
+def _get_oidc_config() -> dict:
+    """Fetch and cache the provider's OIDC discovery document."""
+    if _oidc_config_cache:
+        return _oidc_config_cache
+    if not settings.OIDC_ISSUER_URL:
+        raise HTTPException(status_code=501, detail="SSO не настроен (OIDC_ISSUER_URL не задан)")
+    discovery_url = settings.OIDC_ISSUER_URL.rstrip("/") + "/.well-known/openid-configuration"
+    try:
+        resp = httpx.get(discovery_url, timeout=10)
+        resp.raise_for_status()
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Не удалось получить OIDC discovery: {exc}")
+    _oidc_config_cache.update(resp.json())
+    return _oidc_config_cache
+
+
+def _get_signing_key(kid: Optional[str]) -> dict:
+    """Return the JWKS key matching `kid`, refetching JWKS on a miss (key rotation)."""
+    def _find(keys):
+        for k in keys:
+            if k.get("kid") == kid:
+                return k
+        return None
+
+    key = _find(_jwks_cache.get("keys", []))
+    if key is None:
+        jwks_uri = _get_oidc_config().get("jwks_uri")
+        if not jwks_uri:
+            raise HTTPException(status_code=502, detail="OIDC провайдер не сообщил jwks_uri")
+        try:
+            resp = httpx.get(jwks_uri, timeout=10)
+            resp.raise_for_status()
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Не удалось получить JWKS: {exc}")
+        _jwks_cache.clear()
+        _jwks_cache.update(resp.json())
+        key = _find(_jwks_cache.get("keys", []))
+    if key is None:
+        raise HTTPException(status_code=401, detail="Не найден ключ подписи id_token (kid)")
+    return key
+
+
+@router.get("/sso/login")
+def sso_login():
+    """Redirect the browser to the OIDC provider's authorization endpoint."""
+    if not settings.OIDC_ISSUER_URL or not settings.OIDC_CLIENT_ID:
+        raise HTTPException(status_code=501, detail="SSO не настроен на сервере")
+
+    oidc_cfg = _get_oidc_config()
+    state = secrets.token_urlsafe(32)
+    nonce = secrets.token_urlsafe(32)
+
+    query = urlencode({
+        "response_type": "code",
+        "client_id": settings.OIDC_CLIENT_ID,
+        "redirect_uri": settings.OIDC_REDIRECT_URI,
+        "scope": "openid email profile",
+        "state": state,
+        "nonce": nonce,
+    })
+    auth_url = oidc_cfg["authorization_endpoint"] + "?" + query
+
+    response = RedirectResponse(url=auth_url, status_code=302)
+    # Short-lived cookies bind this browser to the state/nonce we generated
+    # (CSRF + replay protection). httponly so JS can't read them.
+    cookie_kwargs = dict(httponly=True, samesite="lax", max_age=300, secure=settings.is_production)
+    response.set_cookie("sso_state", state, **cookie_kwargs)
+    response.set_cookie("sso_nonce", nonce, **cookie_kwargs)
+    return response
+
+
+@router.get("/sso/callback")
+def sso_callback(
+    code: str,
+    state: str,
+    sso_state: Optional[str] = Cookie(default=None),
+    sso_nonce: Optional[str] = Cookie(default=None),
+    db: Session = Depends(get_db),
+):
+    """Handle the authorization-code callback: validate, provision, issue our JWT."""
+    # 1. CSRF: the state echoed by the IdP must match our cookie.
+    if not sso_state or not secrets.compare_digest(sso_state, state):
+        raise HTTPException(status_code=400, detail="Неверный state (возможна CSRF-атака)")
+
+    oidc_cfg = _get_oidc_config()
+
+    # 2. Exchange the authorization code for tokens.
+    try:
+        token_resp = httpx.post(
+            oidc_cfg["token_endpoint"],
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": settings.OIDC_REDIRECT_URI,
+                "client_id": settings.OIDC_CLIENT_ID,
+                "client_secret": settings.OIDC_CLIENT_SECRET,
+            },
+            timeout=10,
+        )
+        token_resp.raise_for_status()
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Ошибка обмена кода в SSO: {exc}")
+
+    id_token = token_resp.json().get("id_token")
+    if not id_token:
+        raise HTTPException(status_code=502, detail="SSO провайдер не вернул id_token")
+
+    # 3. Validate the id_token: signature via JWKS, plus issuer/audience/expiry.
+    try:
+        header = jwt.get_unverified_header(id_token)
+    except JWTError as exc:
+        raise HTTPException(status_code=401, detail=f"Некорректный id_token: {exc}")
+    key = _get_signing_key(header.get("kid"))  # may raise 401/502 — intentionally not swallowed
+    try:
+        claims = jwt.decode(
+            id_token,
+            key,
+            algorithms=[header.get("alg", "RS256")],
+            audience=settings.OIDC_CLIENT_ID,
+            issuer=settings.OIDC_ISSUER_URL,
+        )
+    except JWTError as exc:
+        raise HTTPException(status_code=401, detail=f"Недействительный id_token: {exc}")
+
+    # 4. Replay protection: nonce in the token must match the one we issued.
+    if not sso_nonce or claims.get("nonce") != sso_nonce:
+        raise HTTPException(status_code=400, detail="Неверный nonce (возможна replay-атака)")
+
+    email = (claims.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="SSO провайдер не вернул email пользователя")
+    if claims.get("email_verified") is False:
+        raise HTTPException(status_code=403, detail="Email в SSO не подтверждён провайдером")
+
+    full_name = claims.get("name") or claims.get("preferred_username") or email
+
+    # 5. Find or JIT-provision the user, then issue our own JWT.
+    user = db.query(User).filter(User.email == email).first()
+    if user is None:
+        user = User(
+            email=email,
+            full_name=full_name,
+            hashed_password="",   # SSO-only account; password login disabled
+            role=settings.SSO_DEFAULT_ROLE,
+            is_active=True,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    elif not user.is_active:
+        raise HTTPException(status_code=403, detail="Аккаунт деактивирован")
+
+    jwt_token = create_access_token(data={
+        "sub": user.email,
+        "role": user.role,
+        "user_id": user.id,
+    })
+
+    # 6. Hand the token to the SPA via the URL *fragment* (not the query string):
+    # fragments are never sent to the server or in the Referer header, so the JWT
+    # can't leak into access logs. login.html reads it from location.hash.
+    params = urlencode({
+        "access_token": jwt_token,
+        "token_type": "bearer",
+        "user_id": user.id,
+        "role": user.role,
+        "full_name": user.full_name,
+    })
+    response = RedirectResponse(url=f"/login.html#{params}", status_code=302)
+    response.delete_cookie("sso_state")
+    response.delete_cookie("sso_nonce")
+    return response

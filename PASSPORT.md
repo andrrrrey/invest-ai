@@ -192,7 +192,7 @@ https://pravotech.gitlab.yandexcloud.net/`[группа]`/invest-ai
 
 **Аутентификация:**
 
-- [ ] SSO
+- [x] SSO — опционально, OpenID Connect (Keycloak/Okta/Azure AD и др.); включается через OIDC_ISSUER_URL, id_token валидируется по JWKS (issuer/audience/nonce), пользователь создаётся при первом входе с ролью SSO_DEFAULT_ROLE
 - [ ] API Key
 - [ ] Не требуется
 - [x] Другое: локальная аутентификация по email и паролю с JWT-токенами (HS256, TTL 120 минут). Ролевая модель: CEO, CFO, Manager, Owner. Поддерживаются саморегистрация (пароль высылается на email, опционально с ограничением по домену) и восстановление пароля по токену
