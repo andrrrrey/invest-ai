@@ -422,11 +422,15 @@ def sso_callback(
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Ошибка обмена кода в SSO: {exc}")
 
-    id_token = token_resp.json().get("id_token")
+    tokens = token_resp.json()
+    id_token = tokens.get("id_token")
     if not id_token:
         raise HTTPException(status_code=502, detail="SSO провайдер не вернул id_token")
 
     # 3. Validate the id_token: signature via JWKS, plus issuer/audience/expiry.
+    # Pass the OIDC access_token so python-jose can verify the id_token's at_hash
+    # claim (which providers like Keycloak always include); without it, jose
+    # aborts with "No access_token provided to compare against at_hash claim".
     try:
         header = jwt.get_unverified_header(id_token)
     except JWTError as exc:
@@ -439,6 +443,7 @@ def sso_callback(
             algorithms=[header.get("alg", "RS256")],
             audience=settings.OIDC_CLIENT_ID,
             issuer=settings.OIDC_ISSUER_URL,
+            access_token=tokens.get("access_token"),
         )
     except JWTError as exc:
         raise HTTPException(status_code=401, detail=f"Недействительный id_token: {exc}")
