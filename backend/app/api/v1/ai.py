@@ -44,9 +44,16 @@ def _check_api_key():
                    "во внешние AI-провайдеры разрешается ответственным лицом).",
         )
     provider = settings_store.get_ai_provider()
-    key = settings_store.get_anthropic_key() if provider == "anthropic" else settings_store.get_openai_key()
+    if provider == "anthropic":
+        key = settings_store.get_anthropic_key()
+        provider_label = "Anthropic"
+    elif provider == "routerai":
+        key = settings_store.get_routerai_key()
+        provider_label = "RouterAI"
+    else:
+        key = settings_store.get_openai_key()
+        provider_label = "OpenAI"
     if not key:
-        provider_label = "Anthropic" if provider == "anthropic" else "OpenAI"
         raise HTTPException(
             status_code=503,
             detail=f"{provider_label} API ключ не настроен. Перейдите в Настройки и введите ключ.",
