@@ -368,12 +368,22 @@ def delete_project(
 ):
     project = _get_project_or_404(project_id, db)
 
-    # CEO and Owner cannot delete
-    if current_user.role in ("ceo", "owner"):
+    role = current_user.role
+    # CEO is an observer — never deletes.
+    if role == "ceo":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Недостаточно прав для удаления проекта",
         )
+    # Applicant (owner) may delete only their OWN draft.
+    if role == "owner" and (
+        project.user_id != current_user.id or (project.status or "draft") != "draft"
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Заявитель может удалять только собственные черновики",
+        )
+    # CFO and Manager may delete any project.
 
     db.delete(project)
     db.commit()

@@ -425,8 +425,12 @@
                 async init() {
                     if (!redirectIfNotLoggedIn()) return;
                     try {
-                        const base = '/api/v1/projects/?project_type=smart_contract';
-                        const projUrl = getUserRole() === 'owner' ? base + '&status=approved' : base;
+                        // All roles fetch the smart-contract list without forcing a status
+                        // filter. The backend scopes owners to their own contracts (any
+                        // status) and shows approvers (manager/CFO/CEO) the full set — so an
+                        // applicant sees every smart contract they created, not only approved
+                        // ones. Forcing status=approved previously hid their drafts/pending.
+                        const projUrl = '/api/v1/projects/?project_type=smart_contract';
                         const [statsRes, projRes] = await Promise.all([
                             authFetch('/api/v1/stats/?project_type=smart_contract'),
                             authFetch(projUrl),
