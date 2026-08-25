@@ -43,8 +43,12 @@ class Settings(BaseSettings):
     MATTERMOST_ALERT_WEBHOOK: Optional[str] = None
     # Токен верификации входящих slash-команд/вебхуков Mattermost.
     MATTERMOST_COMMAND_TOKEN: Optional[str] = None
-    # Токен бота Mattermost (карточки согласования, Этап 3).
+    # Токен бота Mattermost (карточки согласования).
     MATTERMOST_BOT_TOKEN: Optional[str] = None
+    # Базовый URL сервера Mattermost для вызовов bot API.
+    MATTERMOST_BASE_URL: Optional[str] = None
+    # Внешне доступный URL этого бэкенда для callback-ов кнопок Mattermost.
+    MATTERMOST_INTEGRATION_URL: Optional[str] = None
     # Служебный (read-only) аккаунт помощника Hermes.
     HERMES_BOT_EMAIL: str = "hermes-bot@system.local"
     HERMES_BOT_NAME: str = "Hermes (бот)"

@@ -96,6 +96,13 @@ def on_startup():
     # Fail fast on insecure production configuration (default SECRET_KEY, CORS *, ...)
     settings.validate_for_production()
     init_db()
+    # Фоновые напоминания по дедлайнам (запустится только если включено и
+    # настроен бот Mattermost; не должно ломать старт приложения).
+    try:
+        from .services.scheduler_service import start_scheduler
+        start_scheduler()
+    except Exception:
+        logging.getLogger("hermes.scheduler").exception("Не удалось запустить планировщик")
 
 
 @app.get("/api/health")

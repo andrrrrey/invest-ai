@@ -291,7 +291,7 @@ def set_mattermost_command_token(token: str) -> None:
 
 
 def get_mattermost_bot_token() -> str | None:
-    """Токен бота Mattermost (для карточек согласования на Этапе 3).
+    """Токен бота Mattermost (для карточек согласования).
 
     Env-переменная MATTERMOST_BOT_TOKEN имеет приоритет над файлом.
     """
@@ -304,6 +304,47 @@ def get_mattermost_bot_token() -> str | None:
 def set_mattermost_bot_token(token: str) -> None:
     data = _load()
     data["mattermost_bot_token"] = (token or "").strip()
+    _save(data)
+
+
+def get_mattermost_base_url() -> str | None:
+    """Базовый URL сервера Mattermost (для вызовов bot API)."""
+    env = os.getenv("MATTERMOST_BASE_URL")
+    if env:
+        return env
+    return _load().get("mattermost_base_url") or None
+
+
+def set_mattermost_base_url(url: str) -> None:
+    data = _load()
+    data["mattermost_base_url"] = (url or "").strip().rstrip("/")
+    _save(data)
+
+
+def get_mattermost_integration_url() -> str | None:
+    """Внешне доступный базовый URL этого бэкенда для callback-ов кнопок
+    Mattermost (integration actions). Если не задан — используется base_url
+    самого приложения на стороне интеграции."""
+    env = os.getenv("MATTERMOST_INTEGRATION_URL")
+    if env:
+        return env
+    return _load().get("mattermost_integration_url") or None
+
+
+def set_mattermost_integration_url(url: str) -> None:
+    data = _load()
+    data["mattermost_integration_url"] = (url or "").strip().rstrip("/")
+    _save(data)
+
+
+def is_reminders_enabled() -> bool:
+    """Включены ли фоновые напоминания по дедлайнам (по умолчанию НЕТ)."""
+    return bool(_load().get("reminders_enabled"))
+
+
+def set_reminders_enabled(enabled: bool) -> None:
+    data = _load()
+    data["reminders_enabled"] = bool(enabled)
     _save(data)
 
 

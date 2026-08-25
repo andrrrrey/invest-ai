@@ -12,10 +12,12 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.orm import Session
 
 from ... import settings_store
-from ...services import hermes_agent
+from ...database import get_db
+from ...services import hermes_agent, approval_service
 
 logger = logging.getLogger("hermes.mattermost")
 
@@ -58,3 +60,21 @@ async def hermes_command(request: Request) -> dict:
         }
 
     return {"response_type": "ephemeral", "text": answer}
+
+
+@router.post("/actions")
+async def hermes_action(request: Request, db: Session = Depends(get_db)) -> dict:
+    """Обработать нажатие кнопки в карточке согласования (integration action)."""
+    payload = await request.json()
+    context = payload.get("context") or {}
+
+    expected = settings_store.get_mattermost_command_token()
+    if not expected:
+        raise HTTPException(
+            status_code=503,
+            detail="Интеграция с Mattermost не настроена (нет токена команды).",
+        )
+    if context.get("token") != expected:
+        raise HTTPException(status_code=401, detail="Неверный токен Mattermost")
+
+    return approval_service.process_action(db, context, payload.get("user_id"))
