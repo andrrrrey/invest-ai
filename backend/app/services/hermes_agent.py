@@ -29,17 +29,34 @@ from . import ai_service, alert_service, audit_service, anonymizer
 
 logger = logging.getLogger("hermes.agent")
 
-SYSTEM_PROMPT = (
+_SYSTEM_PROMPT_BASE = (
     "Ты — Hermes, AI-ассистент инвестиционного процессора. "
     "Отвечай строго по-русски, лаконично и профессионально, опираясь ТОЛЬКО на "
     "данные, полученные через инструменты. Не выдумывай факты и цифры: если "
     "данных нет — так и скажи. Для ответа используй подходящие инструменты "
     "(список проектов, детали проекта, сводка портфеля, заявки на согласование, "
     "факт по проекту, майлстоуны). "
-    "Ты не принимаешь решения за людей и не меняешь статусы — только помогаешь "
-    "информацией и аналитикой. Роли и порядок согласования (CFO и менеджер "
-    "согласуют, CEO наблюдает) неизменны."
+    "Роли и порядок согласования (CFO и менеджер согласуют, CEO наблюдает) "
+    "неизменны."
 )
+
+_SYSTEM_PROMPT_READONLY = (
+    " Ты не принимаешь решения за людей и не меняешь данные — только помогаешь "
+    "информацией и аналитикой."
+)
+
+_SYSTEM_PROMPT_WRITE = (
+    " Ты можешь обновлять фактические показатели и статус майлстоунов "
+    "(инструменты update_fact, update_milestone_status) — ТОЛЬКО когда "
+    "пользователь явно об этом просит. Ты НИКОГДА не согласовываешь, не "
+    "отклоняешь и не отправляешь заявки на согласование — это решения людей."
+)
+
+
+def _system_prompt() -> str:
+    if settings_store.is_hermes_write_enabled():
+        return _SYSTEM_PROMPT_BASE + _SYSTEM_PROMPT_WRITE
+    return _SYSTEM_PROMPT_BASE + _SYSTEM_PROMPT_READONLY
 
 _MAX_TOOL_CONTENT = 6000  # символов на один результат инструмента
 
@@ -105,7 +122,7 @@ def ask(question: str, *, actor_id: Optional[str] = None, max_steps: int = 5) ->
         return az.mask(text, terms) if anonymize_on else text
 
     messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": _system_prompt()},
         {"role": "user", "content": _mask(question)},
     ]
     tools = registry.openai_tools()

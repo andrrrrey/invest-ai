@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from ..models.project import Project
 from ..models.fact_entry import FactEntry
-from ..services import portfolio_service
+from ..services import portfolio_service, write_service
 
 
 def _project_brief(p: Project) -> dict:
@@ -135,3 +135,17 @@ def get_milestones(db: Session, project_id: int) -> dict:
         if isinstance(m, dict)
     ]
     return {"project_id": project_id, "count": len(milestones), "milestones": milestones}
+
+
+# ── Операции на запись (Этап 4, включаются флагом hermes_write_enabled) ────────
+
+def update_fact(db: Session, project_id: int, entries: list) -> dict:
+    """Обновить фактические/плановые значения по метрикам проекта."""
+    return write_service.update_fact(db, project_id, entries, actor_type="hermes")
+
+
+def update_milestone_status(db: Session, project_id: int, index: int, status: str) -> dict:
+    """Изменить статус майлстоуна смарт-контракта."""
+    return write_service.update_milestone_status(
+        db, project_id, index, status, actor_type="hermes"
+    )

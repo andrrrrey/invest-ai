@@ -26,6 +26,8 @@ from .api.v1 import notifications as notifications_router
 from .api.v1 import tranches as tranches_router
 from .api.v1 import fact as fact_router
 from .api.v1 import mattermost as mattermost_router
+from .api.v1 import milestones as milestones_router
+from .api.v1 import audit as audit_router
 
 app = FastAPI(
     title="Инвестиционный процессор",
@@ -89,6 +91,8 @@ app.include_router(notifications_router.router, prefix="/api/v1")
 app.include_router(tranches_router.router, prefix="/api/v1")
 app.include_router(fact_router.router, prefix="/api/v1")
 app.include_router(mattermost_router.router, prefix="/api/v1")
+app.include_router(milestones_router.router, prefix="/api/v1")
+app.include_router(audit_router.router, prefix="/api/v1")
 
 
 @app.on_event("startup")

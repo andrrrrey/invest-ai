@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Optional
 
 from ..database import SessionLocal
+from .. import settings_store
 from ..services import audit_service
 from . import tools
 
@@ -86,22 +87,77 @@ TOOL_SPECS = [
     },
 ]
 
+# Инструменты на ЗАПИСЬ — доступны только при hermes_write_enabled (Этап 4).
+# Согласование (решения) помощнику недоступно ни при каких настройках.
+WRITE_TOOL_SPECS = [
+    {
+        "name": "update_fact",
+        "description": "Обновить фактические/плановые значения по метрикам проекта (рутина заявителя).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "project_id": {"type": "integer"},
+                "entries": {
+                    "type": "array",
+                    "description": "Список записей факта.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "year": {"type": "integer"},
+                            "month": {"type": "integer"},
+                            "metric_name": {"type": "string"},
+                            "plan_value": {"type": "number"},
+                            "fact_value": {"type": "number"},
+                        },
+                        "required": ["year", "month", "metric_name"],
+                    },
+                },
+            },
+            "required": ["project_id", "entries"],
+        },
+        "handler": tools.update_fact,
+    },
+    {
+        "name": "update_milestone_status",
+        "description": "Изменить статус майлстоуна смарт-контракта: pending|in_progress|verify|paid|disputed.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "project_id": {"type": "integer"},
+                "index": {"type": "integer", "description": "Порядковый номер майлстоуна (с 0)."},
+                "status": {"type": "string"},
+            },
+            "required": ["project_id", "index", "status"],
+        },
+        "handler": tools.update_milestone_status,
+    },
+]
+
 _BY_NAME = {spec["name"]: spec for spec in TOOL_SPECS}
+_WRITE_BY_NAME = {spec["name"]: spec for spec in WRITE_TOOL_SPECS}
+_ALL_BY_NAME = {**_BY_NAME, **_WRITE_BY_NAME}
+
+
+def _spec_to_openai(spec: dict) -> dict:
+    return {
+        "type": "function",
+        "function": {
+            "name": spec["name"],
+            "description": spec["description"],
+            "parameters": spec["parameters"],
+        },
+    }
 
 
 def openai_tools() -> list:
-    """Описания инструментов в формате OpenAI function-calling (для агента)."""
-    return [
-        {
-            "type": "function",
-            "function": {
-                "name": spec["name"],
-                "description": spec["description"],
-                "parameters": spec["parameters"],
-            },
-        }
-        for spec in TOOL_SPECS
-    ]
+    """Описания инструментов в формате OpenAI function-calling (для агента).
+
+    Write-инструменты добавляются только когда включён режим записи.
+    """
+    specs = list(TOOL_SPECS)
+    if settings_store.is_hermes_write_enabled():
+        specs += WRITE_TOOL_SPECS
+    return [_spec_to_openai(spec) for spec in specs]
 
 
 def call_tool(
@@ -118,7 +174,7 @@ def call_tool(
     данные), поэтому безопасно фиксируются в метаданных аудита.
     """
     arguments = arguments or {}
-    spec = _BY_NAME.get(name)
+    spec = _ALL_BY_NAME.get(name)
     if spec is None:
         audit_service.log_event(
             action="mcp.tool_call",
@@ -130,6 +186,19 @@ def call_tool(
             target_id=name,
         )
         return {"error": f"Неизвестный инструмент: {name}"}
+
+    # Гейт записи: write-инструменты запрещены, пока не включён режим записи.
+    if name in _WRITE_BY_NAME and not settings_store.is_hermes_write_enabled():
+        audit_service.log_event(
+            action="mcp.tool_call",
+            actor_type=actor_type,
+            actor_id=actor_id,
+            result="error",
+            error_message="Режим записи выключен (hermes_write_enabled=false)",
+            target_type="tool",
+            target_id=name,
+        )
+        return {"error": "Операции на запись отключены. Включите их в настройках."}
 
     own_session = db is None
     session = db or SessionLocal()

@@ -348,5 +348,20 @@ def set_reminders_enabled(enabled: bool) -> None:
     _save(data)
 
 
+def is_hermes_write_enabled() -> bool:
+    """Разрешены ли действия помощника на ЗАПИСЬ (факт, статус майлстоунов).
+
+    По умолчанию ВЫКЛЮЧЕНО: включается ответственным лицом «позже, под
+    контролем». Согласование (решения) помощнику недоступно в любом случае.
+    """
+    return bool(_load().get("hermes_write_enabled"))
+
+
+def set_hermes_write_enabled(enabled: bool) -> None:
+    data = _load()
+    data["hermes_write_enabled"] = bool(enabled)
+    _save(data)
+
+
 def get_all() -> dict:
     return _load()
