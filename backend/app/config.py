@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     OIDC_CLIENT_SECRET: Optional[str] = None
     OIDC_REDIRECT_URI: str = "http://localhost/api/v1/auth/sso/callback"
     SSO_DEFAULT_ROLE: str = "owner"         # role assigned to new users created via SSO
+    # Hermes: служебный incoming-webhook Mattermost для оповещений об ошибках.
+    # Env-переменная имеет приоритет над значением в файле настроек.
+    MATTERMOST_ALERT_WEBHOOK: Optional[str] = None
+    # Уровень структурного (JSON) логирования.
+    LOG_LEVEL: str = "INFO"
 
     class Config:
         env_file = ".env"

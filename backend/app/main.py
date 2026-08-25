@@ -1,13 +1,20 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+import logging
 import os
+import time
 
 AVATARS_DIR = os.environ.get("AVATARS_DIR", "/data/avatars")
 ATTACHMENTS_DIR = os.environ.get("ATTACHMENTS_DIR", "/data/attachments")
 
 from .config import settings
 from .database import init_db
+from .logging_config import setup_logging
+
+# Configure structured JSON logging as early as possible.
+setup_logging(os.environ.get("LOG_LEVEL", "INFO"))
+_request_logger = logging.getLogger("hermes.request")
 from .api.v1 import projects, finance, ai, stats
 from .api.v1 import settings as settings_router
 from .api.v1 import auth as auth_router
@@ -32,6 +39,39 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def request_logging_middleware(request: Request, call_next):
+    """Сквозное логирование запросов: метод, путь, статус, длительность.
+
+    Тело запроса НЕ логируется (может содержать конфиденциальные данные).
+    """
+    start = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        duration_ms = round((time.perf_counter() - start) * 1000, 1)
+        _request_logger.exception(
+            "request failed",
+            extra={"request": {
+                "method": request.method,
+                "path": request.url.path,
+                "ms": duration_ms,
+            }},
+        )
+        raise
+    duration_ms = round((time.perf_counter() - start) * 1000, 1)
+    _request_logger.info(
+        "request",
+        extra={"request": {
+            "method": request.method,
+            "path": request.url.path,
+            "status": response.status_code,
+            "ms": duration_ms,
+        }},
+    )
+    return response
 
 # API routes
 app.include_router(auth_router.router, prefix="/api/v1")

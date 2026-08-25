@@ -22,7 +22,12 @@ logger = logging.getLogger(__name__)
 _SETTINGS_FILE = Path(os.getenv("SETTINGS_PATH", "/data/settings.json"))
 
 # Fields that must be encrypted at rest.
-_SECRET_FIELDS = ("openai_api_key", "anthropic_api_key", "routerai_api_key")
+_SECRET_FIELDS = (
+    "openai_api_key",
+    "anthropic_api_key",
+    "routerai_api_key",
+    "mattermost_alert_webhook",
+)
 _ENC_PREFIX = "enc:v1:"
 
 _warned_no_key = False
@@ -219,6 +224,50 @@ def set_ai_provider(provider: str) -> None:
         raise ValueError(f"Unknown AI provider: {provider}")
     data = _load()
     data["ai_provider"] = provider
+    _save(data)
+
+
+# ── Hermes: обезличивание и оповещения ────────────────────────────
+
+def get_mattermost_alert_webhook() -> str | None:
+    """Incoming webhook служебного канала Mattermost для оповещений об ошибках.
+
+    Переменная окружения MATTERMOST_ALERT_WEBHOOK имеет приоритет над файлом.
+    """
+    env = os.getenv("MATTERMOST_ALERT_WEBHOOK")
+    if env:
+        return env
+    return _load().get("mattermost_alert_webhook") or None
+
+
+def set_mattermost_alert_webhook(url: str) -> None:
+    data = _load()
+    data["mattermost_alert_webhook"] = (url or "").strip()
+    _save(data)
+
+
+def is_anonymize_enabled() -> bool:
+    """Включено ли обезличивание перед отправкой в ИИ (по умолчанию ДА)."""
+    val = _load().get("anonymize_enabled")
+    if val is None:
+        return True
+    return bool(val)
+
+
+def set_anonymize_enabled(enabled: bool) -> None:
+    data = _load()
+    data["anonymize_enabled"] = bool(enabled)
+    _save(data)
+
+
+def get_anonymize_round_amounts() -> bool:
+    """Округлять ли финансовые суммы при обезличивании (по умолчанию НЕТ)."""
+    return bool(_load().get("anonymize_round_amounts"))
+
+
+def set_anonymize_round_amounts(enabled: bool) -> None:
+    data = _load()
+    data["anonymize_round_amounts"] = bool(enabled)
     _save(data)
 
 

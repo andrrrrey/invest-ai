@@ -9,11 +9,15 @@ Active provider is controlled via settings_store.get_ai_provider() ('openai' | '
 """
 
 import json
+import logging
 import re
 from typing import Optional
 from openai import OpenAI
 
 from .. import settings_store
+from . import anonymizer, audit_service, alert_service
+
+logger = logging.getLogger("hermes.ai")
 
 
 OPENAI_MODEL = "gpt-5.4"
@@ -75,14 +79,94 @@ def _chat_routerai(prompt: str, max_tokens: int = 700) -> str:
     return response.choices[0].message.content.strip()
 
 
-def _chat(prompt: str, max_tokens: int = 700) -> str:
-    """Dispatch to active AI provider."""
-    provider = settings_store.get_ai_provider()
+def _active_model_id(provider: str) -> str:
+    """Return the model identifier for the active provider (for audit)."""
+    if provider == "anthropic":
+        return ANTHROPIC_MODEL
+    if provider == "routerai":
+        return settings_store.get_routerai_model()
+    return OPENAI_MODEL
+
+
+def _dispatch(provider: str, prompt: str, max_tokens: int) -> str:
     if provider == "anthropic":
         return _chat_anthropic(prompt, max_tokens)
     if provider == "routerai":
         return _chat_routerai(prompt, max_tokens)
     return _chat_openai(prompt, max_tokens)
+
+
+def _chat(
+    prompt: str,
+    max_tokens: int = 700,
+    *,
+    extra_terms: Optional[dict] = None,
+    actor_type: str = "user",
+    actor_id: Optional[str] = None,
+    action: str = "ai.chat",
+    target_type: Optional[str] = None,
+    target_id: Optional[str] = None,
+) -> str:
+    """Единая точка общения с ИИ.
+
+    Перед отправкой во внешнего провайдера промпт обезличивается, а в ответе
+    метки восстанавливаются обратно. Каждый вызов фиксируется в журнале
+    аудита (без конфиденциального текста), при ошибке — оповещение в служебный
+    канал. ``extra_terms`` — заранее известные чувствительные значения
+    (названия, ФИО, коды МВЗ), которые нельзя надёжно распознать по тексту.
+    """
+    provider = settings_store.get_ai_provider()
+    model = _active_model_id(provider)
+
+    try:
+        anonymize_on = settings_store.is_anonymize_enabled()
+    except Exception:
+        anonymize_on = True
+
+    if anonymize_on:
+        masked, mapping = anonymizer.anonymize(prompt, extra_terms)
+    else:
+        masked, mapping = prompt, {}
+
+    # Безопасные метаданные — без исходного текста.
+    meta = {"entities_masked": len(mapping), "max_tokens": max_tokens}
+
+    try:
+        raw = _dispatch(provider, masked, max_tokens)
+    except Exception as exc:
+        audit_service.log_event(
+            action=action,
+            actor_type=actor_type,
+            actor_id=actor_id,
+            result="error",
+            error_message=f"{type(exc).__name__}: {exc}",
+            target_type=target_type,
+            target_id=target_id,
+            ai_provider=provider,
+            ai_model=model,
+            anonymized=anonymize_on,
+            meta=meta,
+        )
+        alert_service.send_alert(
+            f"Ошибка вызова ИИ ({provider}/{model}): {type(exc).__name__}: {exc}"
+        )
+        raise
+
+    result = anonymizer.deanonymize(raw, mapping) if anonymize_on else raw
+
+    audit_service.log_event(
+        action=action,
+        actor_type=actor_type,
+        actor_id=actor_id,
+        result="ok",
+        target_type=target_type,
+        target_id=target_id,
+        ai_provider=provider,
+        ai_model=model,
+        anonymized=anonymize_on,
+        meta=meta,
+    )
+    return result
 
 
 def _strip_fences(text: str) -> str:
@@ -129,7 +213,11 @@ def generate_description(
         f"— Стадия: {stage or 'не указана'}\n\n"
         "Опиши суть проекта, ключевой бизнес-эффект и целевую аудиторию."
     )
-    return _chat(prompt, max_tokens=600)
+    return _chat(
+        prompt,
+        max_tokens=600,
+        extra_terms={"project": [project_name], "org": [business_unit]},
+    )
 
 
 def generate_risks(project_name: str, metrics: dict, financial_model: dict) -> dict:
@@ -220,7 +308,15 @@ def generate_risk_score(application: dict) -> dict:
         "- recommended_route должен быть одним из: fast_track, efficiency_play, backlog_stop "
         "(НЕ используй 'manual_review' в качестве маршрута)."
     )
-    text = _strip_fences(_chat(prompt, max_tokens=1000))
+    risk_terms = {
+        "project": [application.get("name")] if application.get("name") else [],
+        "mvz": [
+            application.get("op_mvz_main"),
+            application.get("op_mvz_sub1"),
+            application.get("op_mvz_sub2"),
+        ],
+    }
+    text = _strip_fences(_chat(prompt, max_tokens=1000, extra_terms=risk_terms))
     try:
         return json.loads(text)
     except json.JSONDecodeError:
@@ -374,6 +470,7 @@ def analyze_fact_vs_plan(
 def analyze_project(project: dict, metrics: dict) -> dict:
     """Analyze anomalies and give AI commentary for project detail page."""
     project_type = project.get("project_type", "investment")
+    project_terms = anonymizer.collect_project_terms(project)
 
     if project_type == "operational":
         fm = project.get("financial_model") or {}
@@ -412,7 +509,7 @@ def analyze_project(project: dict, metrics: dict) -> dict:
             '"recommended_tracking": "как отслеживать: ежемесячно/еженедельно и что именно"'
             "}}"
         )
-        text = _strip_fences(_chat(prompt, max_tokens=700))
+        text = _strip_fences(_chat(prompt, max_tokens=700, extra_terms=project_terms))
         try:
             return json.loads(text)
         except json.JSONDecodeError:
@@ -425,7 +522,7 @@ def analyze_project(project: dict, metrics: dict) -> dict:
             "Верни JSON (только JSON, без Markdown):\n"
             '{"comment": "1-2 предложения", "anomalies": ["аномалия если есть"], "comparison": "сравнение с похожими"}'
         )
-        text = _strip_fences(_chat(prompt, max_tokens=400))
+        text = _strip_fences(_chat(prompt, max_tokens=400, extra_terms=project_terms))
         try:
             return json.loads(text)
         except json.JSONDecodeError:
