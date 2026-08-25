@@ -27,6 +27,8 @@ _SECRET_FIELDS = (
     "anthropic_api_key",
     "routerai_api_key",
     "mattermost_alert_webhook",
+    "mattermost_command_token",
+    "mattermost_bot_token",
 )
 _ENC_PREFIX = "enc:v1:"
 
@@ -268,6 +270,40 @@ def get_anonymize_round_amounts() -> bool:
 def set_anonymize_round_amounts(enabled: bool) -> None:
     data = _load()
     data["anonymize_round_amounts"] = bool(enabled)
+    _save(data)
+
+
+def get_mattermost_command_token() -> str | None:
+    """Токен верификации входящих slash-команд/вебхуков Mattermost.
+
+    Env-переменная MATTERMOST_COMMAND_TOKEN имеет приоритет над файлом.
+    """
+    env = os.getenv("MATTERMOST_COMMAND_TOKEN")
+    if env:
+        return env
+    return _load().get("mattermost_command_token") or None
+
+
+def set_mattermost_command_token(token: str) -> None:
+    data = _load()
+    data["mattermost_command_token"] = (token or "").strip()
+    _save(data)
+
+
+def get_mattermost_bot_token() -> str | None:
+    """Токен бота Mattermost (для карточек согласования на Этапе 3).
+
+    Env-переменная MATTERMOST_BOT_TOKEN имеет приоритет над файлом.
+    """
+    env = os.getenv("MATTERMOST_BOT_TOKEN")
+    if env:
+        return env
+    return _load().get("mattermost_bot_token") or None
+
+
+def set_mattermost_bot_token(token: str) -> None:
+    data = _load()
+    data["mattermost_bot_token"] = (token or "").strip()
     _save(data)
 
 

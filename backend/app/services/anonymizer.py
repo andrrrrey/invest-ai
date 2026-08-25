@@ -45,29 +45,73 @@ _QUOTED_RE = re.compile(r"«([^»]+)»")
 _PLACEHOLDER_RE = re.compile(r"^\[[A-Z]+_\d+\]$")
 
 
-def _register(
-    original: str,
-    category: str,
-    mapping: Dict[str, str],
-    seen: Dict[str, str],
-    counters: Dict[str, int],
-) -> str:
-    """Вернуть метку для значения, создав её при первом появлении."""
-    if original in seen:
-        return seen[original]
-    prefix = CATEGORY_PREFIX.get(category, "TERM")
-    counters[category] = counters.get(category, 0) + 1
-    placeholder = f"[{prefix}_{counters[category]}]"
-    mapping[placeholder] = original
-    seen[original] = placeholder
-    return placeholder
+class Anonymizer:
+    """Обезличиватель с накоплением сопоставления «значение ↔ метка».
+
+    В отличие от разовой функции ``anonymize``, накапливает ``mapping`` между
+    вызовами ``mask``. Это нужно для многошагового агентного цикла Hermes, где
+    результаты нескольких инструментов обезличиваются согласованно (одно и то
+    же значение получает одну и ту же метку во всех сообщениях диалога).
+    """
+
+    def __init__(self) -> None:
+        self.mapping: Dict[str, str] = {}
+        self._seen: Dict[str, str] = {}
+        self._counters: Dict[str, int] = {}
+
+    def _register(self, original: str, category: str) -> str:
+        if original in self._seen:
+            return self._seen[original]
+        prefix = CATEGORY_PREFIX.get(category, "TERM")
+        self._counters[category] = self._counters.get(category, 0) + 1
+        placeholder = f"[{prefix}_{self._counters[category]}]"
+        self.mapping[placeholder] = original
+        self._seen[original] = placeholder
+        return placeholder
+
+    def mask(self, text: str, extra_terms: Optional[Dict[str, List[str]]] = None) -> str:
+        """Обезличить текст, дополняя общий ``mapping``."""
+        if not text:
+            return text
+
+        # 1) Явно переданные термины — сначала самые длинные, чтобы более
+        #    длинные вхождения (напр. полное ФИО) не разбивались короткими.
+        if extra_terms:
+            items: List[Tuple[str, str]] = []
+            for category, terms in extra_terms.items():
+                for term in terms or []:
+                    if isinstance(term, str) and term.strip():
+                        items.append((term.strip(), category))
+            items.sort(key=lambda x: len(x[0]), reverse=True)
+            for term, category in items:
+                if term not in text:
+                    continue
+                placeholder = self._register(term, category)
+                text = text.replace(term, placeholder)
+
+        # 2) Контакты: email и телефоны.
+        text = _EMAIL_RE.sub(lambda m: self._register(m.group(0), "contact"), text)
+        text = _PHONE_RE.sub(lambda m: self._register(m.group(0), "contact"), text)
+
+        # 3) Именованные сущности в «ёлочках» — маскируем содержимое, сохраняя кавычки.
+        def _repl_quoted(m: "re.Match[str]") -> str:
+            inner = m.group(1)
+            if _PLACEHOLDER_RE.match(inner):  # уже метка, напр. «[PROJECT_1]»
+                return m.group(0)
+            return f"«{self._register(inner, 'project')}»"
+
+        return _QUOTED_RE.sub(_repl_quoted, text)
+
+    def unmask(self, text: str) -> str:
+        """Восстановить исходные значения из меток по накопленному mapping."""
+        return deanonymize(text, self.mapping)
 
 
 def anonymize(
     text: str,
     extra_terms: Optional[Dict[str, List[str]]] = None,
 ) -> Tuple[str, Dict[str, str]]:
-    """Заменить чувствительные данные на метки.
+    """Заменить чувствительные данные на метки (разовый вызов).
 
     :param text: исходный текст промпта.
     :param extra_terms: явно известные чувствительные значения по категориям,
@@ -79,46 +123,9 @@ def anonymize(
     """
     if not text:
         return text, {}
-
-    mapping: Dict[str, str] = {}
-    seen: Dict[str, str] = {}
-    counters: Dict[str, int] = {}
-
-    # 1) Явно переданные термины — сначала самые длинные, чтобы более длинные
-    #    вхождения (напр. полное ФИО) не разбивались более короткими.
-    if extra_terms:
-        items: List[Tuple[str, str]] = []
-        for category, terms in extra_terms.items():
-            for term in terms or []:
-                if isinstance(term, str) and term.strip():
-                    items.append((term.strip(), category))
-        items.sort(key=lambda x: len(x[0]), reverse=True)
-        for term, category in items:
-            if term not in text:
-                continue
-            placeholder = _register(term, category, mapping, seen, counters)
-            text = text.replace(term, placeholder)
-
-    # 2) Контакты: email и телефоны.
-    text = _EMAIL_RE.sub(
-        lambda m: _register(m.group(0), "contact", mapping, seen, counters), text
-    )
-    text = _PHONE_RE.sub(
-        lambda m: _register(m.group(0), "contact", mapping, seen, counters), text
-    )
-
-    # 3) Именованные сущности в «ёлочках» — маскируем содержимое, сохраняя кавычки.
-    def _repl_quoted(m: "re.Match[str]") -> str:
-        inner = m.group(1)
-        # Не трогаем уже подставленную метку, напр. «[PROJECT_1]».
-        if _PLACEHOLDER_RE.match(inner):
-            return m.group(0)
-        placeholder = _register(inner, "project", mapping, seen, counters)
-        return f"«{placeholder}»"
-
-    text = _QUOTED_RE.sub(_repl_quoted, text)
-
-    return text, mapping
+    az = Anonymizer()
+    masked = az.mask(text, extra_terms)
+    return masked, az.mapping
 
 
 def deanonymize(text: str, mapping: Dict[str, str]) -> str:

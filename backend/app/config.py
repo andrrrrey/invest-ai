@@ -41,6 +41,13 @@ class Settings(BaseSettings):
     # Hermes: служебный incoming-webhook Mattermost для оповещений об ошибках.
     # Env-переменная имеет приоритет над значением в файле настроек.
     MATTERMOST_ALERT_WEBHOOK: Optional[str] = None
+    # Токен верификации входящих slash-команд/вебхуков Mattermost.
+    MATTERMOST_COMMAND_TOKEN: Optional[str] = None
+    # Токен бота Mattermost (карточки согласования, Этап 3).
+    MATTERMOST_BOT_TOKEN: Optional[str] = None
+    # Служебный (read-only) аккаунт помощника Hermes.
+    HERMES_BOT_EMAIL: str = "hermes-bot@system.local"
+    HERMES_BOT_NAME: str = "Hermes (бот)"
     # Уровень структурного (JSON) логирования.
     LOG_LEVEL: str = "INFO"
 

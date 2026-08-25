@@ -53,6 +53,18 @@ def test_disabled_when_no_terms_and_no_matches():
     assert mapping == {}
 
 
+def test_stateful_anonymizer_consistent_across_calls():
+    az = anonymizer.Anonymizer()
+    first = az.mask("Вопрос про «Альфа»")
+    second = az.mask('{"name": "Альфа", "status": "draft"}', {"project": ["Альфа"]})
+    # Одно значение -> одна и та же метка в разных вызовах.
+    assert "[PROJECT_1]" in first
+    assert "[PROJECT_1]" in second
+    assert "Альфа" not in second
+    # Восстановление работает по накопленному mapping.
+    assert az.unmask("Ответ по [PROJECT_1]") == "Ответ по Альфа"
+
+
 def test_collect_project_terms():
     project = {
         "name": "Секрет",
