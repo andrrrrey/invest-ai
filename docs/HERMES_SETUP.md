@@ -25,6 +25,45 @@ Hermes вернёт ошибку.
 
 ---
 
+## Навигация по Mattermost UI (куда кликать)
+
+Ниже пути для сервера Mattermost. `<team>` — идентификатор команды из адресной
+строки (например, `pravotech` в `mmdev.pravo.tech/pravotech/...`), `<mm>` —
+базовый адрес сервера Mattermost.
+
+**Где меню:**
+- Меню интеграций — значок-сетка (▦, product menu) вверху слева рядом с логотипом
+  → **Integrations**. Прямая ссылка: `<mm>/<team>/integrations`.
+- **System Console** (админка, нужны права системного администратора): та же
+  сетка ▦ → **System Console**, или `<mm>/admin_console`.
+
+**Шаг 0. Включить интеграции** (System Console, нужен админ):
+`System Console → Integrations → Integration Management` — включить (ON):
+- **Enable Bot Account Creation**
+- **Enable Custom Slash Commands**
+- **Enable Incoming Webhooks**
+- **Enable integrations to override usernames** и **… override profile picture
+  icons** (чтобы сообщения бота выглядели корректно)
+
+Если бэкенд **не** на публичном доверенном домене (внутренний хост/порт):
+`System Console → Environment → Developer → Allow untrusted internal connections`
+— добавьте хост бэкенда. Иначе Mattermost не сможет вызвать slash-команду и
+обработать нажатия кнопок.
+
+**Прямые пути для создания интеграций:**
+- Бот: `<mm>/<team>/integrations/bots/add`
+- Slash-команда: `<mm>/<team>/integrations/commands/add`
+- Incoming webhook: `<mm>/<team>/integrations/incoming_webhooks/add`
+
+**Куда потом вставлять** (в нашем UI: Настройки → «Помощник Hermes — Mattermost»):
+токен бота → **Токен бота**; токен slash-команды → **Токен slash-команды /
+кнопок**; URL incoming webhook → **Webhook служебного канала**; адрес сервера
+Mattermost → **URL сервера Mattermost**; публичный адрес бэкенда → **Внешний URL
+бэкенда**. Кнопки согласования отдельной настройки в Mattermost не требуют —
+их шлёт бот автоматически.
+
+---
+
 ## 1. Hermes в Mattermost
 
 Настраиваются 4 интеграции. Токены/URL вводятся в **Настройки → «Помощник Hermes
