@@ -211,6 +211,7 @@
             <a href="/smart-contracts" class="nav-link"><i class="fas fa-file-contract"></i> Смарт-контракты</a>
             <a href="/export" class="nav-link" id="nav-export"><i class="fas fa-chart-bar"></i> Отчетность</a>
             <a href="/settings" class="nav-link active"><i class="fas fa-cog"></i> Настройки</a>
+            <a href="/audit" class="nav-link" id="nav-audit"><i class="fas fa-clipboard-list"></i> Аудит</a>
             <a href="/users" class="nav-link" id="nav-users"><i class="fas fa-users"></i> Пользователи</a>
             <a href="/profile" class="nav-link"><i class="fas fa-user-circle"></i> Мой профиль</a>
         </nav>
@@ -451,6 +452,102 @@
                 </button>
             </div>
 
+            <!-- Hermes / Mattermost card -->
+            <div class="settings-card">
+                <h2><i class="fas fa-robot"></i> Помощник Hermes — Mattermost</h2>
+                <p class="desc">
+                    Подключение к Mattermost для вопросов-аналитики, карточек согласования и оповещений.
+                    Токены задаются при создании интеграций в Mattermost. Переменные окружения имеют приоритет над этими полями.
+                </p>
+
+                <div class="field">
+                    <label>URL сервера Mattermost</label>
+                    <input type="text" x-model="mmBaseUrl" placeholder="https://mmdev.pravo.tech" autocomplete="off"
+                           :disabled="envOverrides.mattermost_base_url">
+                    <p class="hint" x-show="envOverrides.mattermost_base_url">Задано переменной окружения MATTERMOST_BASE_URL.</p>
+                </div>
+
+                <div class="field">
+                    <label>Внешний URL этого бэкенда (для кнопок)</label>
+                    <input type="text" x-model="mmIntegrationUrl" placeholder="https://invest.example.com" autocomplete="off"
+                           :disabled="envOverrides.mattermost_integration_url">
+                    <p class="hint">Куда Mattermost шлёт нажатия кнопок: <strong>&lt;этот URL&gt;/api/v1/mattermost/actions</strong></p>
+                </div>
+
+                <div class="field">
+                    <label>Токен slash-команды / кнопок</label>
+                    <div class="input-row">
+                        <input :type="showMm ? 'text' : 'password'" x-model="mmCommandToken"
+                               placeholder="Токен из Slash Command" autocomplete="off"
+                               :disabled="envOverrides.mattermost_command_token">
+                        <button class="btn btn-outline" @click="showMm = !showMm" style="padding:10px 14px;">
+                            <i class="fas" :class="showMm ? 'fa-eye-slash' : 'fa-eye'"></i>
+                        </button>
+                    </div>
+                    <p class="hint" x-show="mmCommandTokenMasked && !mmCommandToken">Текущий: <strong x-text="mmCommandTokenMasked"></strong></p>
+                    <p class="hint" x-show="envOverrides.mattermost_command_token">Задано переменной окружения.</p>
+                </div>
+
+                <div class="field">
+                    <label>Токен бота</label>
+                    <div class="input-row">
+                        <input :type="showMm ? 'text' : 'password'" x-model="mmBotToken"
+                               placeholder="Access token бот-аккаунта" autocomplete="off"
+                               :disabled="envOverrides.mattermost_bot_token">
+                        <button class="btn btn-outline" @click="showMm = !showMm" style="padding:10px 14px;">
+                            <i class="fas" :class="showMm ? 'fa-eye-slash' : 'fa-eye'"></i>
+                        </button>
+                    </div>
+                    <p class="hint" x-show="mmBotTokenMasked && !mmBotToken">Текущий: <strong x-text="mmBotTokenMasked"></strong></p>
+                    <p class="hint" x-show="envOverrides.mattermost_bot_token">Задано переменной окружения.</p>
+                </div>
+
+                <div class="field">
+                    <label>Webhook служебного канала (оповещения об ошибках)</label>
+                    <div class="input-row">
+                        <input :type="showMm ? 'text' : 'password'" x-model="mmAlertWebhook"
+                               placeholder="https://mmdev.pravo.tech/hooks/xxxx" autocomplete="off"
+                               :disabled="envOverrides.mattermost_alert_webhook">
+                        <button class="btn btn-outline" @click="showMm = !showMm" style="padding:10px 14px;">
+                            <i class="fas" :class="showMm ? 'fa-eye-slash' : 'fa-eye'"></i>
+                        </button>
+                    </div>
+                    <p class="hint" x-show="mmAlertWebhookMasked && !mmAlertWebhook">Текущий: <strong x-text="mmAlertWebhookMasked"></strong></p>
+                    <p class="hint" x-show="envOverrides.mattermost_alert_webhook">Задано переменной окружения.</p>
+                </div>
+
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
+                    <button class="btn btn-primary" @click="saveMattermost()" :disabled="savingMm">
+                        <i class="fas" :class="savingMm ? 'fa-spinner spin' : 'fa-save'"></i>
+                        <span x-text="savingMm ? 'Сохраняем...' : 'Сохранить'"></span>
+                    </button>
+                    <button class="btn btn-outline" @click="testMattermost()" :disabled="testingMm">
+                        <i class="fas" :class="testingMm ? 'fa-spinner spin' : 'fa-paper-plane'"></i>
+                        <span x-text="testingMm ? 'Отправляем...' : 'Тестовое оповещение'"></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Hermes modes card -->
+            <div class="settings-card">
+                <h2><i class="fas fa-sliders"></i> Режимы Hermes</h2>
+                <p class="desc">Политики безопасности и поведения помощника.</p>
+
+                <template x-for="opt in hermesToggles" :key="opt.key">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;background:#F8F7F3;border:1.5px solid #E5E5ED;border-radius:14px;padding:14px 16px;margin-bottom:12px">
+                        <div>
+                            <div style="font-size:13px;font-weight:700;color:#1C1C1E" x-text="opt.title"></div>
+                            <div class="hint" style="margin-top:2px" x-text="opt.desc"></div>
+                        </div>
+                        <button type="button" role="switch" :aria-checked="hermesFlags[opt.key] ? 'true' : 'false'"
+                                @click="toggleHermesFlag(opt.key)" :disabled="savingFlags"
+                                :style="'flex-shrink:0;position:relative;width:52px;height:30px;border-radius:99px;border:none;cursor:pointer;transition:background .2s;' + (hermesFlags[opt.key] ? 'background:var(--success)' : 'background:#C7C7CC')">
+                            <span :style="'position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:white;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .2s;transform:translateX(' + (hermesFlags[opt.key] ? '22px' : '0') + ')'"></span>
+                        </button>
+                    </div>
+                </template>
+            </div>
+
             <!-- AI Model info -->
             <div class="settings-card">
                 <h2><i class="fas fa-microchip"></i> Используемая модель</h2>
@@ -543,6 +640,10 @@
             const ne = document.getElementById('nav-export');
             if (ne) ne.style.display = 'none';
         }
+        if (getUserRole() !== 'cfo') {
+            const na = document.getElementById('nav-audit');
+            if (na) na.style.display = 'none';
+        }
     });
 
     document.querySelector('.main-content')?.addEventListener('click', () => {
@@ -577,6 +678,33 @@
                 'anthropic/claude-haiku-4.5': 'Claude Haiku 4.5',
             },
 
+            // Hermes / Mattermost
+            mmBaseUrl: '',
+            mmIntegrationUrl: '',
+            mmCommandToken: '',
+            mmBotToken: '',
+            mmAlertWebhook: '',
+            mmCommandTokenMasked: null,
+            mmBotTokenMasked: null,
+            mmAlertWebhookMasked: null,
+            showMm: false,
+            savingMm: false,
+            testingMm: false,
+            envOverrides: {},
+            savingFlags: false,
+            hermesFlags: {
+                anonymize_enabled: true,
+                anonymize_round_amounts: false,
+                reminders_enabled: false,
+                hermes_write_enabled: false,
+            },
+            hermesToggles: [
+                { key: 'anonymize_enabled', title: 'Обезличивание данных', desc: 'Скрывать имена, названия и коды перед отправкой во внешний ИИ (рекомендуется).' },
+                { key: 'anonymize_round_amounts', title: 'Округлять суммы', desc: 'Дополнительно округлять финансовые суммы при обезличивании.' },
+                { key: 'reminders_enabled', title: 'Напоминания по дедлайнам', desc: 'Фоновая рассылка напоминаний заявителям по приближающимся дедлайнам майлстоунов.' },
+                { key: 'hermes_write_enabled', title: 'Действия на запись', desc: 'Разрешить помощнику обновлять факт и статус майлстоунов. Согласование помощнику недоступно всегда.' },
+            ],
+
             activeModelLabel() {
                 if (this.aiProvider === 'anthropic') return 'Claude Sonnet 4.6';
                 if (this.aiProvider === 'routerai') return this.routeraiModels[this.routeraiModel] || this.routeraiModel;
@@ -609,6 +737,19 @@
                         this.aiEnabled = !!data.ai_enabled;
                         this.investmentBudget = data.investment_budget != null ? data.investment_budget : '';
                         this.registrationDomain = data.registration_domain || '';
+                        // Hermes / Mattermost
+                        this.mmBaseUrl = data.mattermost_base_url || '';
+                        this.mmIntegrationUrl = data.mattermost_integration_url || '';
+                        this.mmCommandTokenMasked = data.mattermost_command_token_masked;
+                        this.mmBotTokenMasked = data.mattermost_bot_token_masked;
+                        this.mmAlertWebhookMasked = data.mattermost_alert_webhook_masked;
+                        this.envOverrides = data.env_overrides || {};
+                        this.hermesFlags = {
+                            anonymize_enabled: !!data.anonymize_enabled,
+                            anonymize_round_amounts: !!data.anonymize_round_amounts,
+                            reminders_enabled: !!data.reminders_enabled,
+                            hermes_write_enabled: !!data.hermes_write_enabled,
+                        };
                     }
                 } catch(e) {
                     if (e.message !== 'Unauthorized') console.error(e);
@@ -750,6 +891,59 @@
                     this._toast('Ошибка: ' + e.message, 'error');
                 } finally {
                     this.savingDomain = false;
+                }
+            },
+
+            async saveMattermost() {
+                this.savingMm = true;
+                try {
+                    const payload = {};
+                    if (!this.envOverrides.mattermost_base_url) payload.mattermost_base_url = this.mmBaseUrl.trim();
+                    if (!this.envOverrides.mattermost_integration_url) payload.mattermost_integration_url = this.mmIntegrationUrl.trim();
+                    // Токены/вебхук — только если пользователь ввёл новое значение.
+                    if (this.mmCommandToken.trim()) payload.mattermost_command_token = this.mmCommandToken.trim();
+                    if (this.mmBotToken.trim()) payload.mattermost_bot_token = this.mmBotToken.trim();
+                    if (this.mmAlertWebhook.trim()) payload.mattermost_alert_webhook = this.mmAlertWebhook.trim();
+                    const res = await authFetch('/api/v1/settings/', { method: 'POST', body: JSON.stringify(payload) });
+                    if (!res.ok) throw new Error(await res.text());
+                    if (this.mmCommandToken.trim()) { this.mmCommandTokenMasked = 'sk-...' + this.mmCommandToken.slice(-4); this.mmCommandToken = ''; }
+                    if (this.mmBotToken.trim()) { this.mmBotTokenMasked = 'sk-...' + this.mmBotToken.slice(-4); this.mmBotToken = ''; }
+                    if (this.mmAlertWebhook.trim()) { this.mmAlertWebhookMasked = 'sk-...' + this.mmAlertWebhook.slice(-4); this.mmAlertWebhook = ''; }
+                    this._toast('Настройки Mattermost сохранены', 'success');
+                } catch(e) {
+                    this._toast('Ошибка: ' + e.message, 'error');
+                } finally {
+                    this.savingMm = false;
+                }
+            },
+
+            async testMattermost() {
+                this.testingMm = true;
+                try {
+                    const res = await authFetch('/api/v1/settings/test-mattermost', { method: 'POST' });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data.detail || 'Ошибка');
+                    this._toast('Тестовое оповещение отправлено', 'success');
+                } catch(e) {
+                    this._toast('Ошибка: ' + e.message, 'error');
+                } finally {
+                    this.testingMm = false;
+                }
+            },
+
+            async toggleHermesFlag(key) {
+                const next = !this.hermesFlags[key];
+                this.hermesFlags[key] = next;   // optimistic
+                this.savingFlags = true;
+                try {
+                    const res = await authFetch('/api/v1/settings/', { method: 'POST', body: JSON.stringify({ [key]: next }) });
+                    if (!res.ok) throw new Error(await res.text());
+                    this._toast('Сохранено', 'success');
+                } catch(e) {
+                    this.hermesFlags[key] = !next;   // revert
+                    this._toast('Ошибка: ' + e.message, 'error');
+                } finally {
+                    this.savingFlags = false;
                 }
             },
 
