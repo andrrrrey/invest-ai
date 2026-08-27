@@ -329,6 +329,15 @@
                     <input type="email" x-model="profileForm.email" placeholder="email@example.com" maxlength="200">
                 </div>
 
+                <div class="field">
+                    <label>Email в Mattermost</label>
+                    <input type="email" x-model="profileForm.mattermost_email" placeholder="если отличается от основного" maxlength="200">
+                    <p style="font-size:11px;color:#8E8E93;margin-top:4px;line-height:1.5">
+                        Помощник Hermes шлёт личные сообщения в Mattermost по этому адресу.
+                        Оставьте пустым, если ваш email в Mattermost совпадает с основным.
+                    </p>
+                </div>
+
                 <div class="field" style="margin-bottom:0">
                     <label>Роль</label>
                     <input type="text" :value="roleLabel" disabled>
@@ -508,7 +517,7 @@
     function profileApp() {
         return {
             // Profile form
-            profileForm: { full_name: '', email: '' },
+            profileForm: { full_name: '', email: '', mattermost_email: '' },
             savingProfile: false,
             roleLabel: '',
 
@@ -546,6 +555,7 @@
                         const data = await res.json();
                         this.profileForm.full_name = data.full_name || '';
                         this.profileForm.email = data.email || '';
+                        this.profileForm.mattermost_email = data.mattermost_email || '';
                         if (data.avatar_url) {
                             this.avatarUrl = data.avatar_url;
                             localStorage.setItem('invest_avatar', data.avatar_url);
@@ -563,11 +573,16 @@
                 if (!full_name) { this._toast('Введите имя', 'error'); return; }
                 if (!email || !email.includes('@')) { this._toast('Введите корректный email', 'error'); return; }
 
+                const mattermost_email = (this.profileForm.mattermost_email || '').trim().toLowerCase();
+                if (mattermost_email && !mattermost_email.includes('@')) {
+                    this._toast('Некорректный Email в Mattermost', 'error'); return;
+                }
+
                 this.savingProfile = true;
                 try {
                     const res = await authFetch('/api/v1/auth/me', {
                         method: 'PUT',
-                        body: JSON.stringify({ full_name, email }),
+                        body: JSON.stringify({ full_name, email, mattermost_email }),
                     });
                     if (!res.ok) {
                         const err = await res.json();

@@ -66,11 +66,12 @@ def run_deadline_reminders(window_days: int = 3) -> int:
             if not due:
                 continue
             owner = db.get(User, p.user_id) if p.user_id else None
-            if not (owner and owner.email):
+            owner_email = mattermost_service.mattermost_email(owner)
+            if not owner_email:
                 continue
             lines = "\n".join(f"• {title} — до {d.isoformat()}" for title, d in due)
             ok = mattermost_service.post_to_email(
-                owner.email,
+                owner_email,
                 f"Напоминание по проекту «{p.name or '(без названия)'}»: "
                 f"приближаются дедлайны майлстоунов. Обновите факт и статус:\n{lines}",
             )

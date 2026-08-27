@@ -46,6 +46,7 @@ class UserUpdate(BaseModel):
     role: Optional[str] = None
     is_active: Optional[bool] = None
     password: Optional[str] = None
+    mattermost_email: Optional[str] = None
 
 
 class UserRead(BaseModel):
@@ -55,6 +56,7 @@ class UserRead(BaseModel):
     role: str
     is_active: bool
     avatar_url: Optional[str] = None
+    mattermost_email: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:
@@ -64,6 +66,7 @@ class UserRead(BaseModel):
 class UserProfileUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[str] = None
+    mattermost_email: Optional[str] = None
 
 
 class ChangePasswordRequest(BaseModel):

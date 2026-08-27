@@ -163,6 +163,10 @@ def update_me(
             raise HTTPException(status_code=422, detail="Имя не может быть пустым.")
         current_user.full_name = name
 
+    if body.mattermost_email is not None:
+        # Пустая строка очищает поле (использовать основной email).
+        current_user.mattermost_email = body.mattermost_email.strip().lower() or None
+
     current_user.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(current_user)

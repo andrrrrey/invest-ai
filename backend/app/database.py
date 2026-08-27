@@ -53,6 +53,7 @@ def init_db():
         ("users", "password_reset_expires", "TIMESTAMP"),
         ("projects", "smart_contract_data", "JSON"),
         ("projects", "forecast_data", "JSON"),
+        ("users", "mattermost_email", "VARCHAR"),
     ]
 
     # Check which columns already exist via the dialect-agnostic Inspector,

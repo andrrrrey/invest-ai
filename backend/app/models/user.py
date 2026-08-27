@@ -16,6 +16,9 @@ class User(Base):
     role = Column(String, nullable=False, default="owner")
     is_active = Column(Boolean, default=True, nullable=False)
     avatar_url = Column(String, nullable=True)
+    # Email пользователя в Mattermost, если отличается от основного. Бот
+    # использует его для отправки личных сообщений; при пустом — основной email.
+    mattermost_email = Column(String, nullable=True)
     password_reset_token = Column(String, nullable=True)
     password_reset_expires = Column(DateTime(timezone=True), nullable=True)
 

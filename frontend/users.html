@@ -301,6 +301,12 @@
                         </div>
                         <template x-if="editingUser">
                             <div class="field">
+                                <label>Email в Mattermost (если отличается)</label>
+                                <input type="email" x-model="form.mattermost_email" placeholder="оставьте пустым = основной email">
+                            </div>
+                        </template>
+                        <template x-if="editingUser">
+                            <div class="field">
                                 <label>Активен</label>
                                 <select x-model="form.is_active">
                                     <option :value="true">Да</option>
@@ -386,14 +392,14 @@
 
                 openCreateModal() {
                     this.editingUser = null;
-                    this.form = { full_name: '', email: '', password: '', role: 'owner', is_active: true };
+                    this.form = { full_name: '', email: '', password: '', role: 'owner', is_active: true, mattermost_email: '' };
                     this.formError = '';
                     this.showModal = true;
                 },
 
                 openEditModal(u) {
                     this.editingUser = u;
-                    this.form = { full_name: u.full_name, email: u.email, password: '', role: u.role, is_active: u.is_active };
+                    this.form = { full_name: u.full_name, email: u.email, password: '', role: u.role, is_active: u.is_active, mattermost_email: u.mattermost_email || '' };
                     this.formError = '';
                     this.showModal = true;
                 },
@@ -408,7 +414,7 @@
                     try {
                         let res;
                         if (this.editingUser) {
-                            const body = { full_name: this.form.full_name, role: this.form.role, is_active: this.form.is_active };
+                            const body = { full_name: this.form.full_name, role: this.form.role, is_active: this.form.is_active, mattermost_email: (this.form.mattermost_email || '').trim() };
                             if (this.form.password.trim()) body.password = this.form.password;
                             res = await authFetch(`/api/v1/users/${this.editingUser.id}`, {
                                 method: 'PUT',
