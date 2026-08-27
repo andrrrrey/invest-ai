@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Аудит | Инвестиционный процессор</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+        :root {
+            --bg-body: #F8F7F3; --sidebar-bg: #1C1C1E; --sidebar-hover: #2C2C2E;
+            --text-main: #1C1C1E; --text-muted: #8E8E93; --accent-purple: #5E5CE6;
+            --radius-lg: 35px; --radius-md: 24px; --danger: #FF3B30; --success: #34C759;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background-color: #E5E5E5; padding: 8px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .mobile-menu-btn { display: none; position: fixed; top: 20px; left: 20px; z-index: 1000; background: var(--sidebar-bg); color: white; border: none; padding: 12px; border-radius: 12px; cursor: pointer; }
+        .app-window { width: 100%; max-width: 1700px; height: calc(100vh - 16px); background: var(--bg-body); border-radius: var(--radius-lg); display: flex; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,0.1); position: relative; }
+        .sidebar { width: 260px; background: var(--sidebar-bg); padding: 60px 25px 40px; display: flex; flex-direction: column; color: white; transition: all 0.4s cubic-bezier(0.4,0,0.2,1); flex-shrink: 0; position: relative; }
+        .profile-section { text-align: center; margin-bottom: 50px; }
+        .profile-section p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+        .profile-section h4 { font-size: 16px; font-weight: 600; margin-top: 4px; }
+        .nav-menu { flex: 1; }
+        .nav-link { display: flex; align-items: center; gap: 15px; color: var(--text-muted); text-decoration: none; padding: 14px 15px; border-radius: 12px; font-size: 14px; margin-bottom: 8px; transition: 0.3s; }
+        .nav-link.active, .nav-link:hover { background: var(--sidebar-hover); color: white; }
+        .nav-link i { font-size: 18px; width: 20px; text-align: center; }
+        .main-content { flex: 1; padding: 28px 36px; overflow-y: auto; background: var(--bg-body); }
+        .page-header { margin-bottom: 24px; }
+        .page-header h1 { font-size: 26px; font-weight: 800; }
+        .page-header p { color: var(--text-muted); font-size: 14px; margin-top: 6px; }
+        .card { background: white; border-radius: var(--radius-md); padding: 22px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+        .filters { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 18px; }
+        .filters .field { display: flex; flex-direction: column; gap: 5px; }
+        .filters label { font-size: 11px; font-weight: 700; color: #555; }
+        select, input[type=text] { padding: 9px 12px; border: 1.5px solid #E5E5ED; border-radius: 10px; font-size: 13px; color: var(--text-main); background: #fff; outline: none; font-family: inherit; }
+        select:focus, input:focus { border-color: var(--accent-purple); }
+        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: .2s; white-space: nowrap; }
+        .btn-primary { background: var(--accent-purple); color: white; }
+        .btn-primary:hover { opacity: .88; }
+        .btn-outline { background: white; color: #333; border: 1.5px solid #E0E0E8; }
+        .btn-outline:disabled { opacity: .5; cursor: not-allowed; }
+        table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+        th { text-align: left; padding: 10px 10px; color: var(--text-muted); font-weight: 700; border-bottom: 2px solid #F2F2F7; white-space: nowrap; }
+        td { padding: 10px 10px; border-bottom: 1px solid #F2F2F7; vertical-align: top; }
+        tr:hover td { background: #FAFAFC; }
+        .table-wrap { overflow-x: auto; }
+        .badge { display: inline-block; padding: 3px 9px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+        .b-ok { background: #DDF0E1; color: #2D9B63; }
+        .b-err { background: #FFE5E3; color: #9c1c15; }
+        .b-gray { background: #EFEFF4; color: #555; }
+        .mono { font-family: monospace; font-size: 11px; color: #555; }
+        .spin { animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .pager { display: flex; align-items: center; gap: 14px; margin-top: 16px; font-size: 13px; color: var(--text-muted); }
+        .toast { position: fixed; bottom: 28px; right: 28px; background: #1C1C1E; color: #fff; padding: 11px 20px; border-radius: 14px; font-size: 13px; font-weight: 600; z-index: 999; display: flex; align-items: center; gap: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+        .toast.error { background: var(--danger); }
+        @media (max-width: 992px) {
+            body { padding: 0; } .app-window { height: 100vh; border-radius: 0; } .mobile-menu-btn { display: block; }
+            .sidebar { position: absolute; left: -260px; top: 0; height: 100%; z-index: 1001; } .sidebar.active { left: 0; }
+            .main-content { padding: 80px 20px 30px; }
+        }
+    </style>
+</head>
+<body>
+
+<button class="mobile-menu-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+
+<div class="app-window">
+    <aside class="sidebar" id="sidebar">
+        <div class="profile-section">
+            <div style="width:90px;height:90px;border-radius:50%;border:3px solid white;margin:0 auto 15px;background:#5E5CE6;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:white" id="sidebar-avatar"></div>
+            <p>С возвращением,</p>
+            <h4 id="sidebar-name">—</h4>
+            <div style="display:inline-block;background:rgba(94,92,230,0.3);color:#A8A6FF;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700;margin-top:6px" id="sidebar-role"></div>
+        </div>
+        <nav class="nav-menu">
+            <a href="/" class="nav-link"><i class="fas fa-th-large"></i> Главный экран</a>
+            <a href="/project-list" class="nav-link"><i class="fas fa-project-diagram"></i> Проекты</a>
+            <a href="/smart-contracts" class="nav-link"><i class="fas fa-file-contract"></i> Смарт-контракты</a>
+            <a href="/export" class="nav-link" id="nav-export"><i class="fas fa-chart-bar"></i> Отчетность</a>
+            <a href="/settings" class="nav-link"><i class="fas fa-cog"></i> Настройки</a>
+            <a href="/audit" class="nav-link active" id="nav-audit"><i class="fas fa-clipboard-list"></i> Аудит</a>
+            <a href="/users" class="nav-link" id="nav-users"><i class="fas fa-users"></i> Пользователи</a>
+            <a href="/profile" class="nav-link"><i class="fas fa-user-circle"></i> Мой профиль</a>
+        </nav>
+        <a href="#" class="nav-link" id="sidebar-logout" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
+    </aside>
+
+    <main class="main-content" x-data="auditApp()" x-init="init()">
+        <div class="page-header">
+            <h1>Журнал аудита</h1>
+            <p>Обращения ИИ и действия помощника. Конфиденциальные данные в журнал не попадают — только метаданные.</p>
+        </div>
+
+        <div class="card">
+            <div class="filters">
+                <div class="field">
+                    <label>Действие</label>
+                    <select x-model="fAction">
+                        <option value="">Все</option>
+                        <option value="ai.chat">ai.chat</option>
+                        <option value="mcp.tool_call">mcp.tool_call</option>
+                        <option value="hermes.answer">hermes.answer</option>
+                        <option value="hermes.approval_card_sent">hermes.approval_card_sent</option>
+                        <option value="hermes.applicant_reminder">hermes.applicant_reminder</option>
+                        <option value="hermes.deadline_reminder">hermes.deadline_reminder</option>
+                        <option value="status.change">status.change</option>
+                        <option value="write.fact">write.fact</option>
+                        <option value="write.milestone">write.milestone</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Результат</label>
+                    <select x-model="fResult">
+                        <option value="">Все</option>
+                        <option value="ok">ok</option>
+                        <option value="error">error</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Актор</label>
+                    <select x-model="fActor">
+                        <option value="">Все</option>
+                        <option value="user">user</option>
+                        <option value="hermes">hermes</option>
+                        <option value="ai_gateway">ai_gateway</option>
+                        <option value="system">system</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" @click="offset = 0; load()" :disabled="loading">
+                    <i class="fas" :class="loading ? 'fa-spinner spin' : 'fa-filter'"></i> Применить
+                </button>
+                <button class="btn btn-outline" @click="load()" :disabled="loading">
+                    <i class="fas fa-rotate"></i> Обновить
+                </button>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Время</th><th>Актор</th><th>Действие</th><th>Объект</th>
+                            <th>Результат</th><th>Провайдер / модель</th><th>Обезл.</th><th>Детали</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="r in items" :key="r.id">
+                            <tr>
+                                <td class="mono" x-text="fmt(r.created_at)"></td>
+                                <td><span x-text="r.actor_type"></span><span class="mono" x-show="r.actor_id" x-text="' #' + r.actor_id"></span></td>
+                                <td><span class="badge b-gray" x-text="r.action"></span></td>
+                                <td class="mono" x-text="r.target_type ? (r.target_type + ' ' + (r.target_id||'')) : '—'"></td>
+                                <td><span class="badge" :class="r.result === 'error' ? 'b-err' : 'b-ok'" x-text="r.result"></span></td>
+                                <td x-text="r.ai_provider ? (r.ai_provider + (r.ai_model ? ' / ' + r.ai_model : '')) : '—'"></td>
+                                <td x-text="r.anonymized ? '✓' : '—'"></td>
+                                <td class="mono" x-text="detail(r)"></td>
+                            </tr>
+                        </template>
+                        <template x-if="!loading && items.length === 0">
+                            <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px">Записей нет</td></tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pager">
+                <button class="btn btn-outline" @click="prev()" :disabled="offset === 0 || loading"><i class="fas fa-chevron-left"></i> Назад</button>
+                <span x-text="'Показаны ' + (total === 0 ? 0 : offset + 1) + '–' + Math.min(offset + limit, total) + ' из ' + total"></span>
+                <button class="btn btn-outline" @click="next()" :disabled="offset + limit >= total || loading">Вперёд <i class="fas fa-chevron-right"></i></button>
+            </div>
+        </div>
+    </main>
+</div>
+
+<div x-data="{show:false,msg:'',type:'error'}" x-show="show" x-transition
+     @toast.window="show=true;msg=$event.detail.msg;type=$event.detail.type||'error';setTimeout(()=>show=false,3500)"
+     class="toast" :class="type" style="display:none">
+    <i class="fas fa-exclamation-circle"></i><span x-text="msg"></span>
+</div>
+
+<script src="/js/auth.js"></script>
+<script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+<script>
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
+    document.addEventListener('DOMContentLoaded', function() {
+        patchSidebar();
+        if (getUserRole() === 'owner') {
+            const ne = document.getElementById('nav-export'); if (ne) ne.style.display = 'none';
+        }
+    });
+
+    function auditApp() {
+        return {
+            items: [], total: 0, limit: 50, offset: 0, loading: false,
+            fAction: '', fResult: '', fActor: '',
+
+            async init() {
+                if (!redirectIfNotLoggedIn()) return;
+                if (getUserRole() !== 'cfo') { window.location.href = '/'; return; }
+                this.load();
+            },
+
+            async load() {
+                this.loading = true;
+                try {
+                    const params = new URLSearchParams();
+                    if (this.fAction) params.set('action', this.fAction);
+                    if (this.fResult) params.set('result', this.fResult);
+                    if (this.fActor) params.set('actor_type', this.fActor);
+                    params.set('limit', this.limit); params.set('offset', this.offset);
+                    const res = await authFetch('/api/v1/audit/?' + params.toString());
+                    if (!res.ok) throw new Error(await res.text());
+                    const data = await res.json();
+                    this.items = data.items || [];
+                    this.total = data.total || 0;
+                } catch(e) {
+                    if (e.message !== 'Unauthorized') window.dispatchEvent(new CustomEvent('toast', { detail: { msg: 'Ошибка загрузки: ' + e.message } }));
+                } finally { this.loading = false; }
+            },
+
+            next() { if (this.offset + this.limit < this.total) { this.offset += this.limit; this.load(); } },
+            prev() { if (this.offset > 0) { this.offset = Math.max(0, this.offset - this.limit); this.load(); } },
+
+            fmt(ts) { if (!ts) return '—'; try { return new Date(ts).toLocaleString('ru-RU'); } catch(e) { return ts; } },
+            detail(r) {
+                let parts = [];
+                if (r.meta) { try { parts.push(JSON.stringify(r.meta)); } catch(e) {} }
+                if (r.error_message) parts.push(r.error_message);
+                return parts.join(' | ') || '—';
+            },
+        };
+    }
+</script>
+</body>
+</html>

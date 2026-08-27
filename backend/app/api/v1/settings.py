@@ -1,9 +1,12 @@
+import os
+
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 
 from ... import settings_store
 from ...auth import require_cfo
+from ...services import alert_service
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -27,6 +30,16 @@ class SettingsUpdate(BaseModel):
     ai_enabled: Optional[bool] = None
     investment_budget: Optional[float] = None
     registration_domain: Optional[str] = None
+    # Hermes / Mattermost
+    mattermost_base_url: Optional[str] = None
+    mattermost_integration_url: Optional[str] = None
+    mattermost_command_token: Optional[str] = None
+    mattermost_bot_token: Optional[str] = None
+    mattermost_alert_webhook: Optional[str] = None
+    anonymize_enabled: Optional[bool] = None
+    anonymize_round_amounts: Optional[bool] = None
+    reminders_enabled: Optional[bool] = None
+    hermes_write_enabled: Optional[bool] = None
 
 
 def _mask_key(key: str | None) -> str | None:
@@ -64,6 +77,27 @@ def get_settings(_=Depends(require_cfo)) -> dict:
         "ai_enabled": settings_store.is_ai_enabled(),
         "investment_budget": settings_store.get_investment_budget(),
         "registration_domain": settings_store.get_registration_domain(),
+        # Hermes / Mattermost
+        "mattermost_base_url": settings_store.get_mattermost_base_url(),
+        "mattermost_integration_url": settings_store.get_mattermost_integration_url(),
+        "mattermost_command_token_set": bool(settings_store.get_mattermost_command_token()),
+        "mattermost_command_token_masked": _mask_key(settings_store.get_mattermost_command_token()),
+        "mattermost_bot_token_set": bool(settings_store.get_mattermost_bot_token()),
+        "mattermost_bot_token_masked": _mask_key(settings_store.get_mattermost_bot_token()),
+        "mattermost_alert_webhook_set": bool(settings_store.get_mattermost_alert_webhook()),
+        "mattermost_alert_webhook_masked": _mask_key(settings_store.get_mattermost_alert_webhook()),
+        "anonymize_enabled": settings_store.is_anonymize_enabled(),
+        "anonymize_round_amounts": settings_store.get_anonymize_round_amounts(),
+        "reminders_enabled": settings_store.is_reminders_enabled(),
+        "hermes_write_enabled": settings_store.is_hermes_write_enabled(),
+        # Признак, что значение задано переменной окружения (env приоритетнее файла).
+        "env_overrides": {
+            "mattermost_base_url": bool(os.getenv("MATTERMOST_BASE_URL")),
+            "mattermost_integration_url": bool(os.getenv("MATTERMOST_INTEGRATION_URL")),
+            "mattermost_command_token": bool(os.getenv("MATTERMOST_COMMAND_TOKEN")),
+            "mattermost_bot_token": bool(os.getenv("MATTERMOST_BOT_TOKEN")),
+            "mattermost_alert_webhook": bool(os.getenv("MATTERMOST_ALERT_WEBHOOK")),
+        },
     }
 
 
@@ -89,6 +123,36 @@ def update_settings(body: SettingsUpdate, _=Depends(require_cfo)) -> dict:
     if body.registration_domain is not None:
         domain = body.registration_domain.strip().lstrip("@").lower()
         settings_store.set_registration_domain(domain)
+    # Hermes / Mattermost
+    if body.mattermost_base_url is not None:
+        settings_store.set_mattermost_base_url(body.mattermost_base_url)
+    if body.mattermost_integration_url is not None:
+        settings_store.set_mattermost_integration_url(body.mattermost_integration_url)
+    if body.mattermost_command_token is not None:
+        settings_store.set_mattermost_command_token(body.mattermost_command_token)
+    if body.mattermost_bot_token is not None:
+        settings_store.set_mattermost_bot_token(body.mattermost_bot_token)
+    if body.mattermost_alert_webhook is not None:
+        settings_store.set_mattermost_alert_webhook(body.mattermost_alert_webhook)
+    if body.anonymize_enabled is not None:
+        settings_store.set_anonymize_enabled(body.anonymize_enabled)
+    if body.anonymize_round_amounts is not None:
+        settings_store.set_anonymize_round_amounts(body.anonymize_round_amounts)
+    if body.reminders_enabled is not None:
+        settings_store.set_reminders_enabled(body.reminders_enabled)
+    if body.hermes_write_enabled is not None:
+        settings_store.set_hermes_write_enabled(body.hermes_write_enabled)
+    return {"success": True}
+
+
+@router.post("/test-mattermost")
+def test_mattermost(_=Depends(require_cfo)) -> dict:
+    """Отправить тестовое оповещение в служебный канал Mattermost. CFO only."""
+    if not settings_store.get_mattermost_alert_webhook():
+        raise HTTPException(status_code=503, detail="Webhook служебного канала не настроен.")
+    ok = alert_service.send_alert("Тестовое оповещение из настроек Hermes ✅")
+    if not ok:
+        raise HTTPException(status_code=502, detail="Не удалось отправить оповещение. Проверьте webhook.")
     return {"success": True}
 
 

@@ -210,92 +210,10 @@ def change_status(
 
     project = _get_project_or_404(project_id, db)
 
-    role = current_user.role
-
-    if new_status in ("approved", "rejected", "rework_needed"):
-        # Only CFO and Manager can approve / reject / send back for rework
-        if role not in ("cfo", "manager"):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Только CFO или Менеджер могут согласовывать/отклонять заявки",
-            )
-    elif new_status == "pending_approval":
-        # CEO cannot submit; Owner can only submit their own project
-        if role == "ceo":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="CEO не может подавать заявки на согласование",
-            )
-        if role == "owner" and project.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Нет доступа к этому проекту",
-            )
-    elif new_status == "draft":
-        # Return to draft: cfo/manager always, owner only for their own
-        if role == "owner" and project.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Нет доступа к этому проекту",
-            )
-
-    # Record status change in history
-    import datetime as dt
-    history = project.status_history or []
-    history = list(history)  # copy so SQLAlchemy detects mutation
-    history.append({
-        "status": new_status,
-        "changed_at": dt.datetime.utcnow().isoformat(),
-        "changed_by": current_user.full_name,
-        "changed_by_id": current_user.id,
-    })
-    project.status = new_status
-    project.status_history = history
-    db.commit()
-    db.refresh(project)
-
-    import logging
-    _log = logging.getLogger(__name__)
-    project_name = project.name or "(без названия)"
-
-    # --- In-app notifications ---
-    try:
-        from ...services.notification_service import notify_approvers, notify_owner
-        if new_status == "pending_approval":
-            notify_approvers(db, project.id, project_name, current_user.full_name)
-            db.commit()
-        elif new_status in ("approved", "rejected", "draft", "rework_needed") and project.user_id:
-            notify_owner(db, project.user_id, project.id, project_name, new_status)
-            db.commit()
-    except Exception:
-        _log.exception("In-app notification failed for project %s", project_id)
-
-    # --- Email notifications (fire-and-forget, never block the response) ---
-    try:
-        if new_status == "pending_approval":
-            approvers = (
-                db.query(User)
-                .filter(User.role.in_(["cfo", "manager"]), User.is_active == True)
-                .all()
-            )
-            recipients = [
-                {"email": u.email, "full_name": u.full_name} for u in approvers
-            ]
-            if recipients:
-                send_approval_request_emails(
-                    recipients, project_name, current_user.full_name
-                )
-
-        elif new_status in ("approved", "rejected", "draft", "rework_needed"):
-            owner = db.get(User, project.user_id) if project.user_id else None
-            if owner and owner.email:
-                send_status_notification_email(
-                    owner.email, owner.full_name, project_name, new_status
-                )
-    except Exception:
-        _log.exception("Email notification failed for project %s", project_id)
-
-    return project
+    # Единая логика смены статуса (права, история, уведомления, карточки
+    # согласования в Mattermost, аудит) — та же, что и для нажатий кнопок.
+    from ...services import approval_service
+    return approval_service.apply_status_change(db, project, new_status, current_user)
 
 
 @router.patch("/{project_id}/recalculate", response_model=ProjectRead)

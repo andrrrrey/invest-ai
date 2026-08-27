@@ -1,13 +1,20 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+import logging
 import os
+import time
 
 AVATARS_DIR = os.environ.get("AVATARS_DIR", "/data/avatars")
 ATTACHMENTS_DIR = os.environ.get("ATTACHMENTS_DIR", "/data/attachments")
 
 from .config import settings
 from .database import init_db
+from .logging_config import setup_logging
+
+# Configure structured JSON logging as early as possible.
+setup_logging(os.environ.get("LOG_LEVEL", "INFO"))
+_request_logger = logging.getLogger("hermes.request")
 from .api.v1 import projects, finance, ai, stats
 from .api.v1 import settings as settings_router
 from .api.v1 import auth as auth_router
@@ -18,6 +25,9 @@ from .api.v1 import attachments as attachments_router
 from .api.v1 import notifications as notifications_router
 from .api.v1 import tranches as tranches_router
 from .api.v1 import fact as fact_router
+from .api.v1 import mattermost as mattermost_router
+from .api.v1 import milestones as milestones_router
+from .api.v1 import audit as audit_router
 
 app = FastAPI(
     title="Инвестиционный процессор",
@@ -33,6 +43,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def request_logging_middleware(request: Request, call_next):
+    """Сквозное логирование запросов: метод, путь, статус, длительность.
+
+    Тело запроса НЕ логируется (может содержать конфиденциальные данные).
+    """
+    start = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        duration_ms = round((time.perf_counter() - start) * 1000, 1)
+        _request_logger.exception(
+            "request failed",
+            extra={"request": {
+                "method": request.method,
+                "path": request.url.path,
+                "ms": duration_ms,
+            }},
+        )
+        raise
+    duration_ms = round((time.perf_counter() - start) * 1000, 1)
+    _request_logger.info(
+        "request",
+        extra={"request": {
+            "method": request.method,
+            "path": request.url.path,
+            "status": response.status_code,
+            "ms": duration_ms,
+        }},
+    )
+    return response
+
 # API routes
 app.include_router(auth_router.router, prefix="/api/v1")
 app.include_router(users_router.router, prefix="/api/v1")
@@ -47,6 +90,9 @@ app.include_router(attachments_router.router, prefix="/api/v1")
 app.include_router(notifications_router.router, prefix="/api/v1")
 app.include_router(tranches_router.router, prefix="/api/v1")
 app.include_router(fact_router.router, prefix="/api/v1")
+app.include_router(mattermost_router.router, prefix="/api/v1")
+app.include_router(milestones_router.router, prefix="/api/v1")
+app.include_router(audit_router.router, prefix="/api/v1")
 
 
 @app.on_event("startup")
@@ -54,6 +100,13 @@ def on_startup():
     # Fail fast on insecure production configuration (default SECRET_KEY, CORS *, ...)
     settings.validate_for_production()
     init_db()
+    # Фоновые напоминания по дедлайнам (запустится только если включено и
+    # настроен бот Mattermost; не должно ломать старт приложения).
+    try:
+        from .services.scheduler_service import start_scheduler
+        start_scheduler()
+    except Exception:
+        logging.getLogger("hermes.scheduler").exception("Не удалось запустить планировщик")
 
 
 @app.get("/api/health")

@@ -64,6 +64,8 @@ def init_db():
 
     # Seed initial CEO user if no users exist yet
     _seed_admin()
+    # Ensure the read-only service account for the Hermes assistant exists.
+    _seed_service_account()
 
 
 def _seed_admin():
@@ -105,5 +107,35 @@ def _seed_admin():
                     "SEED_*_PASSWORD set. Use «Забыли пароль?» to set a password, or "
                     "provide SEED_CEO_PASSWORD / SEED_CFO_PASSWORD via environment."
                 )
+    finally:
+        db.close()
+
+
+def _seed_service_account():
+    """Создать служебный (read-only) аккаунт помощника Hermes, если его нет.
+
+    Роль ``ceo`` в системе заблокирована на создание/редактирование/удаление и
+    отправку на согласование — то есть это естественный read-only профиль.
+    Идентичность используется для аудита обращений помощника.
+    """
+    from .models.user import User
+    from .auth import hash_password, generate_password
+    from .config import settings
+
+    db = SessionLocal()
+    try:
+        exists = db.query(User).filter(User.email == settings.HERMES_BOT_EMAIL).first()
+        if exists is None:
+            db.add(
+                User(
+                    email=settings.HERMES_BOT_EMAIL,
+                    full_name=settings.HERMES_BOT_NAME,
+                    hashed_password=hash_password(generate_password()),
+                    role="ceo",
+                    is_active=True,
+                )
+            )
+            db.commit()
+            print("[init_db] Hermes service account created (read-only, role=ceo).")
     finally:
         db.close()

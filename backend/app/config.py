@@ -38,6 +38,22 @@ class Settings(BaseSettings):
     OIDC_CLIENT_SECRET: Optional[str] = None
     OIDC_REDIRECT_URI: str = "http://localhost/api/v1/auth/sso/callback"
     SSO_DEFAULT_ROLE: str = "owner"         # role assigned to new users created via SSO
+    # Hermes: служебный incoming-webhook Mattermost для оповещений об ошибках.
+    # Env-переменная имеет приоритет над значением в файле настроек.
+    MATTERMOST_ALERT_WEBHOOK: Optional[str] = None
+    # Токен верификации входящих slash-команд/вебхуков Mattermost.
+    MATTERMOST_COMMAND_TOKEN: Optional[str] = None
+    # Токен бота Mattermost (карточки согласования).
+    MATTERMOST_BOT_TOKEN: Optional[str] = None
+    # Базовый URL сервера Mattermost для вызовов bot API.
+    MATTERMOST_BASE_URL: Optional[str] = None
+    # Внешне доступный URL этого бэкенда для callback-ов кнопок Mattermost.
+    MATTERMOST_INTEGRATION_URL: Optional[str] = None
+    # Служебный (read-only) аккаунт помощника Hermes.
+    HERMES_BOT_EMAIL: str = "hermes-bot@system.local"
+    HERMES_BOT_NAME: str = "Hermes (бот)"
+    # Уровень структурного (JSON) логирования.
+    LOG_LEVEL: str = "INFO"
 
     class Config:
         env_file = ".env"

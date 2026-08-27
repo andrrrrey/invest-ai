@@ -22,7 +22,14 @@ logger = logging.getLogger(__name__)
 _SETTINGS_FILE = Path(os.getenv("SETTINGS_PATH", "/data/settings.json"))
 
 # Fields that must be encrypted at rest.
-_SECRET_FIELDS = ("openai_api_key", "anthropic_api_key", "routerai_api_key")
+_SECRET_FIELDS = (
+    "openai_api_key",
+    "anthropic_api_key",
+    "routerai_api_key",
+    "mattermost_alert_webhook",
+    "mattermost_command_token",
+    "mattermost_bot_token",
+)
 _ENC_PREFIX = "enc:v1:"
 
 _warned_no_key = False
@@ -219,6 +226,140 @@ def set_ai_provider(provider: str) -> None:
         raise ValueError(f"Unknown AI provider: {provider}")
     data = _load()
     data["ai_provider"] = provider
+    _save(data)
+
+
+# ── Hermes: обезличивание и оповещения ────────────────────────────
+
+def get_mattermost_alert_webhook() -> str | None:
+    """Incoming webhook служебного канала Mattermost для оповещений об ошибках.
+
+    Переменная окружения MATTERMOST_ALERT_WEBHOOK имеет приоритет над файлом.
+    """
+    env = os.getenv("MATTERMOST_ALERT_WEBHOOK")
+    if env:
+        return env
+    return _load().get("mattermost_alert_webhook") or None
+
+
+def set_mattermost_alert_webhook(url: str) -> None:
+    data = _load()
+    data["mattermost_alert_webhook"] = (url or "").strip()
+    _save(data)
+
+
+def is_anonymize_enabled() -> bool:
+    """Включено ли обезличивание перед отправкой в ИИ (по умолчанию ДА)."""
+    val = _load().get("anonymize_enabled")
+    if val is None:
+        return True
+    return bool(val)
+
+
+def set_anonymize_enabled(enabled: bool) -> None:
+    data = _load()
+    data["anonymize_enabled"] = bool(enabled)
+    _save(data)
+
+
+def get_anonymize_round_amounts() -> bool:
+    """Округлять ли финансовые суммы при обезличивании (по умолчанию НЕТ)."""
+    return bool(_load().get("anonymize_round_amounts"))
+
+
+def set_anonymize_round_amounts(enabled: bool) -> None:
+    data = _load()
+    data["anonymize_round_amounts"] = bool(enabled)
+    _save(data)
+
+
+def get_mattermost_command_token() -> str | None:
+    """Токен верификации входящих slash-команд/вебхуков Mattermost.
+
+    Env-переменная MATTERMOST_COMMAND_TOKEN имеет приоритет над файлом.
+    """
+    env = os.getenv("MATTERMOST_COMMAND_TOKEN")
+    if env:
+        return env
+    return _load().get("mattermost_command_token") or None
+
+
+def set_mattermost_command_token(token: str) -> None:
+    data = _load()
+    data["mattermost_command_token"] = (token or "").strip()
+    _save(data)
+
+
+def get_mattermost_bot_token() -> str | None:
+    """Токен бота Mattermost (для карточек согласования).
+
+    Env-переменная MATTERMOST_BOT_TOKEN имеет приоритет над файлом.
+    """
+    env = os.getenv("MATTERMOST_BOT_TOKEN")
+    if env:
+        return env
+    return _load().get("mattermost_bot_token") or None
+
+
+def set_mattermost_bot_token(token: str) -> None:
+    data = _load()
+    data["mattermost_bot_token"] = (token or "").strip()
+    _save(data)
+
+
+def get_mattermost_base_url() -> str | None:
+    """Базовый URL сервера Mattermost (для вызовов bot API)."""
+    env = os.getenv("MATTERMOST_BASE_URL")
+    if env:
+        return env
+    return _load().get("mattermost_base_url") or None
+
+
+def set_mattermost_base_url(url: str) -> None:
+    data = _load()
+    data["mattermost_base_url"] = (url or "").strip().rstrip("/")
+    _save(data)
+
+
+def get_mattermost_integration_url() -> str | None:
+    """Внешне доступный базовый URL этого бэкенда для callback-ов кнопок
+    Mattermost (integration actions). Если не задан — используется base_url
+    самого приложения на стороне интеграции."""
+    env = os.getenv("MATTERMOST_INTEGRATION_URL")
+    if env:
+        return env
+    return _load().get("mattermost_integration_url") or None
+
+
+def set_mattermost_integration_url(url: str) -> None:
+    data = _load()
+    data["mattermost_integration_url"] = (url or "").strip().rstrip("/")
+    _save(data)
+
+
+def is_reminders_enabled() -> bool:
+    """Включены ли фоновые напоминания по дедлайнам (по умолчанию НЕТ)."""
+    return bool(_load().get("reminders_enabled"))
+
+
+def set_reminders_enabled(enabled: bool) -> None:
+    data = _load()
+    data["reminders_enabled"] = bool(enabled)
+    _save(data)
+
+
+def is_hermes_write_enabled() -> bool:
+    """Разрешены ли действия помощника на ЗАПИСЬ (факт, статус майлстоунов).
+
+    По умолчанию ВЫКЛЮЧЕНО: включается ответственным лицом «позже, под
+    контролем». Согласование (решения) помощнику недоступно в любом случае.
+    """
+    return bool(_load().get("hermes_write_enabled"))
+
+
+def set_hermes_write_enabled(enabled: bool) -> None:
+    data = _load()
+    data["hermes_write_enabled"] = bool(enabled)
     _save(data)
 
 
