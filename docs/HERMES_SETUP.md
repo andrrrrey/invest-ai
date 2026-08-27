@@ -200,8 +200,28 @@ curl -s "https://<бэкенд>/api/v1/audit/?action=hermes.answer&result=error"
 | `MATTERMOST_INTEGRATION_URL` | Внешний URL бэкенда для callback-ов кнопок |
 | `MATTERMOST_ALERT_WEBHOOK` | Incoming webhook служебного канала |
 | `ROUTERAI_API_KEY` | Ключ RouterAI (можно задать в UI) |
+| `SETTINGS_ENCRYPTION_KEY` | Шифрование секретов в `/data/settings.json` (Fernet) |
 | `LOG_LEVEL` | Уровень JSON-логирования |
 
 Флаги режимов (`anonymize_enabled`, `anonymize_round_amounts`,
 `reminders_enabled`, `hermes_write_enabled`, `ai_enabled`) задаются в UI и
 хранятся в `/data/settings.json`.
+
+> **Важно (безопасность):** без `SETTINGS_ENCRYPTION_KEY` секреты, введённые в
+> UI (ключи ИИ, токены/webhook Mattermost), хранятся в `/data/settings.json` в
+> **открытом виде** (в логах будет предупреждение `SETTINGS_ENCRYPTION_KEY не
+> задан`). Перед сохранением токенов задайте в `.env` длинную случайную строку
+> и перезапустите бэкенд:
+> ```
+> SETTINGS_ENCRYPTION_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
+> ```
+> Уже сохранённые значения перешифруются при следующем сохранении.
+
+## Частые ошибки при первом деплое
+
+- **502 Bad Gateway, в логах `CORS_ORIGINS must list explicit origins`.** При
+  `APP_ENV=production` нельзя `CORS_ORIGINS=["*"]`. Укажите явный домен фронтенда,
+  например `CORS_ORIGINS=["https://invest.example.com"]`, и `docker compose up -d backend`.
+- **`table ... already exists` на старте при нескольких воркерах.** Разовая гонка
+  воркеров при первом создании новой таблицы; приложение самовосстанавливается,
+  а `init_db` устойчив к этому (пропускает «already exists»).

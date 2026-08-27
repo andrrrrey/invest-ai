@@ -24,7 +24,22 @@ def get_db():
 
 def init_db():
     from . import models  # noqa: F401 — imports __init__.py, registers all models
-    Base.metadata.create_all(bind=engine)
+
+    # create_all(checkfirst=True) inspects then creates missing tables, but with
+    # multiple uvicorn workers two processes can inspect concurrently, both see a
+    # brand-new table as missing, and the loser gets "table already exists" on
+    # first creation. Treat that as benign — the other worker created it — so a
+    # deploy that adds a new table doesn't crash a worker on startup.
+    from sqlalchemy.exc import OperationalError, ProgrammingError
+    import logging
+    _log = logging.getLogger(__name__)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except (OperationalError, ProgrammingError) as exc:
+        if "already exists" in str(exc).lower():
+            _log.warning("Таблица уже создана конкурентным воркером — пропускаем: %s", exc)
+        else:
+            raise
 
     # Idempotent column migrations for databases created by an older schema.
     # (table, column, DDL type used in "ADD COLUMN <column> <type>")
