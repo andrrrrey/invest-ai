@@ -129,6 +129,28 @@ def test_rejection_dms_owner_when_bot_configured(db_session, monkeypatch):
     assert row is not None and row.result == "ok"
 
 
+def test_decision_dm_uses_mattermost_email_override(db_session, monkeypatch):
+    owner_id = _mk_user("owner")
+    cfo_id = _mk_user("cfo")
+    pid = _mk_project(owner_id)
+    owner = db_session.get(User, owner_id)
+    owner.mattermost_email = "owner.mm@chat.example.com"  # отличается от основного
+    db_session.commit()
+    cfo = db_session.get(User, cfo_id)
+    project = db_session.get(Project, pid)
+
+    sent = []
+    monkeypatch.setattr(mattermost_service, "is_configured", lambda: True)
+    monkeypatch.setattr(mattermost_service, "post_to_email",
+                        lambda to, msg, attachments=None: sent.append((to, msg)) or True)
+
+    approval_service.apply_status_change(db_session, project, "approved", cfo)
+
+    # DM ушёл на Mattermost-email, а не на основной.
+    assert any(to == "owner.mm@chat.example.com" for to, _ in sent)
+    assert all(to != owner.email for to, _ in sent)
+
+
 def test_process_action_unknown_user(db_session, monkeypatch):
     owner_id = _mk_user("owner")
     pid = _mk_project(owner_id)

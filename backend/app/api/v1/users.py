@@ -91,6 +91,9 @@ def update_user(
         user.is_active = data.is_active
     if data.password is not None:
         user.hashed_password = hash_password(data.password)
+    if data.mattermost_email is not None:
+        # Пустая строка очищает поле (использовать основной email).
+        user.mattermost_email = data.mattermost_email.strip().lower() or None
     db.commit()
     db.refresh(user)
     return user

@@ -31,6 +31,17 @@ def is_configured() -> bool:
     )
 
 
+def mattermost_email(user) -> Optional[str]:
+    """Email для поиска пользователя в Mattermost.
+
+    Возвращает специальное поле ``mattermost_email`` (если задано), иначе —
+    основной email. Нужно, когда email в Mattermost отличается от email в системе.
+    """
+    if user is None:
+        return None
+    return (getattr(user, "mattermost_email", None) or getattr(user, "email", None)) or None
+
+
 def _headers() -> dict:
     return {"Authorization": f"Bearer {settings_store.get_mattermost_bot_token()}"}
 

@@ -104,7 +104,8 @@ def _approver_emails(db: Session) -> List[str]:
         .filter(User.role.in_(["cfo", "manager"]), User.is_active == True)  # noqa: E712
         .all()
     )
-    return [u.email for u in approvers if u.email]
+    # Используем Mattermost-email согласующего (с фолбэком на основной).
+    return [e for e in (mattermost_service.mattermost_email(u) for u in approvers) if e]
 
 
 # Лейблы статусов для личного уведомления заявителю о решении.
@@ -127,12 +128,13 @@ def _notify_owner_decision_mm(db: Session, project: Project, new_status: str, pr
         logger.warning("%s (проект %s, статус %s)", _BOT_NOT_CONFIGURED_MSG, project.id, new_status)
         return
     owner = db.get(User, project.user_id) if project.user_id else None
-    if not (owner and owner.email):
+    owner_email = mattermost_service.mattermost_email(owner)
+    if not owner_email:
         return
     label = _OWNER_STATUS_LABELS.get(new_status, new_status)
     try:
         ok = mattermost_service.post_to_email(
-            owner.email, f"Проект «{project_name}» — {label}."
+            owner_email, f"Проект «{project_name}» — {label}."
         )
         audit_service.log_event(
             action="hermes.decision_notified",
@@ -165,9 +167,10 @@ def _on_pending_approval(db: Session, project: Project, project_name: str, appli
         )
         # Напоминание заявителю обновить факт и статус майлстоунов.
         owner = db.get(User, project.user_id) if project.user_id else None
-        if owner and owner.email:
+        owner_email = mattermost_service.mattermost_email(owner)
+        if owner_email:
             mattermost_service.post_to_email(
-                owner.email,
+                owner_email,
                 f"Проект «{project_name}» отправлен на согласование. "
                 "Пожалуйста, обновите фактические показатели и статус майлстоунов.",
             )
