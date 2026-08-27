@@ -133,6 +133,9 @@
                 <button class="btn btn-outline" @click="load()" :disabled="loading">
                     <i class="fas fa-rotate"></i> Обновить
                 </button>
+                <button class="btn btn-outline" @click="downloadAuditCsv()">
+                    <i class="fas fa-file-csv"></i> Скачать CSV
+                </button>
             </div>
 
             <div class="table-wrap">
@@ -169,6 +172,57 @@
                 <button class="btn btn-outline" @click="next()" :disabled="offset + limit >= total || loading">Вперёд <i class="fas fa-chevron-right"></i></button>
             </div>
         </div>
+
+        <!-- Системные логи -->
+        <div class="page-header" style="margin-top:32px;margin-bottom:16px">
+            <h1 style="font-size:20px">Системные логи</h1>
+            <p>Выгрузка технических логов (те, что видны через терминал). Скачайте файл или отправьте разработчику.</p>
+        </div>
+        <div class="card">
+            <div class="filters">
+                <div class="field">
+                    <label>Уровень</label>
+                    <select x-model="logLevel">
+                        <option value="">Все</option>
+                        <option value="WARNING">Предупреждения и ошибки</option>
+                        <option value="ERROR">Только ошибки</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Строк</label>
+                    <select x-model.number="logLines">
+                        <option :value="200">200</option>
+                        <option :value="1000">1000</option>
+                        <option :value="5000">5000</option>
+                    </select>
+                </div>
+                <div class="field" style="flex:1;min-width:180px">
+                    <label>Поиск в логах</label>
+                    <input type="text" x-model="logQuery" placeholder="например: hermes.approval или provider">
+                </div>
+                <button class="btn btn-primary" @click="previewLogs()" :disabled="logLoading">
+                    <i class="fas" :class="logLoading ? 'fa-spinner spin' : 'fa-eye'"></i> Предпросмотр
+                </button>
+                <button class="btn btn-outline" @click="downloadLogs()">
+                    <i class="fas fa-download"></i> Скачать логи
+                </button>
+            </div>
+
+            <div class="filters" style="margin-bottom:0">
+                <div class="field" style="flex:1;min-width:220px">
+                    <label>Email разработчика</label>
+                    <input type="email" x-model="devEmail" placeholder="dev@example.com">
+                </div>
+                <button class="btn btn-outline" @click="emailLogs()" :disabled="logSending">
+                    <i class="fas" :class="logSending ? 'fa-spinner spin' : 'fa-paper-plane'"></i>
+                    Отправить разработчику
+                </button>
+            </div>
+
+            <template x-if="logText !== null">
+                <pre style="margin-top:16px;background:#1C1C1E;color:#E5E5E5;border-radius:12px;padding:16px;max-height:420px;overflow:auto;font-size:11.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word" x-text="logText || 'Логи пусты по заданному фильтру.'"></pre>
+            </template>
+        </div>
     </main>
 </div>
 
@@ -193,11 +247,79 @@
         return {
             items: [], total: 0, limit: 50, offset: 0, loading: false,
             fAction: '', fResult: '', fActor: '',
+            // Системные логи
+            logLevel: '', logLines: 200, logQuery: '', logText: null,
+            logLoading: false, logSending: false, devEmail: '',
 
             async init() {
                 if (!redirectIfNotLoggedIn()) return;
                 if (getUserRole() !== 'cfo') { window.location.href = '/'; return; }
                 this.load();
+            },
+
+            _logParams(defaultLines) {
+                const p = new URLSearchParams();
+                if (this.logLevel) p.set('level', this.logLevel);
+                if (this.logQuery.trim()) p.set('q', this.logQuery.trim());
+                p.set('lines', defaultLines || this.logLines);
+                return p;
+            },
+
+            async _download(url, filename) {
+                try {
+                    const res = await authFetch(url);
+                    if (!res.ok) throw new Error(await res.text());
+                    const blob = await res.blob();
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = filename;
+                    document.body.appendChild(a); a.click(); a.remove();
+                    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+                } catch(e) {
+                    if (e.message !== 'Unauthorized') window.dispatchEvent(new CustomEvent('toast', { detail: { msg: 'Ошибка: ' + e.message } }));
+                }
+            },
+
+            downloadAuditCsv() {
+                const p = new URLSearchParams();
+                if (this.fAction) p.set('action', this.fAction);
+                if (this.fResult) p.set('result', this.fResult);
+                if (this.fActor) p.set('actor_type', this.fActor);
+                this._download('/api/v1/audit/export?' + p.toString(), 'hermes-audit.csv');
+            },
+
+            async previewLogs() {
+                this.logLoading = true;
+                try {
+                    const res = await authFetch('/api/v1/audit/logs/preview?' + this._logParams(Math.min(this.logLines, 2000)).toString());
+                    if (!res.ok) throw new Error(await res.text());
+                    const data = await res.json();
+                    this.logText = data.text || '';
+                    if (!this.devEmail && data.developer_email) this.devEmail = data.developer_email;
+                } catch(e) {
+                    if (e.message !== 'Unauthorized') window.dispatchEvent(new CustomEvent('toast', { detail: { msg: 'Ошибка: ' + e.message } }));
+                } finally { this.logLoading = false; }
+            },
+
+            downloadLogs() {
+                this._download('/api/v1/audit/logs/download?' + this._logParams(this.logLines).toString(), 'hermes-logs.log');
+            },
+
+            async emailLogs() {
+                const to = (this.devEmail || '').trim();
+                if (!to.includes('@')) { window.dispatchEvent(new CustomEvent('toast', { detail: { msg: 'Укажите корректный email' } })); return; }
+                this.logSending = true;
+                try {
+                    const res = await authFetch('/api/v1/audit/logs/email', {
+                        method: 'POST',
+                        body: JSON.stringify({ to, level: this.logLevel || null, q: this.logQuery.trim() || null, lines: this.logLines }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data.detail || 'Ошибка');
+                    window.dispatchEvent(new CustomEvent('toast', { detail: { msg: 'Логи отправлены на ' + to, type: 'success' } }));
+                } catch(e) {
+                    if (e.message !== 'Unauthorized') window.dispatchEvent(new CustomEvent('toast', { detail: { msg: 'Ошибка: ' + e.message } }));
+                } finally { this.logSending = false; }
             },
 
             async load() {

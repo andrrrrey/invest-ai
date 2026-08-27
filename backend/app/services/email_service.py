@@ -5,11 +5,44 @@ import smtplib
 import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from typing import List
+from email.mime.application import MIMEApplication
+from typing import List, Optional
 
 from ..config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def send_email_with_attachment(
+    to_email: str,
+    subject: str,
+    text_body: str,
+    attachment_bytes: bytes,
+    filename: str,
+    content_type: str = "text/plain",
+) -> None:
+    """Отправить письмо с вложением (например, выгрузку логов) через SMTP."""
+    if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+        raise RuntimeError(
+            "SMTP не настроен. Укажите SMTP_USER и SMTP_PASSWORD в конфигурации сервера."
+        )
+    msg = MIMEMultipart()
+    msg["Subject"] = subject
+    msg["From"] = settings.SMTP_FROM
+    msg["To"] = to_email
+    msg.attach(MIMEText(text_body, "plain", "utf-8"))
+
+    maintype, _, subtype = content_type.partition("/")
+    part = MIMEApplication(attachment_bytes, _subtype=subtype or "octet-stream")
+    part.add_header("Content-Disposition", "attachment", filename=filename)
+    msg.attach(part)
+
+    context = ssl.create_default_context()
+    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+        server.ehlo()
+        server.starttls(context=context)
+        server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+        server.sendmail(settings.SMTP_FROM, to_email, msg.as_string())
 
 
 def _send_email(to_email: str, subject: str, html_body: str, text_body: str) -> None:

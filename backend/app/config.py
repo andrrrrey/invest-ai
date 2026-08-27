@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     HERMES_BOT_NAME: str = "Hermes (бот)"
     # Уровень структурного (JSON) логирования.
     LOG_LEVEL: str = "INFO"
+    # Файл, куда дублируются JSON-логи (для выгрузки на экране «Аудит»).
+    LOG_FILE: str = "/data/logs/app.log"
+    # Email разработчика по умолчанию (префилл поля отправки логов).
+    DEVELOPER_EMAIL: Optional[str] = None
 
     class Config:
         env_file = ".env"
