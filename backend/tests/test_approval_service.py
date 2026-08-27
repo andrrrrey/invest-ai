@@ -102,6 +102,33 @@ def test_process_action_approves_via_button(db_session, monkeypatch):
     assert db_session.get(Project, pid).status == "approved"
 
 
+def test_rejection_dms_owner_when_bot_configured(db_session, monkeypatch):
+    owner_id = _mk_user("owner")
+    cfo_id = _mk_user("cfo")
+    pid = _mk_project(owner_id)
+    owner = db_session.get(User, owner_id)
+    cfo = db_session.get(User, cfo_id)
+    project = db_session.get(Project, pid)
+
+    # Бот "настроен", перехватываем исходящие DM.
+    sent = []
+    monkeypatch.setattr(mattermost_service, "is_configured", lambda: True)
+    monkeypatch.setattr(mattermost_service, "post_to_email",
+                        lambda to, msg, attachments=None: sent.append((to, msg)) or True)
+
+    approval_service.apply_status_change(db_session, project, "rejected", cfo)
+
+    # Заявителю ушёл DM о решении.
+    assert any(to == owner.email and "Отклонён" in msg for to, msg in sent)
+    row = (
+        db_session.query(AuditLog)
+        .filter(AuditLog.action == "hermes.decision_notified", AuditLog.target_id == str(pid))
+        .order_by(AuditLog.id.desc())
+        .first()
+    )
+    assert row is not None and row.result == "ok"
+
+
 def test_process_action_unknown_user(db_session, monkeypatch):
     owner_id = _mk_user("owner")
     pid = _mk_project(owner_id)

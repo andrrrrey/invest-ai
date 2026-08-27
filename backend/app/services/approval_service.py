@@ -107,9 +107,49 @@ def _approver_emails(db: Session) -> List[str]:
     return [u.email for u in approvers if u.email]
 
 
+# Лейблы статусов для личного уведомления заявителю о решении.
+_OWNER_STATUS_LABELS = {
+    "approved": "Утверждён",
+    "rejected": "Отклонён",
+    "rework_needed": "Отправлен на доработку",
+    "draft": "Возвращён в черновик",
+}
+
+_BOT_NOT_CONFIGURED_MSG = (
+    "Бот Mattermost не настроен — сообщение не отправлено. "
+    "Заполните «URL сервера Mattermost» и «Токен бота» в Настройках."
+)
+
+
+def _notify_owner_decision_mm(db: Session, project: Project, new_status: str, project_name: str) -> None:
+    """DM заявителю о принятом решении (согласован/отклонён/на доработку)."""
+    if not mattermost_service.is_configured():
+        logger.warning("%s (проект %s, статус %s)", _BOT_NOT_CONFIGURED_MSG, project.id, new_status)
+        return
+    owner = db.get(User, project.user_id) if project.user_id else None
+    if not (owner and owner.email):
+        return
+    label = _OWNER_STATUS_LABELS.get(new_status, new_status)
+    try:
+        ok = mattermost_service.post_to_email(
+            owner.email, f"Проект «{project_name}» — {label}."
+        )
+        audit_service.log_event(
+            action="hermes.decision_notified",
+            actor_type="hermes",
+            result="ok" if ok else "error",
+            target_type="project",
+            target_id=str(project.id),
+            meta={"new_status": new_status},
+        )
+    except Exception:
+        logger.exception("Mattermost decision notification failed for project %s", project.id)
+
+
 def _on_pending_approval(db: Session, project: Project, project_name: str, applicant_name: str) -> None:
     """Отправить карточку согласования ответственным и напоминание заявителю."""
     if not mattermost_service.is_configured():
+        logger.warning("%s (проект %s, отправка на согласование)", _BOT_NOT_CONFIGURED_MSG, project.id)
         return
     try:
         sent = mattermost_service.send_approval_card(
@@ -182,6 +222,9 @@ def apply_status_change(
 
     if new_status == "pending_approval":
         _on_pending_approval(db, project, project_name, actor.full_name)
+    elif new_status in ("approved", "rejected", "rework_needed"):
+        # Личное уведомление заявителю о решении в Mattermost.
+        _notify_owner_decision_mm(db, project, new_status, project_name)
 
     return project
 
