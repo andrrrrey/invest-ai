@@ -368,6 +368,17 @@ def set_reminders_enabled(enabled: bool) -> None:
     _save(data)
 
 
+def is_digest_enabled() -> bool:
+    """Включён ли еженедельный дайджест руководству в Mattermost (по умолчанию НЕТ)."""
+    return bool(_load().get("digest_enabled"))
+
+
+def set_digest_enabled(enabled: bool) -> None:
+    data = _load()
+    data["digest_enabled"] = bool(enabled)
+    _save(data)
+
+
 def is_hermes_chat_enabled() -> bool:
     """Отвечает ли бот на обычные сообщения/DM (не только на slash-команду).
 

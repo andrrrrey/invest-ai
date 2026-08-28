@@ -102,6 +102,37 @@ def post_to_email(email: str, message: str, attachments: Optional[list] = None) 
         return False
 
 
+def resolve_system_role(mm_user_id: Optional[str]) -> Optional[str]:
+    """Определить роль пользователя системы по его Mattermost user_id.
+
+    Сопоставление идёт по email (основной или ``mattermost_email``). Возвращает
+    ``ceo|cfo|manager|owner`` или ``None``, если пользователь не найден.
+    """
+    if not mm_user_id:
+        return None
+    email = get_user_email(mm_user_id)
+    if not email:
+        return None
+    from sqlalchemy import func
+    from ..database import SessionLocal
+    from ..models.user import User
+
+    db = SessionLocal()
+    try:
+        email_l = email.strip().lower()
+        user = (
+            db.query(User)
+            .filter(
+                (func.lower(User.email) == email_l)
+                | (func.lower(User.mattermost_email) == email_l)
+            )
+            .first()
+        )
+        return user.role if user else None
+    finally:
+        db.close()
+
+
 def get_me() -> Optional[dict]:
     """Информация о самом боте (id, username) — для WebSocket-слушателя."""
     if not is_configured():

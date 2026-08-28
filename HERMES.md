@@ -84,6 +84,8 @@ Hermes работает поверх действующего «Инвестиц
 - `hermes_chat_enabled` (**on**) — ответы бота на обычные сообщения/DM и
   `@упоминания` (WebSocket-слушатель). Env-override `HERMES_CHAT_ENABLED`.
   Требует настроенного бота (`MATTERMOST_BOT_TOKEN` + `MATTERMOST_BASE_URL`).
+- `digest_enabled` (**off**) — еженедельный дайджест по портфелю руководству
+  (CFO/CEO/менеджеры) по понедельникам в 09:00.
 
 ## Эксплуатация
 
@@ -91,13 +93,22 @@ Hermes работает поверх действующего «Инвестиц
 - **Аудит:** `GET /api/v1/audit/` (фильтры `action`, `result`, `actor_type`).
   Полезные `action`: `ai.chat`, `mcp.tool_call`, `hermes.answer`,
   `hermes.approval_card_sent`, `status.change`, `write.fact`, `write.milestone`,
-  `hermes.deadline_reminder`.
-  Read-only MCP-инструменты: `find_projects` (поиск по названию),
-  `list_projects`, `get_project`, `get_portfolio_stats`,
+  `hermes.deadline_reminder`, `hermes.weekly_digest`.
+  Read-only MCP-инструменты: `find_projects` (поиск по названию/владельцу/
+  бизнес-юниту/МВЗ), `list_projects`, `get_project`, `get_portfolio_stats`,
   `list_pending_approvals`, `get_project_facts`, `get_milestones`,
-  `list_upcoming_deadlines`. В карточках проектов есть поле `url` — ссылка на
-  страницу проекта (базовый домен — настройка «Публичный URL приложения» /
-  env `APP_BASE_URL`, фолбэк — внешний URL бэкенда).
+  `list_upcoming_deadlines`, `get_tranches`, `get_comments`,
+  `list_attachments`, `get_forecast`, `compare_projects`,
+  `portfolio_by_dimension`, `budget_status`, `list_overdue_fact`,
+  `get_audit_trail`, `risk_overview`. Write-инструменты (при
+  `hermes_write_enabled`): `update_fact`, `update_milestone_status`,
+  `add_comment`, `request_fact_update`. Согласование помощнику недоступно
+  всегда. В карточках проектов есть поле `url` — ссылка на страницу проекта
+  (базовый домен — настройка «Публичный URL приложения» / env `APP_BASE_URL`,
+  фолбэк — внешний URL бэкенда). Ответ учитывает роль спрашивающего
+  (CEO/CFO/менеджер).
+- **Еженедельный дайджест** руководству в Mattermost (по понедельникам):
+  заявки, дедлайны, риски, бюджет — флаг `digest_enabled`.
 - **MCP-сервер для внешних клиентов:** `python -m app.mcp.server` (stdio;
   запускается MCP-совместимым клиентом, требует пакет `mcp`).
 - **Тесты:** `cd backend && pytest`.

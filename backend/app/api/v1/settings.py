@@ -42,6 +42,7 @@ class SettingsUpdate(BaseModel):
     reminders_enabled: Optional[bool] = None
     hermes_write_enabled: Optional[bool] = None
     hermes_chat_enabled: Optional[bool] = None
+    digest_enabled: Optional[bool] = None
 
 
 def _mask_key(key: str | None) -> str | None:
@@ -94,6 +95,7 @@ def get_settings(_=Depends(require_cfo)) -> dict:
         "reminders_enabled": settings_store.is_reminders_enabled(),
         "hermes_write_enabled": settings_store.is_hermes_write_enabled(),
         "hermes_chat_enabled": settings_store.is_hermes_chat_enabled(),
+        "digest_enabled": settings_store.is_digest_enabled(),
         # Признак, что значение задано переменной окружения (env приоритетнее файла).
         "env_overrides": {
             "mattermost_base_url": bool(os.getenv("MATTERMOST_BASE_URL")),
@@ -148,6 +150,14 @@ def update_settings(body: SettingsUpdate, _=Depends(require_cfo)) -> dict:
         settings_store.set_anonymize_round_amounts(body.anonymize_round_amounts)
     if body.reminders_enabled is not None:
         settings_store.set_reminders_enabled(body.reminders_enabled)
+    if body.digest_enabled is not None:
+        settings_store.set_digest_enabled(body.digest_enabled)
+        if body.digest_enabled:
+            try:
+                from ...services.scheduler_service import start_scheduler
+                start_scheduler()
+            except Exception:
+                pass
     if body.hermes_write_enabled is not None:
         settings_store.set_hermes_write_enabled(body.hermes_write_enabled)
     if body.hermes_chat_enabled is not None:
