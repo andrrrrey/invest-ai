@@ -102,6 +102,34 @@ def post_to_email(email: str, message: str, attachments: Optional[list] = None) 
         return False
 
 
+def get_me() -> Optional[dict]:
+    """Информация о самом боте (id, username) — для WebSocket-слушателя."""
+    if not is_configured():
+        return None
+    try:
+        r = httpx.get(f"{_base()}/api/v4/users/me", headers=_headers(), timeout=_TIMEOUT)
+        if r.status_code == 200:
+            return r.json()
+    except Exception:
+        logger.exception("Mattermost: не удалось получить профиль бота")
+    return None
+
+
+def post_to_channel(channel_id: str, message: str, root_id: Optional[str] = None) -> bool:
+    """Отправить сообщение в канал (в т.ч. в тред через root_id)."""
+    if not is_configured() or not channel_id:
+        return False
+    try:
+        payload = {"channel_id": channel_id, "message": message}
+        if root_id:
+            payload["root_id"] = root_id
+        r = httpx.post(f"{_base()}/api/v4/posts", headers=_headers(), json=payload, timeout=_TIMEOUT)
+        return r.status_code in (200, 201)
+    except Exception:
+        logger.exception("Mattermost: не удалось отправить сообщение в канал")
+        return False
+
+
 def _approval_card(project_id: int, project_name: str, applicant_name: str) -> dict:
     """Собрать attachment с кнопками решения (integration actions)."""
     token = settings_store.get_mattermost_command_token() or ""

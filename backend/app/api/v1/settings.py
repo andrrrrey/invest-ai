@@ -40,6 +40,7 @@ class SettingsUpdate(BaseModel):
     anonymize_round_amounts: Optional[bool] = None
     reminders_enabled: Optional[bool] = None
     hermes_write_enabled: Optional[bool] = None
+    hermes_chat_enabled: Optional[bool] = None
 
 
 def _mask_key(key: str | None) -> str | None:
@@ -90,6 +91,7 @@ def get_settings(_=Depends(require_cfo)) -> dict:
         "anonymize_round_amounts": settings_store.get_anonymize_round_amounts(),
         "reminders_enabled": settings_store.is_reminders_enabled(),
         "hermes_write_enabled": settings_store.is_hermes_write_enabled(),
+        "hermes_chat_enabled": settings_store.is_hermes_chat_enabled(),
         # Признак, что значение задано переменной окружения (env приоритетнее файла).
         "env_overrides": {
             "mattermost_base_url": bool(os.getenv("MATTERMOST_BASE_URL")),
@@ -97,6 +99,7 @@ def get_settings(_=Depends(require_cfo)) -> dict:
             "mattermost_command_token": bool(os.getenv("MATTERMOST_COMMAND_TOKEN")),
             "mattermost_bot_token": bool(os.getenv("MATTERMOST_BOT_TOKEN")),
             "mattermost_alert_webhook": bool(os.getenv("MATTERMOST_ALERT_WEBHOOK")),
+            "hermes_chat_enabled": os.getenv("HERMES_CHAT_ENABLED") is not None,
         },
     }
 
@@ -142,6 +145,15 @@ def update_settings(body: SettingsUpdate, _=Depends(require_cfo)) -> dict:
         settings_store.set_reminders_enabled(body.reminders_enabled)
     if body.hermes_write_enabled is not None:
         settings_store.set_hermes_write_enabled(body.hermes_write_enabled)
+    if body.hermes_chat_enabled is not None:
+        settings_store.set_hermes_chat_enabled(body.hermes_chat_enabled)
+        # Попробовать поднять слушатель сразу, если его ещё нет (без рестарта).
+        if body.hermes_chat_enabled:
+            try:
+                from ...services.mattermost_bot_service import start_bot_listener
+                start_bot_listener()
+            except Exception:
+                pass
     return {"success": True}
 
 

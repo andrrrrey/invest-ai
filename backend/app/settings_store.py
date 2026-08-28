@@ -348,6 +348,27 @@ def set_reminders_enabled(enabled: bool) -> None:
     _save(data)
 
 
+def is_hermes_chat_enabled() -> bool:
+    """Отвечает ли бот на обычные сообщения/DM (не только на slash-команду).
+
+    По умолчанию ВКЛЮЧЕНО. Переменная окружения HERMES_CHAT_ENABLED
+    (1/0/true/false) имеет приоритет над файлом настроек.
+    """
+    env = os.getenv("HERMES_CHAT_ENABLED")
+    if env is not None:
+        return env.strip().lower() in ("1", "true", "yes", "on")
+    val = _load().get("hermes_chat_enabled")
+    if val is None:
+        return True
+    return bool(val)
+
+
+def set_hermes_chat_enabled(enabled: bool) -> None:
+    data = _load()
+    data["hermes_chat_enabled"] = bool(enabled)
+    _save(data)
+
+
 def is_hermes_write_enabled() -> bool:
     """Разрешены ли действия помощника на ЗАПИСЬ (факт, статус майлстоунов).
 

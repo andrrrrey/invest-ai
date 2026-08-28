@@ -697,8 +697,10 @@
                 anonymize_round_amounts: false,
                 reminders_enabled: false,
                 hermes_write_enabled: false,
+                hermes_chat_enabled: true,
             },
             hermesToggles: [
+                { key: 'hermes_chat_enabled', title: 'Ответы на обычные сообщения', desc: 'Отвечать на личные сообщения боту и @упоминания в каналах, а не только на команду /hermes. Требует настроенного бота Mattermost.' },
                 { key: 'anonymize_enabled', title: 'Обезличивание данных', desc: 'Скрывать имена, названия и коды перед отправкой во внешний ИИ (рекомендуется).' },
                 { key: 'anonymize_round_amounts', title: 'Округлять суммы', desc: 'Дополнительно округлять финансовые суммы при обезличивании.' },
                 { key: 'reminders_enabled', title: 'Напоминания по дедлайнам', desc: 'Фоновая рассылка напоминаний заявителям по приближающимся дедлайнам майлстоунов.' },
@@ -749,6 +751,7 @@
                             anonymize_round_amounts: !!data.anonymize_round_amounts,
                             reminders_enabled: !!data.reminders_enabled,
                             hermes_write_enabled: !!data.hermes_write_enabled,
+                            hermes_chat_enabled: data.hermes_chat_enabled !== false,
                         };
                     }
                 } catch(e) {
