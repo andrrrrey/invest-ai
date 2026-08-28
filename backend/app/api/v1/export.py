@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from ...database import get_db
 from ...models.project import Project
+from ...models.fact_entry import FactEntry
 from ...models.user import User
 from ...auth import require_not_owner
 from ... import settings_store
@@ -165,6 +166,35 @@ def _project_to_dict(p: Project) -> dict:
     }
 
 
+def _fact_entries_for(db: Session, project_id: int) -> list[dict]:
+    """Load the Факт/План metrics for a project (plan, fact, deviation)."""
+    rows = (
+        db.query(FactEntry)
+        .filter(FactEntry.project_id == project_id)
+        .order_by(FactEntry.metric_name, FactEntry.year, FactEntry.month)
+        .all()
+    )
+    facts: list[dict] = []
+    for e in rows:
+        pv, fv = e.plan_value, e.fact_value
+        dev_abs = (fv - pv) if (pv is not None and fv is not None) else None
+        dev_pct = (
+            round((fv - pv) / pv * 100, 1)
+            if (pv not in (None, 0) and fv is not None)
+            else None
+        )
+        facts.append({
+            "metric_name": e.metric_name,
+            "year": e.year,
+            "month": e.month,
+            "plan_value": pv,
+            "fact_value": fv,
+            "deviation_abs": dev_abs,
+            "deviation_pct": dev_pct,
+        })
+    return facts
+
+
 @router.post("/")
 def export_report(
     req: ExportRequest,
@@ -191,6 +221,9 @@ def export_report(
         raise HTTPException(status_code=404, detail="Проекты не найдены")
 
     projects = [_project_to_dict(p) for p in projects_orm]
+    # Attach the Факт/План metrics so the PDF report can include them.
+    for p in projects:
+        p["fact_entries"] = _fact_entries_for(db, p["id"])
     stats    = _compute_stats(projects_orm)
 
     # Sanitize any AI-stored commentary already on the project (risk-score output

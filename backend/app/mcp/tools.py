@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import datetime as _dt
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -135,6 +136,68 @@ def get_milestones(db: Session, project_id: int) -> dict:
         if isinstance(m, dict)
     ]
     return {"project_id": project_id, "count": len(milestones), "milestones": milestones}
+
+
+_DONE_MILESTONE_STATUSES = {"paid", "done", "completed"}
+
+
+def _parse_deadline(value):
+    if not value or not isinstance(value, str):
+        return None
+    try:
+        return _dt.date.fromisoformat(value[:10])
+    except ValueError:
+        return None
+
+
+def list_upcoming_deadlines(db: Session, window_days: int = 30) -> dict:
+    """Сроки по проектам: незавершённые майлстоуны с приближающимися или
+    просроченными дедлайнами (для аналитики по срокам действующих проектов).
+
+    Возвращает список, отсортированный по дедлайну, с флагом просрочки и
+    числом дней до дедлайна.
+    """
+    try:
+        window_days = int(window_days)
+    except (TypeError, ValueError):
+        window_days = 30
+    today = _dt.date.today()
+    horizon = today + _dt.timedelta(days=window_days)
+
+    projects = (
+        db.query(Project)
+        .filter(Project.project_type == "smart_contract")
+        .all()
+    )
+    items = []
+    for p in projects:
+        scd = p.smart_contract_data or {}
+        for m in scd.get("milestones") or []:
+            if not isinstance(m, dict):
+                continue
+            if (m.get("status") or "").lower() in _DONE_MILESTONE_STATUSES:
+                continue
+            deadline = _parse_deadline(m.get("deadline"))
+            if not deadline:
+                continue
+            # Просроченные и попадающие в окно — всё, что <= горизонта.
+            if deadline <= horizon:
+                items.append({
+                    "project_id": p.id,
+                    "project": p.name,
+                    "milestone": m.get("title") or m.get("name"),
+                    "status": m.get("status"),
+                    "deadline": deadline.isoformat(),
+                    "days_left": (deadline - today).days,
+                    "overdue": deadline < today,
+                })
+    items.sort(key=lambda x: x["deadline"])
+    return {
+        "window_days": window_days,
+        "count": len(items),
+        "overdue_count": sum(1 for i in items if i["overdue"]),
+        "deadlines": items,
+    }
 
 
 # ── Операции на запись (Этап 4, включаются флагом hermes_write_enabled) ────────

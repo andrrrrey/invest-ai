@@ -40,7 +40,14 @@ def notify_approvers(db: Session, project_id: int, project_name: str, applicant_
         )
 
 
-def notify_owner(db: Session, owner_id: int, project_id: int, project_name: str, new_status: str) -> None:
+def notify_owner(
+    db: Session,
+    owner_id: int,
+    project_id: int,
+    project_name: str,
+    new_status: str,
+    comment: str | None = None,
+) -> None:
     status_labels = {
         "approved": "Утверждён",
         "rejected": "Отклонён",
@@ -49,11 +56,14 @@ def notify_owner(db: Session, owner_id: int, project_id: int, project_name: str,
         "pending_approval": "Отправлен на согласование",
     }
     label = status_labels.get(new_status, new_status)
+    message = f"«{project_name}» — {label}"
+    if new_status == "rejected" and comment:
+        message += f". Причина: {comment}"
     create_notification(
         db,
         user_id=owner_id,
         title=f"Статус проекта изменён",
-        message=f"«{project_name}» — {label}",
+        message=message,
         project_id=project_id,
         link=f"/project?id={project_id}",
     )

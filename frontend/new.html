@@ -201,6 +201,15 @@
         .summary-card h4  { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
         .summary-card p, .summary-card li { font-size: 13px; color: #43434d; line-height: 1.55; margin-bottom: 4px; }
         .summary-card ul  { padding-left: 18px; }
+        /* Rich-text (Quill HTML) rendered in the review card */
+        .rich-content { font-size: 13px; color: #43434d; line-height: 1.55; }
+        .rich-content ul, .rich-content ol { padding-left: 20px; margin: 4px 0; }
+        .rich-content li { margin: 2px 0; }
+        .rich-content p { margin: 0 0 4px; }
+        .rich-content strong { font-weight: 700; }
+        .rich-content em { font-style: italic; }
+        .rich-content u { text-decoration: underline; }
+        .rich-content h1, .rich-content h2, .rich-content h3 { font-weight: 700; margin: 5px 0 3px; }
         .risk-badge {
             display: inline-block; padding: 3px 10px;
             border-radius: 999px; font-size: 11px; font-weight: 700; margin-left: 6px;
@@ -609,6 +618,17 @@
                                 <label>Ответственный / Owner</label>
                                 <input type="text" x-model="form.owner" placeholder="Имя инициатора">
                             </div>
+                            <template x-if="isCfoRole && !projectId">
+                                <div class="field">
+                                    <label>Завести за сотрудника (ответственный)</label>
+                                    <select x-model="form.owner_user_id" @change="onOwnerSelect()">
+                                        <option value="">— я сам —</option>
+                                        <template x-for="e in employees" :key="e.id">
+                                            <option :value="e.id" x-text="e.full_name + ' · ' + employeeRoleLabel(e.role)"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </template>
                         </div>
                     </div>
 
@@ -1200,6 +1220,16 @@
                 <div class="grid-2">
                     <div class="field"><label>Ответственный / Owner</label>
                         <input type="text" x-model="form.owner" placeholder="Имя"></div>
+                    <template x-if="isCfoRole && !projectId">
+                        <div class="field"><label>Завести за сотрудника (ответственный)</label>
+                            <select x-model="form.owner_user_id" @change="onOwnerSelect()">
+                                <option value="">— я сам —</option>
+                                <template x-for="e in employees" :key="e.id">
+                                    <option :value="e.id" x-text="e.full_name + ' · ' + employeeRoleLabel(e.role)"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </template>
                     <div class="field"><label>Стадия проекта</label>
                         <select x-model="form.stage">
                             <option>Идея</option><option>MVP</option>
@@ -2208,15 +2238,17 @@
                             <p><strong>Value Drivers:</strong> <span x-text="form.op_value_drivers.map(d => d === '__other__' ? (form.op_value_drivers_other || 'other') : d).join(', ') || '—'"></span></p>
                             <p><strong>Метрика:</strong> <span x-text="opMetricNames().join(', ') || '—'"></span></p>
                             <p style="margin-top:8px"><strong>Тезис:</strong></p>
-                            <p x-text="thesisExpanded ? form.op_investment_thesis : (form.op_investment_thesis ? form.op_investment_thesis.slice(0,200)+(form.op_investment_thesis.length>200?'…':'') : '—')"></p>
-                            <template x-if="form.op_investment_thesis?.length > 200">
+                            <div x-show="thesisExpanded" class="rich-content" x-html="opRenderRichText(form.op_investment_thesis)"></div>
+                            <p x-show="!thesisExpanded" x-text="opTextPreview(form.op_investment_thesis, 200)"></p>
+                            <template x-if="opStripHtml(form.op_investment_thesis).length > 200">
                                 <button @click="thesisExpanded = !thesisExpanded"
                                     style="margin-top:4px;background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:0;font-weight:600"
                                     x-text="thesisExpanded ? 'Свернуть ▲' : 'Читать далее ▼'"></button>
                             </template>
                             <p style="margin-top:8px"><strong>Stop-loss:</strong></p>
-                            <p x-text="stopLossExpanded ? form.op_stop_loss : (form.op_stop_loss ? form.op_stop_loss.slice(0,150)+(form.op_stop_loss.length>150?'…':'') : '—')"></p>
-                            <template x-if="form.op_stop_loss?.length > 150">
+                            <div x-show="stopLossExpanded" class="rich-content" x-html="opRenderRichText(form.op_stop_loss)"></div>
+                            <p x-show="!stopLossExpanded" x-text="opTextPreview(form.op_stop_loss, 150)"></p>
+                            <template x-if="opStripHtml(form.op_stop_loss).length > 150">
                                 <button @click="stopLossExpanded = !stopLossExpanded"
                                     style="margin-top:4px;background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:0;font-weight:600"
                                     x-text="stopLossExpanded ? 'Свернуть ▲' : 'Читать далее ▼'"></button>
@@ -2517,6 +2549,24 @@ function richEditor(formObj, field, placeholder) {
     };
 }
 
+// Render rich-text (Quill HTML) safely for x-html (delegates to auth.js helper).
+function opRenderRichText(html) { return sanitizeRichText(html); }
+
+// Plain-text version of rich-text HTML for truncated previews (strips tags).
+function opStripHtml(html) {
+    if (!html) return '';
+    const tmp = document.createElement('div');
+    tmp.innerHTML = window.DOMPurify ? DOMPurify.sanitize(html) : '';
+    return (tmp.textContent || tmp.innerText || '').replace(/\s+/g, ' ').trim();
+}
+
+// Truncated plain-text preview with an ellipsis when longer than `limit`.
+function opTextPreview(html, limit) {
+    const text = opStripHtml(html);
+    if (!text) return '—';
+    return text.length > limit ? text.slice(0, limit) + '…' : text;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  Alpine.js wizard component
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2539,6 +2589,8 @@ function wizardApp() {
         aiLoad: { desc: false, risks: false, riskScore: false },
         projectId: null,
         isReadOnly: new URLSearchParams(location.search).get('readonly') === '1',
+        isCfoRole: false,          // CFO может завести заявку за сотрудника
+        employees: [],             // справочник сотрудников (для выбора ответственного)
         pendingDocFileName: null,
         docAttachments: [],
         risksData: null,
@@ -2557,7 +2609,7 @@ function wizardApp() {
             name: '', businessUnit: 'WealthTech', description: '',
 
             // Step 3 general
-            owner: '', stage: 'Идея', startDate: '', platform: '', platformCustom: '',
+            owner: '', owner_user_id: '', stage: 'Идея', startDate: '', platform: '', platformCustom: '',
 
             // ── 1.2 Операционные затраты: 1-page fields ──────────────────
             op_category: '',
@@ -2662,9 +2714,11 @@ function wizardApp() {
             }
             // Patch sidebar
             patchSidebar();
-            if (getUserRole() === 'cfo') {
+            this.isCfoRole = getUserRole() === 'cfo';
+            if (this.isCfoRole) {
                 const nu = document.getElementById('nav-users');
                 if (nu) nu.style.display = '';
+                this.loadEmployees();
             }
             if (getUserRole() !== 'cfo') {
                 const ns = document.getElementById('nav-settings');
@@ -3399,6 +3453,9 @@ function wizardApp() {
                 value_score_data: valueScoreData,
                 decision_route: this.form.vs_band || null,
                 status: 'draft',
+                // CFO может завести заявку за сотрудника (учитывается только при создании).
+                owner_user_id: (this.isCfoRole && !this.projectId && this.form.owner_user_id)
+                    ? parseInt(this.form.owner_user_id, 10) : null,
             };
         },
 
@@ -3413,6 +3470,29 @@ function wizardApp() {
                     this._toast('Ошибка удаления файла: ' + (e.detail || ''), 'error');
                 }
             } catch(e) { this._toast('Ошибка удаления файла', 'error'); }
+        },
+
+        async loadEmployees() {
+            try {
+                const res = await authFetch('/api/v1/users/directory');
+                if (res.ok) this.employees = await res.json();
+            } catch (_) { /* directory optional */ }
+        },
+
+        employeeRoleLabel(role) {
+            return { ceo: 'CEO', cfo: 'CFO', manager: 'Менеджер', owner: 'Заявитель' }[role] || role;
+        },
+
+        // CFO выбрал сотрудника, за которого заводит заявку — подставляем имя.
+        onOwnerSelect() {
+            const id = this.form.owner_user_id;
+            if (!id) {
+                // «— я сам —»: возвращаем имя текущего пользователя.
+                this.form.owner = getUserName() || '';
+                return;
+            }
+            const emp = this.employees.find(e => String(e.id) === String(id));
+            if (emp) this.form.owner = emp.full_name;
         },
 
         async saveDraft() {

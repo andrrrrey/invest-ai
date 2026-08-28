@@ -267,13 +267,34 @@ def send_approval_request_emails(
 
 
 def send_status_notification_email(
-    to_email: str, full_name: str, project_name: str, new_status: str
+    to_email: str, full_name: str, project_name: str, new_status: str,
+    comment: str | None = None,
 ) -> None:
-    """Notify the project applicant about a status change (approved/rejected/draft)."""
+    """Notify the project applicant about a status change (approved/rejected/draft).
+
+    ``comment`` — необязательная причина решения (для отклонения); показывается
+    в письме отдельным блоком.
+    """
     label, color, bg_color = _STATUS_LABELS.get(
         new_status, (new_status, "#8E8E93", "#F2F2F7")
     )
     header, footer = _email_wrapper(project_name)
+
+    reason_html = ""
+    reason_text = ""
+    if new_status == "rejected" and comment:
+        safe_comment = (
+            str(comment)
+            .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        )
+        reason_html = (
+            '<div style="background: #FFF4F4; border-radius: 12px; padding: 16px 20px; '
+            'margin-bottom: 20px; border-left: 3px solid #FF3B30;">'
+            '<p style="margin: 0 0 6px; font-size: 13px; color: #8E8E93;">ПРИЧИНА ОТКЛОНЕНИЯ</p>'
+            f'<p style="margin: 0; font-size: 14px; color: #1C1C1E; line-height: 1.5;">{safe_comment}</p>'
+            "</div>"
+        )
+        reason_text = f"\nПричина отклонения: {comment}\n"
 
     subject = f"Статус заявки обновлён: {project_name}"
     html_body = f"""<!DOCTYPE html>
@@ -295,6 +316,7 @@ def send_status_notification_email(
       <span style="display: inline-block; margin-top: 6px; padding: 6px 14px; border-radius: 10px;
                    font-size: 13px; font-weight: 700; color: {color}; background: {bg_color};">{label}</span>
     </div>
+    {reason_html}
     {footer}
   </div>
 </body></html>"""
@@ -302,7 +324,8 @@ def send_status_notification_email(
     text_body = (
         f"Здравствуйте, {full_name}!\n\n"
         f"Статус вашей заявки «{project_name}» обновлён.\n"
-        f"Новый статус: {label}\n\n"
+        f"Новый статус: {label}\n"
+        f"{reason_text}\n"
         f"Войдите в систему для подробностей."
     )
 

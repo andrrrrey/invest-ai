@@ -67,13 +67,51 @@ def check_permission(project: Project, new_status: str, actor: User) -> None:
             )
 
 
-def _notify(db: Session, project: Project, new_status: str, actor: User, project_name: str) -> None:
+def _rejection_recipients(db: Session, owner: Optional[User]) -> List[User]:
+    """Кому уходит уведомление об отклонении: заявитель + все CFO и CEO.
+
+    Дедупликация по id — заявитель может сам быть CFO/CEO."""
+    recipients: List[User] = []
+    seen: set[int] = set()
+    if owner is not None:
+        recipients.append(owner)
+        seen.add(owner.id)
+    watchers = (
+        db.query(User)
+        .filter(User.role.in_(["cfo", "ceo"]), User.is_active == True)  # noqa: E712
+        .all()
+    )
+    for u in watchers:
+        if u.id not in seen:
+            recipients.append(u)
+            seen.add(u.id)
+    return recipients
+
+
+def _notify(
+    db: Session,
+    project: Project,
+    new_status: str,
+    actor: User,
+    project_name: str,
+    *,
+    comment: Optional[str] = None,
+) -> None:
+    owner = db.get(User, project.user_id) if project.user_id else None
+
     # In-app
     try:
         if new_status == "pending_approval":
             notify_approvers(db, project.id, project_name, actor.full_name)
             db.commit()
-        elif new_status in ("approved", "rejected", "draft", "rework_needed") and project.user_id:
+        elif new_status == "rejected":
+            # Заявителю, CFO и CEO — с причиной отклонения.
+            for u in _rejection_recipients(db, owner):
+                notify_owner(
+                    db, u.id, project.id, project_name, new_status, comment=comment
+                )
+            db.commit()
+        elif new_status in ("approved", "draft", "rework_needed") and project.user_id:
             notify_owner(db, project.user_id, project.id, project_name, new_status)
             db.commit()
     except Exception:
@@ -90,8 +128,13 @@ def _notify(db: Session, project: Project, new_status: str, actor: User, project
             recipients = [{"email": u.email, "full_name": u.full_name} for u in approvers]
             if recipients:
                 send_approval_request_emails(recipients, project_name, actor.full_name)
-        elif new_status in ("approved", "rejected", "draft", "rework_needed"):
-            owner = db.get(User, project.user_id) if project.user_id else None
+        elif new_status == "rejected":
+            for u in _rejection_recipients(db, owner):
+                if u.email:
+                    send_status_notification_email(
+                        u.email, u.full_name, project_name, new_status, comment=comment
+                    )
+        elif new_status in ("approved", "draft", "rework_needed"):
             if owner and owner.email:
                 send_status_notification_email(owner.email, owner.full_name, project_name, new_status)
     except Exception:
@@ -122,7 +165,14 @@ _BOT_NOT_CONFIGURED_MSG = (
 )
 
 
-def _notify_owner_decision_mm(db: Session, project: Project, new_status: str, project_name: str) -> None:
+def _notify_owner_decision_mm(
+    db: Session,
+    project: Project,
+    new_status: str,
+    project_name: str,
+    *,
+    comment: Optional[str] = None,
+) -> None:
     """DM заявителю о принятом решении (согласован/отклонён/на доработку)."""
     if not mattermost_service.is_configured():
         logger.warning("%s (проект %s, статус %s)", _BOT_NOT_CONFIGURED_MSG, project.id, new_status)
@@ -132,10 +182,11 @@ def _notify_owner_decision_mm(db: Session, project: Project, new_status: str, pr
     if not owner_email:
         return
     label = _OWNER_STATUS_LABELS.get(new_status, new_status)
+    text = f"Проект «{project_name}» — {label}."
+    if new_status == "rejected" and comment:
+        text += f"\nПричина: {comment}"
     try:
-        ok = mattermost_service.post_to_email(
-            owner_email, f"Проект «{project_name}» — {label}."
-        )
+        ok = mattermost_service.post_to_email(owner_email, text)
         audit_service.log_event(
             action="hermes.decision_notified",
             actor_type="hermes",
@@ -192,9 +243,17 @@ def apply_status_change(
     actor: User,
     *,
     actor_type: str = "user",
+    comment: Optional[str] = None,
 ) -> Project:
-    """Применить смену статуса: права, история, уведомления, карточки, аудит."""
+    """Применить смену статуса: права, история, уведомления, карточки, аудит.
+
+    ``comment`` — необязательная причина решения. Для отклонения она
+    сохраняется в ``project.rejection_reason``, попадает в таблицу проектов и
+    отправляется заявителю, CFO и CEO.
+    """
     check_permission(project, new_status, actor)
+
+    comment = (comment or "").strip() or None
 
     history = list(project.status_history or [])
     history.append(
@@ -203,15 +262,18 @@ def apply_status_change(
             "changed_at": dt.datetime.utcnow().isoformat(),
             "changed_by": actor.full_name,
             "changed_by_id": actor.id,
+            "comment": comment,
         }
     )
     project.status = new_status
     project.status_history = history
+    # Причина отклонения живёт только пока проект отклонён.
+    project.rejection_reason = comment if new_status == "rejected" else None
     db.commit()
     db.refresh(project)
 
     project_name = project.name or "(без названия)"
-    _notify(db, project, new_status, actor, project_name)
+    _notify(db, project, new_status, actor, project_name, comment=comment)
 
     audit_service.log_event(
         action="status.change",
@@ -220,14 +282,14 @@ def apply_status_change(
         result="ok",
         target_type="project",
         target_id=str(project.id),
-        meta={"new_status": new_status},
+        meta={"new_status": new_status, "has_comment": bool(comment)},
     )
 
     if new_status == "pending_approval":
         _on_pending_approval(db, project, project_name, actor.full_name)
     elif new_status in ("approved", "rejected", "rework_needed"):
         # Личное уведомление заявителю о решении в Mattermost.
-        _notify_owner_decision_mm(db, project, new_status, project_name)
+        _notify_owner_decision_mm(db, project, new_status, project_name, comment=comment)
 
     return project
 

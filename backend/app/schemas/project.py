@@ -21,7 +21,9 @@ class ProjectBase(BaseModel):
 
 
 class ProjectCreate(ProjectBase):
-    pass
+    # CFO может завести заявку за другого сотрудника — тогда указывается id
+    # ответственного (владельца). Для остальных ролей поле игнорируется.
+    owner_user_id: Optional[int] = None
 
 
 class ProjectUpdate(ProjectBase):
@@ -32,6 +34,8 @@ class ProjectRead(ProjectBase):
     id: int
     user_id: Optional[int] = None
     metrics: Optional[Any] = None
+    rejection_reason: Optional[str] = None
+    status_history: Optional[Any] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

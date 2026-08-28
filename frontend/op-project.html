@@ -184,6 +184,15 @@
                             </div>
                             <div class="info-row"><span class="lbl">Тип инвестиции</span><span class="val" x-text="fm.op_investment_type || '—'"></span></div>
                             <div class="info-row"><span class="lbl">Инициатор</span><span class="val" x-text="project.owner || '—'"></span></div>
+                            <div class="info-row" x-show="isCfo">
+                                <span class="lbl">Ответственный</span>
+                                <span class="val">
+                                    <button @click="openReassignModal()"
+                                        style="background:#EEF0FF;border:none;border-radius:10px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;color:#5E5CE6">
+                                        <i class="fas fa-user-pen" style="margin-right:4px"></i>Изменить
+                                    </button>
+                                </span>
+                            </div>
                             <div class="info-row"><span class="lbl">Дата подачи</span><span class="val" x-text="fmtDate(project.created_at)"></span></div>
                         </div>
 
@@ -368,6 +377,14 @@
                             </template>
                         </div>
 
+                        <!-- Причина отклонения -->
+                        <template x-if="project.status === 'rejected' && project.rejection_reason">
+                            <div class="card-block" style="background:#FFF4F4;border-left:3px solid #FF3B30;border-radius:0 10px 10px 0;padding:12px 14px">
+                                <p style="font-size:12px;color:#FF3B30;font-weight:700;margin-bottom:4px">ПРИЧИНА ОТКЛОНЕНИЯ</p>
+                                <p style="font-size:13px;color:#1C1C1E;line-height:1.5" x-text="project.rejection_reason"></p>
+                            </div>
+                        </template>
+
                         <!-- Действия со статусом -->
                         <div class="card-block" x-show="canApprove || canEditDraft || project.status === 'pending_approval'">
                             <div class="block-title">Действия</div>
@@ -387,7 +404,7 @@
                                                 style="flex:1;padding:12px;border-radius:12px;border:none;background:#34C759;color:white;font-weight:700;cursor:pointer;font-size:13px">
                                                 Утвердить
                                             </button>
-                                            <button @click="changeStatus('rejected')"
+                                            <button @click="openRejectModal()"
                                                 style="flex:1;padding:12px;border-radius:12px;border:none;background:#FF3B30;color:white;font-weight:700;cursor:pointer;font-size:13px">
                                                 Отклонить
                                             </button>
@@ -426,7 +443,7 @@
                                             style="padding:12px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-weight:600;cursor:pointer;font-size:13px">
                                             Вернуть в черновик
                                         </button>
-                                        <button @click="changeStatus('rejected')"
+                                        <button @click="openRejectModal()"
                                             style="padding:12px;border-radius:12px;border:none;background:#FF3B30;color:white;font-weight:700;cursor:pointer;font-size:13px">
                                             Отклонить
                                         </button>
@@ -887,6 +904,61 @@
 
             </div>
         </template>
+
+        <!-- Reassign responsible dialog (CFO) -->
+        <div x-show="reassignModal.show" x-cloak
+             style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px">
+            <div style="background:white;border-radius:20px;padding:28px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25)">
+                <h3 style="font-size:17px;font-weight:700;margin-bottom:10px">Изменить ответственного</h3>
+                <p style="font-size:13px;color:#8E8E93;margin-bottom:16px;line-height:1.55">
+                    Выберите сотрудника, который станет ответственным (владельцем) заявки.
+                </p>
+                <select x-model="reassignModal.userId"
+                    style="width:100%;padding:11px 14px;border:1.5px solid #E5E5E5;border-radius:12px;font-size:14px;font-family:inherit;outline:none">
+                    <option value="">— выберите сотрудника —</option>
+                    <template x-for="e in employees" :key="e.id">
+                        <option :value="String(e.id)" x-text="e.full_name + ' · ' + employeeRoleLabel(e.role)"></option>
+                    </template>
+                </select>
+                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+                    <button @click="reassignModal.show=false"
+                        style="padding:10px 20px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
+                        Отмена
+                    </button>
+                    <button @click="confirmReassign()" :disabled="!reassignModal.userId"
+                        :style="reassignModal.userId
+                            ? 'padding:10px 20px;border-radius:12px;border:none;background:#5E5CE6;color:white;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit'
+                            : 'padding:10px 20px;border-radius:12px;border:none;background:#C7C6F5;color:white;font-size:14px;font-weight:600;cursor:not-allowed;font-family:inherit'">
+                        Сохранить
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reject-with-reason dialog -->
+        <div x-show="rejectModal.show" x-cloak
+             style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px">
+            <div style="background:white;border-radius:20px;padding:28px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25)">
+                <h3 style="font-size:17px;font-weight:700;margin-bottom:10px">Отклонить заявку</h3>
+                <p style="font-size:13px;color:#8E8E93;margin-bottom:16px;line-height:1.55">
+                    Укажите причину отклонения. Она сохранится в карточке проекта и будет отправлена заявителю, CFO и CEO.
+                </p>
+                <textarea x-model="rejectModal.reason" rows="4" placeholder="Причина отклонения…"
+                    style="width:100%;padding:12px 14px;border:1.5px solid #E5E5E5;border-radius:12px;font-size:14px;font-family:inherit;outline:none;resize:vertical"></textarea>
+                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+                    <button @click="rejectModal.show=false"
+                        style="padding:10px 20px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
+                        Отмена
+                    </button>
+                    <button @click="confirmReject()" :disabled="!rejectModal.reason.trim()"
+                        :style="rejectModal.reason.trim()
+                            ? 'padding:10px 20px;border-radius:12px;border:none;background:#FF3B30;color:white;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit'
+                            : 'padding:10px 20px;border-radius:12px;border:none;background:#FFB3AE;color:white;font-size:14px;font-weight:600;cursor:not-allowed;font-family:inherit'">
+                        Отклонить
+                    </button>
+                </div>
+            </div>
+        </div>
     </main>
 </div>
 
@@ -1548,6 +1620,46 @@
                 } finally {
                     this.loading = false;
                 }
+                if (this.isCfo) this.loadEmployees();
+            },
+
+            // ── Смена ответственного (CFO) ──────────────────────────────────
+            employees: [],
+            reassignModal: { show: false, userId: '' },
+            async loadEmployees() {
+                try {
+                    const res = await authFetch('/api/v1/users/directory');
+                    if (res.ok) this.employees = await res.json();
+                } catch (_) { /* directory optional */ }
+            },
+            employeeRoleLabel(role) {
+                return { ceo: 'CEO', cfo: 'CFO', manager: 'Менеджер', owner: 'Заявитель' }[role] || role;
+            },
+            openReassignModal() {
+                this.reassignModal = { show: true, userId: this.project?.user_id ? String(this.project.user_id) : '' };
+            },
+            async confirmReassign() {
+                const uid = this.reassignModal.userId;
+                if (!uid) return;
+                try {
+                    const res = await authFetch('/api/v1/projects/' + this.project.id + '/reassign', {
+                        method: 'PATCH',
+                        body: JSON.stringify({ user_id: parseInt(uid, 10) }),
+                    });
+                    if (res.ok) {
+                        this.project = await res.json();
+                        this.reassignModal.show = false;
+                        this.statusMsg = 'Ответственный изменён';
+                        this.statusMsgType = 'ok';
+                    } else {
+                        const err = await res.json().catch(() => ({}));
+                        this.statusMsg = err.detail || 'Ошибка смены ответственного';
+                        this.statusMsgType = 'err';
+                    }
+                } catch(e) {
+                    if (e.message !== 'Unauthorized') { this.statusMsg = 'Ошибка сети'; this.statusMsgType = 'err'; }
+                }
+                setTimeout(() => this.statusMsg = '', 3000);
             },
 
             async extractAmount() {
@@ -1599,12 +1711,25 @@
                 return new Date(iso).toLocaleDateString('ru-RU', {day:'numeric', month:'long', year:'numeric'});
             },
 
-            async changeStatus(newStatus) {
+            // Reject-with-reason modal state
+            rejectModal: { show: false, reason: '' },
+            openRejectModal() {
+                this.rejectModal = { show: true, reason: '' };
+            },
+            confirmReject() {
+                const reason = (this.rejectModal.reason || '').trim();
+                this.rejectModal.show = false;
+                this.changeStatus('rejected', reason);
+            },
+
+            async changeStatus(newStatus, comment) {
                 if (!this.project) return;
                 try {
+                    const body = { status: newStatus };
+                    if (comment) body.comment = comment;
                     const res = await authFetch('/api/v1/projects/' + this.project.id + '/status', {
                         method: 'PATCH',
-                        body: JSON.stringify({status: newStatus}),
+                        body: JSON.stringify(body),
                     });
                     if (res.ok) {
                         this.project = await res.json();

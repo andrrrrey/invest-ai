@@ -85,6 +85,24 @@ TOOL_SPECS = [
         },
         "handler": tools.get_milestones,
     },
+    {
+        "name": "list_upcoming_deadlines",
+        "description": (
+            "Сроки по проектам: незавершённые майлстоуны с приближающимися или "
+            "просроченными дедлайнами. Для вопросов про сроки, дедлайны, "
+            "просрочки и контроль действующих проектов."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "window_days": {
+                    "type": "integer",
+                    "description": "Горизонт в днях (по умолчанию 30). Просроченные включаются всегда.",
+                }
+            },
+        },
+        "handler": tools.list_upcoming_deadlines,
+    },
 ]
 
 # Инструменты на ЗАПИСЬ — доступны только при hermes_write_enabled (Этап 4).
