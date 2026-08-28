@@ -107,6 +107,13 @@ def on_startup():
         start_scheduler()
     except Exception:
         logging.getLogger("hermes.scheduler").exception("Не удалось запустить планировщик")
+    # Слушатель обычных сообщений/DM боту Hermes (WebSocket). Запустится только
+    # если настроен бот Mattermost и включён чат-режим; в одном воркере.
+    try:
+        from .services.mattermost_bot_service import start_bot_listener
+        start_bot_listener()
+    except Exception:
+        logging.getLogger("hermes.bot_ws").exception("Не удалось запустить слушатель сообщений бота")
 
 
 @app.get("/api/health")
