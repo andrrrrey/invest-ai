@@ -33,6 +33,7 @@ class SettingsUpdate(BaseModel):
     # Hermes / Mattermost
     mattermost_base_url: Optional[str] = None
     mattermost_integration_url: Optional[str] = None
+    app_base_url: Optional[str] = None
     mattermost_command_token: Optional[str] = None
     mattermost_bot_token: Optional[str] = None
     mattermost_alert_webhook: Optional[str] = None
@@ -41,6 +42,7 @@ class SettingsUpdate(BaseModel):
     reminders_enabled: Optional[bool] = None
     hermes_write_enabled: Optional[bool] = None
     hermes_chat_enabled: Optional[bool] = None
+    digest_enabled: Optional[bool] = None
 
 
 def _mask_key(key: str | None) -> str | None:
@@ -81,6 +83,7 @@ def get_settings(_=Depends(require_cfo)) -> dict:
         # Hermes / Mattermost
         "mattermost_base_url": settings_store.get_mattermost_base_url(),
         "mattermost_integration_url": settings_store.get_mattermost_integration_url(),
+        "app_base_url": settings_store.get_app_base_url(),
         "mattermost_command_token_set": bool(settings_store.get_mattermost_command_token()),
         "mattermost_command_token_masked": _mask_key(settings_store.get_mattermost_command_token()),
         "mattermost_bot_token_set": bool(settings_store.get_mattermost_bot_token()),
@@ -92,6 +95,7 @@ def get_settings(_=Depends(require_cfo)) -> dict:
         "reminders_enabled": settings_store.is_reminders_enabled(),
         "hermes_write_enabled": settings_store.is_hermes_write_enabled(),
         "hermes_chat_enabled": settings_store.is_hermes_chat_enabled(),
+        "digest_enabled": settings_store.is_digest_enabled(),
         # Признак, что значение задано переменной окружения (env приоритетнее файла).
         "env_overrides": {
             "mattermost_base_url": bool(os.getenv("MATTERMOST_BASE_URL")),
@@ -99,6 +103,7 @@ def get_settings(_=Depends(require_cfo)) -> dict:
             "mattermost_command_token": bool(os.getenv("MATTERMOST_COMMAND_TOKEN")),
             "mattermost_bot_token": bool(os.getenv("MATTERMOST_BOT_TOKEN")),
             "mattermost_alert_webhook": bool(os.getenv("MATTERMOST_ALERT_WEBHOOK")),
+            "app_base_url": bool(os.getenv("APP_BASE_URL")),
             "hermes_chat_enabled": os.getenv("HERMES_CHAT_ENABLED") is not None,
         },
     }
@@ -131,6 +136,8 @@ def update_settings(body: SettingsUpdate, _=Depends(require_cfo)) -> dict:
         settings_store.set_mattermost_base_url(body.mattermost_base_url)
     if body.mattermost_integration_url is not None:
         settings_store.set_mattermost_integration_url(body.mattermost_integration_url)
+    if body.app_base_url is not None:
+        settings_store.set_app_base_url(body.app_base_url)
     if body.mattermost_command_token is not None:
         settings_store.set_mattermost_command_token(body.mattermost_command_token)
     if body.mattermost_bot_token is not None:
@@ -143,6 +150,14 @@ def update_settings(body: SettingsUpdate, _=Depends(require_cfo)) -> dict:
         settings_store.set_anonymize_round_amounts(body.anonymize_round_amounts)
     if body.reminders_enabled is not None:
         settings_store.set_reminders_enabled(body.reminders_enabled)
+    if body.digest_enabled is not None:
+        settings_store.set_digest_enabled(body.digest_enabled)
+        if body.digest_enabled:
+            try:
+                from ...services.scheduler_service import start_scheduler
+                start_scheduler()
+            except Exception:
+                pass
     if body.hermes_write_enabled is not None:
         settings_store.set_hermes_write_enabled(body.hermes_write_enabled)
     if body.hermes_chat_enabled is not None:

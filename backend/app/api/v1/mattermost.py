@@ -46,12 +46,16 @@ async def hermes_command(request: Request) -> dict:
 
     text = (form.get("text") or "").strip()
     user_name = form.get("user_name") or form.get("user_id") or "mattermost"
+    mm_user_id = form.get("user_id")
 
     if not text:
         return {"response_type": "ephemeral", "text": _HELP}
 
+    from ...services import mattermost_service
+    actor_role = mattermost_service.resolve_system_role(mm_user_id)
+
     try:
-        answer = hermes_agent.ask(text, actor_id=str(user_name))
+        answer = hermes_agent.ask(text, actor_id=str(user_name), actor_role=actor_role)
     except Exception as exc:  # уже залогировано/зааудировано в агенте
         logger.warning("Hermes agent failed for Mattermost request: %s", type(exc).__name__)
         return {

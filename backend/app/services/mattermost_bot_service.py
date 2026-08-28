@@ -109,6 +109,7 @@ def parse_incoming(event: dict, bot_user_id: str, bot_username: str) -> Optional
         "root_id": post.get("root_id") or post.get("id"),
         "text": text,
         "sender": data.get("sender_name") or post.get("user_id") or "mattermost",
+        "user_id": post.get("user_id"),
     }
 
 
@@ -130,10 +131,15 @@ async def _handle_event(event: dict, bot_user_id: str, bot_username: str) -> Non
     if not parsed:
         return
     try:
+        actor_role = await asyncio.to_thread(
+            mattermost_service.resolve_system_role, parsed.get("user_id")
+        )
         # Агент — синхронный и делает блокирующие HTTP-вызовы, поэтому уводим
         # его в поток, чтобы не блокировать приём WebSocket-сообщений.
         answer = await asyncio.to_thread(
-            hermes_agent.ask, parsed["text"], actor_id=str(parsed["sender"])
+            lambda: hermes_agent.ask(
+                parsed["text"], actor_id=str(parsed["sender"]), actor_role=actor_role
+            )
         )
     except Exception as exc:  # уже залогировано/зааудировано в агенте
         answer = f"Не удалось получить ответ: {exc}"

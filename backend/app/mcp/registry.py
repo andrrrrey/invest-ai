@@ -36,6 +36,23 @@ TOOL_SPECS = [
         "handler": tools.list_projects,
     },
     {
+        "name": "find_projects",
+        "description": (
+            "Найти проекты по части НАЗВАНИЯ (регистронезависимо). Используй, "
+            "когда пользователь называет проект словами, а не числовым id — "
+            "возвращает id, статус и ссылку. Затем при необходимости вызови "
+            "get_project по найденному id."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Часть названия проекта."}
+            },
+            "required": ["query"],
+        },
+        "handler": tools.find_projects,
+    },
+    {
         "name": "get_project",
         "description": "Детали одного проекта: статус, метрики, уровень риска, история статусов.",
         "parameters": {
@@ -103,6 +120,115 @@ TOOL_SPECS = [
         },
         "handler": tools.list_upcoming_deadlines,
     },
+    {
+        "name": "get_tranches",
+        "description": "Транши проекта: суммы, плановые даты, статусы (requested/approved/paid) и итоги.",
+        "parameters": {
+            "type": "object",
+            "properties": {"project_id": {"type": "integer"}},
+            "required": ["project_id"],
+        },
+        "handler": tools.get_tranches,
+    },
+    {
+        "name": "get_comments",
+        "description": "Последние комментарии по проекту (автор, текст, дата).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "project_id": {"type": "integer"},
+                "limit": {"type": "integer", "description": "Сколько последних (по умолчанию 10)."},
+            },
+            "required": ["project_id"],
+        },
+        "handler": tools.get_comments,
+    },
+    {
+        "name": "list_attachments",
+        "description": "Вложения проекта: имя, размер и ссылка на скачивание.",
+        "parameters": {
+            "type": "object",
+            "properties": {"project_id": {"type": "integer"}},
+            "required": ["project_id"],
+        },
+        "handler": tools.list_attachments,
+    },
+    {
+        "name": "get_forecast",
+        "description": "Ре-прогноз проекта: сохранённый forecast_data и тренд факта по метрикам.",
+        "parameters": {
+            "type": "object",
+            "properties": {"project_id": {"type": "integer"}},
+            "required": ["project_id"],
+        },
+        "handler": tools.get_forecast,
+    },
+    {
+        "name": "compare_projects",
+        "description": "Сравнить несколько проектов по NPV/IRR/DPP/Value Score/риску.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "project_ids": {
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "description": "Идентификаторы проектов для сравнения.",
+                }
+            },
+            "required": ["project_ids"],
+        },
+        "handler": tools.compare_projects,
+    },
+    {
+        "name": "portfolio_by_dimension",
+        "description": "Сводка портфеля в разрезе: business_unit | owner | project_type | status (счётчики и NPV).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "dimension": {
+                    "type": "string",
+                    "description": "business_unit | owner | project_type | status",
+                }
+            },
+        },
+        "handler": tools.portfolio_by_dimension,
+    },
+    {
+        "name": "budget_status",
+        "description": "Инвестиционный бюджет: лимит, одобрено (транши), доступно.",
+        "parameters": {"type": "object", "properties": {}},
+        "handler": tools.budget_status,
+    },
+    {
+        "name": "list_overdue_fact",
+        "description": "Активные проекты, по которым давно (или ни разу) не обновляли факт.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "window_months": {"type": "integer", "description": "Порог в месяцах (по умолчанию 2)."}
+            },
+        },
+        "handler": tools.list_overdue_fact,
+    },
+    {
+        "name": "get_audit_trail",
+        "description": "История действий по проекту из журнала аудита (кто/что/результат/когда).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "project_id": {"type": "integer"},
+                "limit": {"type": "integer", "description": "Сколько последних записей (по умолчанию 15)."},
+            },
+            "required": ["project_id"],
+        },
+        "handler": tools.get_audit_trail,
+    },
+    {
+        "name": "risk_overview",
+        "description": "Проекты с высоким уровнем риска (контроль портфеля).",
+        "parameters": {"type": "object", "properties": {}},
+        "handler": tools.risk_overview,
+    },
 ]
 
 # Инструменты на ЗАПИСЬ — доступны только при hermes_write_enabled (Этап 4).
@@ -148,6 +274,29 @@ WRITE_TOOL_SPECS = [
             "required": ["project_id", "index", "status"],
         },
         "handler": tools.update_milestone_status,
+    },
+    {
+        "name": "add_comment",
+        "description": "Оставить комментарий в проекте (от служебного аккаунта Hermes, по явной просьбе пользователя).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "project_id": {"type": "integer"},
+                "text": {"type": "string", "description": "Текст комментария."},
+            },
+            "required": ["project_id", "text"],
+        },
+        "handler": tools.add_comment,
+    },
+    {
+        "name": "request_fact_update",
+        "description": "Напомнить заявителю проекта обновить факт и статус майлстоунов (личное сообщение в Mattermost).",
+        "parameters": {
+            "type": "object",
+            "properties": {"project_id": {"type": "integer"}},
+            "required": ["project_id"],
+        },
+        "handler": tools.request_fact_update,
     },
 ]
 

@@ -36,10 +36,22 @@ _SYSTEM_PROMPT_BASE = (
     "Отвечай строго по-русски, лаконично и профессионально, опираясь ТОЛЬКО на "
     "данные, полученные через инструменты. Не выдумывай факты и цифры: если "
     "данных нет — так и скажи. Для ответа используй подходящие инструменты "
-    "(список проектов, детали проекта, сводка портфеля, заявки на согласование, "
-    "факт по проекту, майлстоуны, сроки/дедлайны). "
+    "(поиск проекта по названию, список проектов, детали проекта, сводка "
+    "портфеля, заявки на согласование, факт по проекту, майлстоуны, "
+    "сроки/дедлайны). "
+    "Если пользователь называет проект словами, а не числовым id — сначала "
+    "найди его через find_projects, затем при необходимости бери детали по "
+    "полученному id. "
     "Для вопросов про сроки, дедлайны и просрочки используй инструмент "
-    "list_upcoming_deadlines. "
+    "list_upcoming_deadlines. Есть также инструменты: транши (get_tranches), "
+    "комментарии (get_comments), вложения (list_attachments), ре-прогноз "
+    "(get_forecast), сравнение проектов (compare_projects), сводка в разрезе "
+    "(portfolio_by_dimension), бюджет (budget_status), давно не обновлявшийся "
+    "факт (list_overdue_fact), история из аудита (get_audit_trail), проекты с "
+    "высоким риском (risk_overview). "
+    "Когда упоминаешь конкретный проект, добавляй ссылку на него из поля "
+    "url в результатах инструментов (markdown-ссылкой), чтобы можно было "
+    "перейти в карточку. "
     "Роли и порядок согласования (CFO и менеджер согласуют, CEO наблюдает) "
     "неизменны."
 )
@@ -51,9 +63,10 @@ _SYSTEM_PROMPT_READONLY = (
 
 _SYSTEM_PROMPT_WRITE = (
     " Ты можешь обновлять фактические показатели и статус майлстоунов "
-    "(инструменты update_fact, update_milestone_status) — ТОЛЬКО когда "
-    "пользователь явно об этом просит. Ты НИКОГДА не согласовываешь, не "
-    "отклоняешь и не отправляешь заявки на согласование — это решения людей."
+    "(update_fact, update_milestone_status), оставлять комментарий в проекте "
+    "(add_comment) и напоминать заявителю обновить факт (request_fact_update) — "
+    "ТОЛЬКО когда пользователь явно об этом просит. Ты НИКОГДА не согласовываешь, "
+    "не отклоняешь и не отправляешь заявки на согласование — это решения людей."
 )
 
 
@@ -104,7 +117,16 @@ def _client_and_model():
     )
 
 
-def ask(question: str, *, actor_id: Optional[str] = None, max_steps: int = 5) -> str:
+_ROLE_LABELS = {"ceo": "CEO", "cfo": "CFO", "manager": "менеджер", "owner": "заявитель"}
+
+
+def ask(
+    question: str,
+    *,
+    actor_id: Optional[str] = None,
+    actor_role: Optional[str] = None,
+    max_steps: int = 5,
+) -> str:
     """Ответить на вопрос пользователя по реальным данным через инструменты."""
     if not settings_store.is_ai_enabled():
         raise ValueError(
@@ -125,8 +147,13 @@ def ask(question: str, *, actor_id: Optional[str] = None, max_steps: int = 5) ->
     def _mask(text: str) -> str:
         return az.mask(text, terms) if anonymize_on else text
 
+    system_prompt = _system_prompt()
+    if actor_role:
+        label = _ROLE_LABELS.get(actor_role, actor_role)
+        system_prompt += f" Вопрос задаёт пользователь с ролью: {label}."
+
     messages = [
-        {"role": "system", "content": _system_prompt()},
+        {"role": "system", "content": system_prompt},
         {"role": "user", "content": _mask(question)},
     ]
     tools = registry.openai_tools()
