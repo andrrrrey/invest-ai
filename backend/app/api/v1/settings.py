@@ -33,6 +33,7 @@ class SettingsUpdate(BaseModel):
     # Hermes / Mattermost
     mattermost_base_url: Optional[str] = None
     mattermost_integration_url: Optional[str] = None
+    app_base_url: Optional[str] = None
     mattermost_command_token: Optional[str] = None
     mattermost_bot_token: Optional[str] = None
     mattermost_alert_webhook: Optional[str] = None
@@ -81,6 +82,7 @@ def get_settings(_=Depends(require_cfo)) -> dict:
         # Hermes / Mattermost
         "mattermost_base_url": settings_store.get_mattermost_base_url(),
         "mattermost_integration_url": settings_store.get_mattermost_integration_url(),
+        "app_base_url": settings_store.get_app_base_url(),
         "mattermost_command_token_set": bool(settings_store.get_mattermost_command_token()),
         "mattermost_command_token_masked": _mask_key(settings_store.get_mattermost_command_token()),
         "mattermost_bot_token_set": bool(settings_store.get_mattermost_bot_token()),
@@ -99,6 +101,7 @@ def get_settings(_=Depends(require_cfo)) -> dict:
             "mattermost_command_token": bool(os.getenv("MATTERMOST_COMMAND_TOKEN")),
             "mattermost_bot_token": bool(os.getenv("MATTERMOST_BOT_TOKEN")),
             "mattermost_alert_webhook": bool(os.getenv("MATTERMOST_ALERT_WEBHOOK")),
+            "app_base_url": bool(os.getenv("APP_BASE_URL")),
             "hermes_chat_enabled": os.getenv("HERMES_CHAT_ENABLED") is not None,
         },
     }
@@ -131,6 +134,8 @@ def update_settings(body: SettingsUpdate, _=Depends(require_cfo)) -> dict:
         settings_store.set_mattermost_base_url(body.mattermost_base_url)
     if body.mattermost_integration_url is not None:
         settings_store.set_mattermost_integration_url(body.mattermost_integration_url)
+    if body.app_base_url is not None:
+        settings_store.set_app_base_url(body.app_base_url)
     if body.mattermost_command_token is not None:
         settings_store.set_mattermost_command_token(body.mattermost_command_token)
     if body.mattermost_bot_token is not None:

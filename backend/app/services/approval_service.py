@@ -206,7 +206,8 @@ def _on_pending_approval(db: Session, project: Project, project_name: str, appli
         return
     try:
         sent = mattermost_service.send_approval_card(
-            project.id, project_name, applicant_name, _approver_emails(db)
+            project.id, project_name, applicant_name, _approver_emails(db),
+            project_type=project.project_type,
         )
         audit_service.log_event(
             action="hermes.approval_card_sent",

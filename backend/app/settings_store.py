@@ -337,6 +337,26 @@ def set_mattermost_integration_url(url: str) -> None:
     _save(data)
 
 
+def get_app_base_url() -> str | None:
+    """Публичный базовый URL приложения (для ссылок на карточки проектов в
+    сообщениях бота и ответах агента). Env ``APP_BASE_URL`` имеет приоритет;
+    при отсутствии — фолбэк на внешний URL бэкенда (в типовом развёртывании
+    фронтенд и API на одном домене)."""
+    env = os.getenv("APP_BASE_URL")
+    if env:
+        return env.rstrip("/")
+    val = _load().get("app_base_url")
+    if val:
+        return val
+    return get_mattermost_integration_url()
+
+
+def set_app_base_url(url: str) -> None:
+    data = _load()
+    data["app_base_url"] = (url or "").strip().rstrip("/")
+    _save(data)
+
+
 def is_reminders_enabled() -> bool:
     """Включены ли фоновые напоминания по дедлайнам (по умолчанию НЕТ)."""
     return bool(_load().get("reminders_enabled"))

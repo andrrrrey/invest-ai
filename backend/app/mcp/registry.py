@@ -36,6 +36,23 @@ TOOL_SPECS = [
         "handler": tools.list_projects,
     },
     {
+        "name": "find_projects",
+        "description": (
+            "Найти проекты по части НАЗВАНИЯ (регистронезависимо). Используй, "
+            "когда пользователь называет проект словами, а не числовым id — "
+            "возвращает id, статус и ссылку. Затем при необходимости вызови "
+            "get_project по найденному id."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Часть названия проекта."}
+            },
+            "required": ["query"],
+        },
+        "handler": tools.find_projects,
+    },
+    {
         "name": "get_project",
         "description": "Детали одного проекта: статус, метрики, уровень риска, история статусов.",
         "parameters": {

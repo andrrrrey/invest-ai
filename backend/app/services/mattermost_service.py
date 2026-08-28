@@ -130,11 +130,19 @@ def post_to_channel(channel_id: str, message: str, root_id: Optional[str] = None
         return False
 
 
-def _approval_card(project_id: int, project_name: str, applicant_name: str) -> dict:
+def _approval_card(
+    project_id: int,
+    project_name: str,
+    applicant_name: str,
+    project_type: Optional[str] = None,
+) -> dict:
     """Собрать attachment с кнопками решения (integration actions)."""
+    from . import links  # локальный импорт во избежание циклов при загрузке
+
     token = settings_store.get_mattermost_command_token() or ""
     base = (settings_store.get_mattermost_integration_url() or "").rstrip("/")
     action_url = f"{base}/api/v1/mattermost/actions"
+    project_link = links.project_url(project_type, project_id)
 
     def _action(action_id: str, name: str, style: str, decision: str) -> dict:
         return {
@@ -151,17 +159,25 @@ def _approval_card(project_id: int, project_name: str, applicant_name: str) -> d
             },
         }
 
-    return {
+    text = f"Заявитель: {applicant_name}"
+    if project_link:
+        text += f"\n[Открыть проект →]({project_link})"
+    text += "\nВыберите решение:"
+
+    card = {
         "fallback": f"Заявка на согласование: {project_name}",
         "color": "#2f81f7",
         "title": f"Заявка на согласование: {project_name}",
-        "text": f"Заявитель: {applicant_name}\nВыберите решение:",
+        "text": text,
         "actions": [
             _action("approve", "Согласовать", "good", "approve"),
             _action("reject", "Отклонить", "danger", "reject"),
             _action("rework", "На доработку", "default", "rework"),
         ],
     }
+    if project_link:
+        card["title_link"] = project_link  # заголовок карточки — кликабельный
+    return card
 
 
 def send_approval_card(
@@ -169,13 +185,14 @@ def send_approval_card(
     project_name: str,
     applicant_name: str,
     approver_emails: List[str],
+    project_type: Optional[str] = None,
 ) -> int:
     """Отправить карточку согласования всем ответственным. Возвращает число
     успешных отправок."""
     if not is_configured():
         logger.warning("Mattermost не настроен — карточка согласования не отправлена")
         return 0
-    attachment = _approval_card(project_id, project_name, applicant_name)
+    attachment = _approval_card(project_id, project_name, applicant_name, project_type)
     sent = 0
     for email in approver_emails:
         if post_to_email(email, "Новая заявка на согласование", attachments=[attachment]):

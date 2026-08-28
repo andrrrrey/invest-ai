@@ -92,9 +92,12 @@ Hermes работает поверх действующего «Инвестиц
   Полезные `action`: `ai.chat`, `mcp.tool_call`, `hermes.answer`,
   `hermes.approval_card_sent`, `status.change`, `write.fact`, `write.milestone`,
   `hermes.deadline_reminder`.
-  Read-only MCP-инструменты: `list_projects`, `get_project`, `get_portfolio_stats`,
+  Read-only MCP-инструменты: `find_projects` (поиск по названию),
+  `list_projects`, `get_project`, `get_portfolio_stats`,
   `list_pending_approvals`, `get_project_facts`, `get_milestones`,
-  `list_upcoming_deadlines`.
+  `list_upcoming_deadlines`. В карточках проектов есть поле `url` — ссылка на
+  страницу проекта (базовый домен — настройка «Публичный URL приложения» /
+  env `APP_BASE_URL`, фолбэк — внешний URL бэкенда).
 - **MCP-сервер для внешних клиентов:** `python -m app.mcp.server` (stdio;
   запускается MCP-совместимым клиентом, требует пакет `mcp`).
 - **Тесты:** `cd backend && pytest`.

@@ -475,6 +475,13 @@
                 </div>
 
                 <div class="field">
+                    <label>Публичный URL приложения (для ссылок на проекты)</label>
+                    <input type="text" x-model="appBaseUrl" placeholder="https://invest.futuguru.com" autocomplete="off"
+                           :disabled="envOverrides.app_base_url">
+                    <p class="hint">Домен фронтенда для ссылок в сообщениях бота (карточки заявок, ответы Hermes). Если пусто — берётся «Внешний URL бэкенда».</p>
+                </div>
+
+                <div class="field">
                     <label>Токен slash-команды / кнопок</label>
                     <div class="input-row">
                         <input :type="showMm ? 'text' : 'password'" x-model="mmCommandToken"
@@ -681,6 +688,7 @@
             // Hermes / Mattermost
             mmBaseUrl: '',
             mmIntegrationUrl: '',
+            appBaseUrl: '',
             mmCommandToken: '',
             mmBotToken: '',
             mmAlertWebhook: '',
@@ -742,6 +750,7 @@
                         // Hermes / Mattermost
                         this.mmBaseUrl = data.mattermost_base_url || '';
                         this.mmIntegrationUrl = data.mattermost_integration_url || '';
+                        this.appBaseUrl = data.app_base_url || '';
                         this.mmCommandTokenMasked = data.mattermost_command_token_masked;
                         this.mmBotTokenMasked = data.mattermost_bot_token_masked;
                         this.mmAlertWebhookMasked = data.mattermost_alert_webhook_masked;
@@ -903,6 +912,7 @@
                     const payload = {};
                     if (!this.envOverrides.mattermost_base_url) payload.mattermost_base_url = this.mmBaseUrl.trim();
                     if (!this.envOverrides.mattermost_integration_url) payload.mattermost_integration_url = this.mmIntegrationUrl.trim();
+                    if (!this.envOverrides.app_base_url) payload.app_base_url = this.appBaseUrl.trim();
                     // Токены/вебхук — только если пользователь ввёл новое значение.
                     if (this.mmCommandToken.trim()) payload.mattermost_command_token = this.mmCommandToken.trim();
                     if (this.mmBotToken.trim()) payload.mattermost_bot_token = this.mmBotToken.trim();

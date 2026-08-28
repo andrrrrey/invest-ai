@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from ..models.project import Project
 from ..models.fact_entry import FactEntry
-from ..services import portfolio_service, write_service
+from ..services import portfolio_service, write_service, links
 
 
 def _project_brief(p: Project) -> dict:
@@ -28,6 +28,7 @@ def _project_brief(p: Project) -> dict:
         "owner": p.owner,
         "npv": metrics.get("npv"),
         "irr": metrics.get("irr"),
+        "url": links.project_url(p.project_type, p.id),
     }
 
 
@@ -44,6 +45,25 @@ def list_projects(
         q = q.filter(Project.project_type == project_type)
     rows = q.order_by(Project.id.desc()).all()
     return {"count": len(rows), "projects": [_project_brief(p) for p in rows]}
+
+
+def find_projects(db: Session, query: str) -> dict:
+    """Найти проекты по части названия (регистронезависимо).
+
+    Возвращает краткие карточки со ссылками — чтобы обращаться к проекту по
+    названию, не зная числового id.
+    """
+    q = (query or "").strip()
+    if not q:
+        return {"count": 0, "projects": [], "note": "Пустой запрос поиска"}
+    # Регистронезависимый поиск делаем в Python: встроенный lower() в SQLite не
+    # понижает регистр кириллицы, поэтому SQL LIKE был бы ненадёжен.
+    needle = q.lower()
+    rows = [
+        p for p in db.query(Project).order_by(Project.id.desc()).all()
+        if p.name and needle in p.name.lower()
+    ]
+    return {"count": len(rows), "query": q, "projects": [_project_brief(p) for p in rows]}
 
 
 def get_project(db: Session, project_id: int) -> dict:
@@ -72,6 +92,7 @@ def get_project(db: Session, project_id: int) -> dict:
         or risks.get("overall_risk"),
         "milestones_count": len(scd.get("milestones") or []),
         "status_history": p.status_history or [],
+        "url": links.project_url(p.project_type, p.id),
     }
 
 
