@@ -65,6 +65,42 @@ def test_get_project_and_facts_and_milestones():
     assert ms["milestones"][0]["title"] == "MVP"
 
 
+def test_list_upcoming_deadlines_tool():
+    import datetime as dt
+
+    session = SessionLocal()
+    try:
+        soon = (dt.date.today() + dt.timedelta(days=5)).isoformat()
+        overdue = (dt.date.today() - dt.timedelta(days=3)).isoformat()
+        far = (dt.date.today() + dt.timedelta(days=90)).isoformat()
+        p = Project(
+            name="Проект Дельта",
+            project_type="smart_contract",
+            status="approved",
+            smart_contract_data={
+                "milestones": [
+                    {"title": "Этап скоро", "status": "in_progress", "deadline": soon},
+                    {"title": "Этап просрочен", "status": "pending", "deadline": overdue},
+                    {"title": "Этап далеко", "status": "pending", "deadline": far},
+                    {"title": "Этап готов", "status": "paid", "deadline": overdue},
+                ],
+            },
+        )
+        session.add(p)
+        session.commit()
+        pid = p.id
+    finally:
+        session.close()
+
+    res = registry.call_tool("list_upcoming_deadlines", {"window_days": 30})
+    titles = {d["milestone"] for d in res["deadlines"] if d["project_id"] == pid}
+    assert "Этап скоро" in titles
+    assert "Этап просрочен" in titles          # overdue always included
+    assert "Этап далеко" not in titles         # beyond the 30-day window
+    assert "Этап готов" not in titles          # completed milestones excluded
+    assert res["overdue_count"] >= 1
+
+
 def test_portfolio_stats_tool():
     _seed_project()
     stats = registry.call_tool("get_portfolio_stats")

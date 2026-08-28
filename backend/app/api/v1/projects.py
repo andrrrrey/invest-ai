@@ -131,10 +131,25 @@ def create_project(
         )
 
     project_data = data.model_dump()
-    # Auto-assign owner from current user
+    # owner_user_id is not a column — pull it out before constructing the model.
+    owner_user_id = project_data.pop("owner_user_id", None)
+
+    # Auto-assign owner from current user by default.
     project_data["user_id"] = current_user.id
     if not project_data.get("owner"):
         project_data["owner"] = current_user.full_name
+
+    # CFO may file an application on behalf of another employee: the named
+    # employee becomes the responsible owner (both the FK and the display name).
+    if owner_user_id is not None and current_user.role == "cfo":
+        target = db.get(User, owner_user_id)
+        if not target or not target.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Указан несуществующий или неактивный ответственный",
+            )
+        project_data["user_id"] = target.id
+        project_data["owner"] = target.full_name
 
     project = Project(**project_data)
     db.add(project)
@@ -210,10 +225,47 @@ def change_status(
 
     project = _get_project_or_404(project_id, db)
 
+    # Причина решения (для отклонения) — попадает в таблицу проектов и
+    # уходит заявителю, CFO и CEO.
+    comment = body.get("comment")
+
     # Единая логика смены статуса (права, история, уведомления, карточки
     # согласования в Mattermost, аудит) — та же, что и для нажатий кнопок.
     from ...services import approval_service
-    return approval_service.apply_status_change(db, project, new_status, current_user)
+    return approval_service.apply_status_change(
+        db, project, new_status, current_user, comment=comment
+    )
+
+
+@router.patch("/{project_id}/reassign", response_model=ProjectRead)
+def reassign_project(
+    project_id: int,
+    body: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Сменить ответственного (владельца) заявки. Только для CFO."""
+    if current_user.role != "cfo":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Менять ответственного может только CFO",
+        )
+
+    project = _get_project_or_404(project_id, db)
+
+    new_owner_id = body.get("user_id")
+    target = db.get(User, new_owner_id) if new_owner_id is not None else None
+    if not target or not target.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Указан несуществующий или неактивный ответственный",
+        )
+
+    project.user_id = target.id
+    project.owner = target.full_name
+    db.commit()
+    db.refresh(project)
+    return project
 
 
 @router.patch("/{project_id}/recalculate", response_model=ProjectRead)

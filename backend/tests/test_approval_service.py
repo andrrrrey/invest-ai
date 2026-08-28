@@ -151,6 +151,48 @@ def test_decision_dm_uses_mattermost_email_override(db_session, monkeypatch):
     assert all(to != owner.email for to, _ in sent)
 
 
+def test_rejection_stores_reason_and_notifies_cfo_ceo(db_session, monkeypatch):
+    from app.models.notification import Notification
+
+    owner_id = _mk_user("owner")
+    cfo_id = _mk_user("cfo")
+    ceo_id = _mk_user("ceo")
+    pid = _mk_project(owner_id)
+    owner = db_session.get(User, owner_id)
+    cfo = db_session.get(User, cfo_id)
+    project = db_session.get(Project, pid)
+
+    emails = []
+    # approval_service импортирует функцию по имени — патчим её там.
+    monkeypatch.setattr(
+        approval_service, "send_status_notification_email",
+        lambda to, name, pname, status, comment=None: emails.append((to, status, comment)),
+    )
+
+    approval_service.apply_status_change(
+        db_session, project, "rejected", cfo, comment="Слишком высокий риск"
+    )
+
+    # Причина сохранена на проекте и в истории.
+    assert project.rejection_reason == "Слишком высокий риск"
+    assert project.status_history[-1]["comment"] == "Слишком высокий риск"
+
+    # In-app уведомления ушли заявителю, CFO и CEO.
+    notified = {
+        n.user_id
+        for n in db_session.query(Notification).filter(Notification.project_id == pid).all()
+    }
+    assert {owner_id, cfo_id, ceo_id}.issubset(notified)
+
+    # Email с причиной ушёл получателям.
+    assert any(to == owner.email and "риск" in (c or "") for to, s, c in emails)
+    assert {ceo_id}  # sanity
+
+    # Возврат в черновик очищает причину.
+    approval_service.apply_status_change(db_session, project, "draft", cfo)
+    assert project.rejection_reason is None
+
+
 def test_process_action_unknown_user(db_session, monkeypatch):
     owner_id = _mk_user("owner")
     pid = _mk_project(owner_id)

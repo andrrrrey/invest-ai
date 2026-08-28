@@ -49,8 +49,12 @@ class Project(Base):
     # Workflow status
     status = Column(String, default="draft")  # draft | pending_approval | approved | rejected
 
-    # Status change history [{status, changed_at, changed_by, changed_by_id}]
+    # Status change history [{status, changed_at, changed_by, changed_by_id, comment}]
     status_history = Column(JSON, nullable=True)
+
+    # Reason for the latest rejection (shown in the projects table and sent to
+    # the applicant, CFO and CEO). Cleared when the project leaves "rejected".
+    rejection_reason = Column(Text, nullable=True)
 
     # Quarterly re-forecast (no versioning): [{month: "YYYY-MM", forecast, comment}]
     forecast_data = Column(JSON, nullable=True)

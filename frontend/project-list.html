@@ -421,7 +421,12 @@
                                     <span class="status-pill" :class="riskClass(p)" x-text="riskLabel(p)"></span>
                                 </td>
                                 <td>
-                                    <span class="status-pill" :class="statusClass(p)" x-text="statusLabel(p)"></span>
+                                    <span class="status-pill" :class="statusClass(p)" x-text="statusLabel(p)"
+                                          :title="p.status === 'rejected' && p.rejection_reason ? 'Причина: ' + p.rejection_reason : ''"></span>
+                                    <template x-if="p.status === 'rejected' && p.rejection_reason">
+                                        <div class="cell-name" style="font-size:11px;color:var(--danger);margin-top:4px;max-width:160px"
+                                             :title="p.rejection_reason" x-text="p.rejection_reason"></div>
+                                    </template>
                                 </td>
                                 <td @click.stop="" x-show="canDelete">
                                     <button

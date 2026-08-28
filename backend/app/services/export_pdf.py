@@ -377,6 +377,69 @@ def _render_operational_detail(p: dict, ai_comment: str | None) -> str:
 """
 
 
+_MONTH_NAMES_RU = [
+    "", "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+    "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
+]
+
+
+def _fmt_signed_pct(value) -> str:
+    if value is None:
+        return "—"
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return "—"
+    sign = "+" if v > 0 else ""
+    return f"{sign}{v:,.1f}%"
+
+
+def _period_label(year, month) -> str:
+    try:
+        m = int(month)
+    except (TypeError, ValueError):
+        m = 0
+    name = _MONTH_NAMES_RU[m] if 1 <= m <= 12 else str(month)
+    return f"{name} {year}" if year else name
+
+
+def _fact_metrics_section(p: dict) -> str:
+    """Render the «Факт / Метрики» plan-vs-fact table for a project.
+
+    Returns an empty string when the project has no fact entries.
+    """
+    facts = p.get("fact_entries") or []
+    if not facts:
+        return ""
+
+    body = ""
+    for f in facts:
+        dev_pct = f.get("deviation_pct")
+        # Colour the deviation: positive → green, negative → red.
+        color = ""
+        if dev_pct is not None:
+            try:
+                color = "#28a745" if float(dev_pct) >= 0 else "#dc3545"
+            except (TypeError, ValueError):
+                color = ""
+        dev_style = f" style='color:{color};font-weight:600'" if color else ""
+        body += (
+            f"<tr><td>{_esc(f.get('metric_name'))}</td>"
+            f"<td>{_esc(_period_label(f.get('year'), f.get('month')))}</td>"
+            f"<td class='num'>{_fmt(f.get('plan_value'), '', 2)}</td>"
+            f"<td class='num'>{_fmt(f.get('fact_value'), '', 2)}</td>"
+            f"<td class='num'{dev_style}>{_fmt_signed_pct(dev_pct)}</td></tr>"
+        )
+
+    return (
+        "<div class='section-banner'>Факт / Метрики (план vs факт)</div>"
+        "<table><thead><tr><th>Метрика</th><th>Период</th>"
+        "<th class='num'>План</th><th class='num'>Факт</th>"
+        "<th class='num'>Отклонение</th></tr></thead>"
+        f"<tbody>{body}</tbody></table>"
+    )
+
+
 def _bullet_block(title: str, items) -> str:
     if not items:
         return ""
@@ -562,11 +625,21 @@ def _detailed_projects_section(projects: list[dict], ai_commentaries: dict) -> s
         ptype = p.get("project_type")
         ai_comment = ai_commentaries.get(p.get("id"))
         if ptype == "smart_contract":
-            parts.append(_render_smart_contract_detail(p))
+            detail = _render_smart_contract_detail(p)
         elif ptype == "operational":
-            parts.append(_render_operational_detail(p, ai_comment))
+            detail = _render_operational_detail(p, ai_comment)
         else:
-            parts.append(_render_investment_detail(p, ai_comment))
+            detail = _render_investment_detail(p, ai_comment)
+        # Include the Факт/Метрики (plan vs fact) block inside each project's
+        # report so it stays on the project's page(s) before the next page break.
+        fact_html = _fact_metrics_section(p)
+        if fact_html:
+            idx = detail.rstrip().rfind("</div>")
+            if idx != -1:
+                detail = detail[:idx] + fact_html + detail[idx:]
+            else:
+                detail += fact_html
+        parts.append(detail)
     return "".join(parts)
 
 

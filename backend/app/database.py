@@ -54,6 +54,7 @@ def init_db():
         ("projects", "smart_contract_data", "JSON"),
         ("projects", "forecast_data", "JSON"),
         ("users", "mattermost_email", "VARCHAR"),
+        ("projects", "rejection_reason", "TEXT"),
     ]
 
     # Check which columns already exist via the dialect-agnostic Inspector,
