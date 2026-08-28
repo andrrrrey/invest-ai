@@ -1,0 +1,374 @@
+# Hermes: агент и MCP-сервер — техническая документация
+
+Подробное описание AI-помощника **Hermes** и **MCP-шлюза** инвестиционного
+процессора: архитектура, безопасность, все инструменты, каналы Mattermost,
+настройки, аудит, эксплуатация и расширение.
+
+> Смежные документы:
+> - [`HERMES.md`](../HERMES.md) — краткий обзор и «4 столпа» безопасности.
+> - [`docs/HERMES_SETUP.md`](HERMES_SETUP.md) — пошаговая настройка Mattermost и MCP.
+> - Этот файл — исчерпывающий технический справочник.
+
+---
+
+## 1. Что это такое
+
+Hermes работает поверх действующего процессора и решает две задачи:
+
+1. **Вопросы и аналитика** по реальным данным (проекты, портфель, сроки,
+   факт, риски, бюджет) — в Mattermost.
+2. **Согласования в мессенджере** — карточки с кнопками, напоминания,
+   уведомления о решениях.
+
+Ключевой принцип: **ИИ не имеет прямого доступа к базе данных**. Любое
+обращение к данным идёт через строго ограниченный набор операций — **MCP-шлюз**
+(`app/mcp/`). Роли и порядок согласования не меняются: согласуют **CFO и
+менеджер**, **CEO — наблюдатель**; решения за людей Hermes не принимает.
+
+---
+
+## 2. Архитектура
+
+```
+                 ┌─────────────────────────── Mattermost ───────────────────────────┐
+                 │  /hermes <вопрос>      DM / @упоминание        кнопки карточки      │
+                 └───────┬───────────────────────┬───────────────────────┬───────────┘
+                         │ POST                   │ WebSocket             │ POST
+                         ▼                        ▼                        ▼
+        api/v1/mattermost.py           services/                 api/v1/mattermost.py
+        /mattermost/hermes             mattermost_bot_service     /mattermost/actions
+                         │             (фоновый слушатель)                 │
+                         └───────────────┬──────────────────┐             ▼
+                                         ▼                   │      services/approval_service
+                              services/hermes_agent.ask()    │      (единая логика статусов)
+                                         │                   │
+                       ┌─────────────────┴─────────────────┐ │
+                       ▼                                     ▼ │
+             anonymizer (обезличивание)            mcp/registry.call_tool()
+             — структурно, только строки            — гейт доступа + аудит
+                       │                                     │
+                       ▼                                     ▼
+              внешний ИИ (RouterAI/OpenAI)           mcp/tools.* → БД (SQLAlchemy)
+              tool-calling цикл                      только разрешённые операции
+
+  Внешние ИИ-клиенты ──stdio──► app/mcp/server.py ──► тот же registry.call_tool()
+```
+
+Сквозной аудит (`audit_log`) фиксирует каждый вызов ИИ и каждый вызов
+инструмента; структурные JSON-логи пишет `logging_config.py`.
+
+### Карта файлов
+
+| Файл | Назначение |
+|------|-----------|
+| `app/services/hermes_agent.py` | Агентный цикл tool-calling (вопросы/аналитика) |
+| `app/mcp/registry.py` | Реестр инструментов: схемы, гейт доступа, аудит |
+| `app/mcp/tools.py` | Реализация инструментов (доступ к БД) |
+| `app/mcp/server.py` | Standalone MCP-сервер (stdio) для внешних клиентов |
+| `app/services/anonymizer.py` | Обезличивание перед внешним ИИ (обратимое) |
+| `app/services/ai_service.py` | Единая точка `_chat` во внешний ИИ + аудит |
+| `app/services/mattermost_service.py` | Клиент бота: DM, карточки, роли, каналы |
+| `app/services/mattermost_bot_service.py` | WebSocket-слушатель обычных сообщений/DM |
+| `app/api/v1/mattermost.py` | Endpoints: `/mattermost/hermes`, `/mattermost/actions` |
+| `app/services/approval_service.py` | Единая логика смены статуса (права/история/уведомления) |
+| `app/services/scheduler_service.py` | Напоминания по дедлайнам + еженедельный дайджест |
+| `app/services/links.py` | Построение ссылок на карточки проектов |
+| `app/services/audit_service.py` | Запись событий в `audit_log` |
+
+---
+
+## 3. Безопасность (4 столпа)
+
+1. **Единая точка общения с ИИ** — обезличивание и аудит встроены в одно место,
+   поэтому работают во всех сценариях.
+2. **Обезличивание** (`anonymizer.py`) — перед отправкой во внешний ИИ названия
+   проектов, ФИО, коды МВЗ и контакты заменяются на метки (`[PROJECT_1]`,
+   `[PERSON_1]`, `[MVZ_1]`, `[CONTACT_1]`), в ответе — восстанавливаются.
+   - Вопрос пользователя маскируется как строка.
+   - **Результаты инструментов маскируются СТРУКТУРНО** (`Anonymizer.mask_obj`):
+     обезличиваются только строковые значения, а числа (id проекта, суммы,
+     метрики, счётчики) сохраняются. Ключи `id`, `project_id`, `user_id`, `url`
+     не маскируются — иначе короткий числовой код МВЗ портил бы целочисленный
+     `id`, и ИИ не мог бы обращаться к деталям проекта.
+   - Внутри Mattermost данные идут как есть (доверенная система).
+   - Флаги: `anonymize_enabled` (по умолчанию **on**),
+     `anonymize_round_amounts` (**off**).
+3. **Шлюз MCP** (`app/mcp/`) — ИИ вызывает только операции из
+   `registry.TOOL_SPECS` / `WRITE_TOOL_SPECS`. Каждый вызов проходит контроль
+   (в т.ч. гейт записи) и пишет аудит (`action=mcp.tool_call`).
+4. **Сквозное логирование** — структурный JSON + журнал `audit_log`.
+   Конфиденциальный текст в логи не попадает — только метаданные и метки.
+   Ошибки уходят в служебный канал Mattermost (`alert_service`).
+
+---
+
+## 4. Агент Hermes (вопросы и аналитика)
+
+Точка входа: `hermes_agent.ask(question, *, actor_id=None, actor_role=None, max_steps=5)`.
+
+**Как работает:**
+1. Проверяет `ai_enabled` (иначе — понятная ошибка, а не молчание).
+2. Выбирает провайдера/модель (`routerai` или `openai`; для агента только эти два).
+3. Собирает системный промпт (read-only или write-режим) и, если известна,
+   добавляет **роль спрашивающего** (CEO/CFO/менеджер/заявитель).
+4. Запускает цикл tool-calling (до `max_steps=5`): модель выбирает инструменты
+   → `registry.call_tool` выполняет → результат обезличивается структурно и
+   возвращается модели → и так до финального ответа.
+5. Финальный ответ деобезличивается и логируется (`action=hermes.answer`).
+
+**Провайдеры/модели** — в Настройках (роль CFO):
+- `routerai` (рекомендуется) — Claude через RouterAI (`ROUTERAI_API_KEY`);
+- `openai` — OpenAI-совместимый.
+
+**Роль спрашивающего** определяется по Mattermost `user_id` →
+`mattermost_service.resolve_system_role()` (email → пользователь системы → роль)
+и передаётся в `ask(actor_role=...)`; ответ может учитывать роль.
+
+**Параметры вызова модели:** `temperature=0.2`, `max_tokens=900`, лимит длины
+результата инструмента — 6000 символов.
+
+---
+
+## 5. Справочник MCP-инструментов
+
+Все инструменты принимают сессию БД первым аргументом (внутри) и возвращают
+JSON-сериализуемый результат. Для агента и для standalone-сервера — один реестр.
+
+### 5.1. Read-only (доступны всегда)
+
+| Инструмент | Аргументы | Возвращает |
+|-----------|-----------|-----------|
+| `find_projects` | `query: str` | Проекты по части названия/владельца/бизнес-юнита/МВЗ (регистронезависимо), со ссылками |
+| `list_projects` | `status?`, `project_type?` | Список проектов с краткими показателями |
+| `get_project` | `project_id: int` | Детали: статус, метрики, риск, история статусов, `url` |
+| `get_portfolio_stats` | `project_type?` | Счётчики по статусам/типам, NPV, IRR, бюджет |
+| `list_pending_approvals` | — | Проекты в статусе `pending_approval` |
+| `get_project_facts` | `project_id: int` | Факт/план/отклонение по метрикам |
+| `get_milestones` | `project_id: int` | Майлстоуны смарт-контракта: статус, дедлайн, вознаграждение |
+| `list_upcoming_deadlines` | `window_days=30` | Незавершённые майлстоуны в окне + просроченные |
+| `get_tranches` | `project_id: int` | Транши: суммы, статусы, итоги (requested/approved/paid) |
+| `get_comments` | `project_id`, `limit=10` | Последние комментарии (автор, текст, дата) |
+| `list_attachments` | `project_id: int` | Вложения: имя, размер, ссылка на скачивание |
+| `get_forecast` | `project_id: int` | Ре-прогноз (`forecast_data`) + тренд факта по метрикам |
+| `compare_projects` | `project_ids: int[]` | Сравнение по NPV/IRR/DPP/Value Score/риску |
+| `portfolio_by_dimension` | `dimension=business_unit` | Сводка в разрезе `business_unit\|owner\|project_type\|status` |
+| `budget_status` | — | Инвестбюджет: лимит / одобрено / доступно |
+| `list_overdue_fact` | `window_months=2` | Активные проекты без свежего факта |
+| `get_audit_trail` | `project_id`, `limit=15` | История действий по проекту из аудита |
+| `risk_overview` | — | Проекты с высоким уровнем риска |
+
+### 5.2. Write (только при `hermes_write_enabled`)
+
+| Инструмент | Аргументы | Действие |
+|-----------|-----------|----------|
+| `update_fact` | `project_id`, `entries[]` | Обновить план/факт по метрикам |
+| `update_milestone_status` | `project_id`, `index`, `status` | Сменить статус майлстоуна |
+| `add_comment` | `project_id`, `text` | Комментарий в проект (от служебного аккаунта, пометка `[via Hermes]`) |
+| `request_fact_update` | `project_id` | DM заявителю с просьбой обновить факт (+ссылка) |
+
+> **Согласование/отклонение заявок помощнику недоступно при любых настройках** —
+> это решения людей. Гейт записи проверяется в `registry.call_tool`: write-вызов
+> при выключенном `hermes_write_enabled` возвращает ошибку и пишется в аудит.
+
+### 5.3. Поле `url` и ссылки
+
+`find_projects`, `list_projects`, `get_project`, `list_pending_approvals`,
+`compare_projects`, `list_overdue_fact`, `risk_overview` возвращают поле `url` —
+абсолютную ссылку на карточку проекта. Путь зависит от типа: `/project`,
+`/op-project`, `/smart-contract`. Базовый домен — `links.app_base_url()`
+(настройка «Публичный URL приложения» / env `APP_BASE_URL`, фолбэк — внешний
+URL бэкенда). Поле `url` исключено из обезличивания.
+
+### 5.4. Пример результата инструмента
+
+`get_project` → (обезличенный для внешнего ИИ):
+```json
+{
+  "id": 12,
+  "name": "[PROJECT_1]",
+  "project_type": "operational",
+  "status": "approved",
+  "business_unit": "[ORG_1]",
+  "owner": "[PERSON_1]",
+  "metrics": {"npv": 0.0, "irr": null},
+  "risk_level": "средний",
+  "milestones_count": 0,
+  "status_history": [...],
+  "url": "https://invest.futuguru.com/op-project?id=12"
+}
+```
+Числа (`id`, `npv`) и `url` сохранены; строки заменены метками и восстановлены
+в финальном ответе.
+
+---
+
+## 6. Standalone MCP-сервер (для внешних ИИ-клиентов)
+
+Файл `app/mcp/server.py` публикует **тот же реестр** `registry.TOOL_SPECS` по
+открытому стандарту MCP через транспорт **stdio**.
+
+**Запуск:**
+```bash
+python -m app.mcp.server
+```
+Клиент MCP сам запускает процесс; сервер стартует в окружении бэкенда (доступ к
+БД и настройкам) и требует пакет `mcp` (уже в `requirements.txt`).
+
+**Особенности:**
+- Публикуются только **read-only** инструменты (`TOOL_SPECS`); write-набор не
+  экспонируется во внешний сервер.
+- Каждый вызов идёт через `registry.call_tool(..., actor_type="ai_gateway")` —
+  те же контроль и аудит.
+- Имя сервера: `hermes-invest`.
+
+Пример конфигурации MCP-клиента (Claude Desktop и совместимые):
+```json
+{
+  "mcpServers": {
+    "hermes-invest": {
+      "command": "python",
+      "args": ["-m", "app.mcp.server"],
+      "cwd": "/path/to/backend"
+    }
+  }
+}
+```
+
+---
+
+## 7. Каналы Mattermost
+
+### 7.1. Slash-команда `/hermes`
+- Endpoint: `POST /api/v1/mattermost/hermes` (`api/v1/mattermost.py`).
+- Проверяет `MATTERMOST_COMMAND_TOKEN`, определяет роль спрашивающего,
+  вызывает `hermes_agent.ask`. Ответ **эфемерный** (виден только автору).
+
+### 7.2. Обычные сообщения / DM / @упоминания (WebSocket)
+- Слушатель: `services/mattermost_bot_service.py`, стартует на старте приложения.
+- Подключается к `wss://<mm>/api/v4/websocket`, авторизуется токеном бота,
+  слушает события `posted`.
+- Отвечает на: **личные сообщения боту** (channel_type `D`) и **@упоминания**
+  бота в каналах (по mentions или тексту `@<bot>`). Игнорирует свои сообщения,
+  сообщения других ботов и системные посты (защита от петель).
+- Ответ уходит в тот же канал/тред; агент вызывается в отдельном потоке
+  (`asyncio.to_thread`), чтобы не блокировать приём.
+- **Единственный экземпляр на контейнер:** при нескольких воркерах uvicorn
+  слушатель захватывает межпроцессную файловую блокировку (`fcntl`,
+  `HERMES_BOT_LOCK_PATH` или `/data/hermes_bot_ws.lock`) — дублей ответов нет.
+- Управление: флаг `hermes_chat_enabled` (по умолчанию **on**), env
+  `HERMES_CHAT_ENABLED`. Переподключение с backoff.
+
+### 7.3. Карточки согласования (кнопки)
+- Отправляются автоматически при переходе в `pending_approval`
+  (`approval_service._on_pending_approval` → `mattermost_service.send_approval_card`).
+- Кнопки «Согласовать / Отклонить / На доработку» шлют
+  `POST /api/v1/mattermost/actions`; нажавший сопоставляется по email, решение
+  применяется только для роли `cfo`/`manager`.
+- Заголовок карточки — **кликабельная ссылка** на проект (`title_link`) + строка
+  «Открыть проект →».
+
+### 7.4. Уведомления о решениях и причине отклонения
+- При решении заявителю уходит DM (`_notify_owner_decision_mm`).
+- При **отклонении** причина сохраняется в `project.rejection_reason`,
+  показывается в таблице/карточке и рассылается заявителю, **CFO и CEO**
+  (in-app, email, Mattermost).
+
+### 7.5. Напоминания по дедлайнам
+- `scheduler_service.run_deadline_reminders` — ежедневно 09:00, флаг
+  `reminders_enabled`. DM заявителям по майлстоунам, дедлайн которых в окне.
+
+### 7.6. Еженедельный дайджест
+- `scheduler_service.run_weekly_digest` — понедельник 09:00, флаг
+  `digest_enabled`. Рассылает руководству (CFO/CEO/менеджеры) сводку: заявки на
+  согласовании, дедлайны (7 дней) и просрочки, высокий риск, давно не
+  обновлявшийся факт, статус бюджета, ссылку на портфель.
+
+---
+
+## 8. Настройки и флаги
+
+Задаются в UI (**Настройки**, роль CFO) и/или переменными окружения (**env
+имеет приоритет**). Секреты шифруются в `/data/settings.json`.
+
+### Секреты / URL
+
+| Env / поле | Назначение |
+|-----------|-----------|
+| `ROUTERAI_API_KEY` + провайдер `routerai` | LLM для агента (Claude) |
+| `MATTERMOST_BOT_TOKEN` | Токен бота (DM, карточки, WebSocket) |
+| `MATTERMOST_BASE_URL` | URL сервера Mattermost (bot API) |
+| `MATTERMOST_COMMAND_TOKEN` | Верификация slash-команд и кнопок |
+| `MATTERMOST_INTEGRATION_URL` | Внешний URL бэкенда для callback-ов кнопок |
+| `MATTERMOST_ALERT_WEBHOOK` | Incoming webhook служебного канала для ошибок |
+| `APP_BASE_URL` | Публичный URL приложения для ссылок на проекты (фолбэк — integration URL) |
+| `LOG_LEVEL` | Уровень JSON-логирования |
+
+### Флаги режимов
+
+| Флаг | По умолч. | Env-override | Назначение |
+|------|-----------|--------------|-----------|
+| `ai_enabled` | off в проде | — | Эгресс данных во внешний ИИ |
+| `anonymize_enabled` | on | — | Обезличивание перед ИИ |
+| `anonymize_round_amounts` | off | — | Округлять суммы при обезличивании |
+| `hermes_chat_enabled` | on | `HERMES_CHAT_ENABLED` | Ответы на DM/@упоминания (WebSocket) |
+| `reminders_enabled` | off | — | Напоминания по дедлайнам |
+| `digest_enabled` | off | — | Еженедельный дайджест руководству |
+| `hermes_write_enabled` | off | — | Операции на запись (факт, майлстоуны, комментарий, request_fact_update) |
+
+---
+
+## 9. Аудит
+
+Журнал `audit_log` (`GET /api/v1/audit/`, только CFO; фильтры `action`,
+`result`, `actor_type`). Конфиденциальный текст не пишется.
+
+Полезные `action`:
+`ai.chat`, `mcp.tool_call`, `hermes.answer`, `hermes.approval_card_sent`,
+`hermes.applicant_reminder`, `hermes.decision_notified`, `status.change`,
+`write.fact`, `write.milestone`, `hermes.deadline_reminder`,
+`hermes.weekly_digest`.
+
+`actor_type`: `user | hermes | ai_gateway | system`.
+
+---
+
+## 10. Эксплуатация
+
+- **Мониторинг ошибок:** служебный канал Mattermost (`MATTERMOST_ALERT_WEBHOOK`);
+  кнопка «Тестовое оповещение» в Настройках.
+- **Тесты:** `cd backend && pytest` (для standalone-MCP нужен пакет `mcp`,
+  для PDF-экспорта — `weasyprint`).
+- **Перезапуск после смены env:** `docker compose up -d backend`. Изменения в
+  UI применяются сразу; включение `hermes_chat_enabled`/`digest_enabled` из UI
+  пытается поднять слушатель/планировщик без рестарта.
+
+### Траблшутинг: «бот молчит»
+1. Открой **Аудит**, фильтр `action=hermes.answer`.
+   - Записей нет → запрос не доходит: проверь Request URL slash-команды, токен,
+     доступность бэкенда (публичный HTTPS; «Allow untrusted internal connections»).
+   - Записи с `result=error` → проблема с AI (провайдер/ключ/`ai_enabled`).
+2. Для DM: включён ли `hermes_chat_enabled`, настроен ли бот
+   (`MATTERMOST_BOT_TOKEN` + `MATTERMOST_BASE_URL`), есть ли у бэкенда исходящий
+   доступ к `wss://…/api/v4/websocket`.
+3. «get_project вернул не найден / id замаскирован» → см. структурное
+   обезличивание (§3.2); в актуальной версии исправлено.
+
+---
+
+## 11. Как добавить новый инструмент
+
+1. Реализовать функцию в `app/mcp/tools.py`:
+   `def my_tool(db: Session, ...) -> dict` (JSON-сериализуемый результат).
+2. Зарегистрировать в `app/mcp/registry.py`:
+   - read-only → `TOOL_SPECS`;
+   - на запись → `WRITE_TOOL_SPECS` (будет под `hermes_write_enabled`).
+   Указать `name`, `description` (по-русски, для модели), JSON-schema
+   `parameters`, `handler`.
+3. При необходимости упомянуть инструмент в системном промпте
+   (`hermes_agent._SYSTEM_PROMPT_BASE` / `_SYSTEM_PROMPT_WRITE`).
+4. Идентификаторы/ссылки, которые нельзя маскировать, класть под ключами из
+   `anonymizer._ID_KEYS` (`id`, `project_id`, `user_id`, `url`).
+5. Добавить тест в `backend/tests/` (пример: `test_agent_tools.py`).
+
+Инструмент автоматически станет доступен и агенту, и standalone MCP-серверу
+(для read-only), с контролем доступа и аудитом «из коробки».
