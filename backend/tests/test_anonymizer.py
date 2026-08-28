@@ -65,6 +65,31 @@ def test_stateful_anonymizer_consistent_across_calls():
     assert az.unmask("Ответ по [PROJECT_1]") == "Ответ по Альфа"
 
 
+def test_mask_obj_preserves_numeric_id():
+    """Регресс: числовой код МВЗ не должен портить целочисленный id проекта."""
+    az = anonymizer.Anonymizer()
+    result = {
+        "count": 1,
+        "projects": [
+            {"id": 12, "name": "Найм DBA-инженера", "business_unit": "WealthTech",
+             "npv": 0.0, "irr": None},
+        ],
+    }
+    terms = {"project": ["Найм DBA-инженера"], "org": ["WealthTech"], "mvz": ["12", "3"]}
+    masked = az.mask_obj(result, terms)
+
+    row = masked["projects"][0]
+    # id остаётся валидным целым числом — агент сможет вызвать get_project(12).
+    assert row["id"] == 12 and isinstance(row["id"], int)
+    assert masked["count"] == 1
+    assert row["npv"] == 0.0
+    # Название и бизнес-юнит обезличены.
+    assert row["name"] != "Найм DBA-инженера"
+    assert row["business_unit"] != "WealthTech"
+    # И восстанавливаются обратно.
+    assert az.unmask(row["name"]) == "Найм DBA-инженера"
+
+
 def test_collect_project_terms():
     project = {
         "name": "Секрет",

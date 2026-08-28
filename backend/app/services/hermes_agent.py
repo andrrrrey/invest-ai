@@ -184,12 +184,16 @@ def ask(question: str, *, actor_id: Optional[str] = None, max_steps: int = 5) ->
                 result = registry.call_tool(
                     tc.function.name, args, actor_type="hermes", actor_id=actor_id
                 )
-                raw = json.dumps(result, ensure_ascii=False, default=str)[:_MAX_TOOL_CONTENT]
+                # Обезличиваем СТРУКТУРНО: маскируются только строковые значения,
+                # числа (в т.ч. id проекта) сохраняются — иначе короткий числовой
+                # код МВЗ портит id, и агент не может запросить детали проекта.
+                masked_result = az.mask_obj(result, terms) if anonymize_on else result
+                raw = json.dumps(masked_result, ensure_ascii=False, default=str)[:_MAX_TOOL_CONTENT]
                 messages.append(
                     {
                         "role": "tool",
                         "tool_call_id": tc.id,
-                        "content": _mask(raw),
+                        "content": raw,
                     }
                 )
 
