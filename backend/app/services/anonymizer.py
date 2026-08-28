@@ -44,6 +44,10 @@ _QUOTED_RE = re.compile(r"«([^»]+)»")
 # Похоже на метку-плейсхолдер (чтобы не обезличивать её повторно).
 _PLACEHOLDER_RE = re.compile(r"^\[[A-Z]+_\d+\]$")
 
+# Ключи-идентификаторы: их значения не маскируются, чтобы ИИ мог обращаться к
+# инструментам по корректному id (см. Anonymizer.mask_obj).
+_ID_KEYS = {"id", "project_id", "user_id"}
+
 
 class Anonymizer:
     """Обезличиватель с накоплением сопоставления «значение ↔ метка».
@@ -101,6 +105,28 @@ class Anonymizer:
             return f"«{self._register(inner, 'project')}»"
 
         return _QUOTED_RE.sub(_repl_quoted, text)
+
+    def mask_obj(self, obj, extra_terms: Optional[Dict[str, List[str]]] = None):
+        """Обезличить структуру (dict/list/скаляр), маскируя ТОЛЬКО строки.
+
+        Числа (id проектов, суммы, счётчики, метрики) и булевы значения не
+        трогаются — так идентификаторы остаются валидными для последующих
+        вызовов инструментов (иначе короткий числовой код МВЗ вроде «12» при
+        строковой замене портит целочисленный ``id`` в JSON, и ИИ не может
+        запросить детали проекта). Ключи-идентификаторы не маскируются, даже
+        если пришли строкой.
+        """
+        if isinstance(obj, dict):
+            return {
+                k: (v if k in _ID_KEYS else self.mask_obj(v, extra_terms))
+                for k, v in obj.items()
+            }
+        if isinstance(obj, list):
+            return [self.mask_obj(v, extra_terms) for v in obj]
+        if isinstance(obj, str):
+            return self.mask(obj, extra_terms)
+        # int / float / bool / None — оставляем как есть.
+        return obj
 
     def unmask(self, text: str) -> str:
         """Восстановить исходные значения из меток по накопленному mapping."""
