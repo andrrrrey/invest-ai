@@ -107,10 +107,55 @@ def parse_incoming(event: dict, bot_user_id: str, bot_username: str) -> Optional
         "channel_id": post.get("channel_id"),
         # Отвечаем в тред: если пост уже в треде — в его корень, иначе к самому посту.
         "root_id": post.get("root_id") or post.get("id"),
+        # Корень треда, если сообщение УЖЕ в треде (для памяти диалога).
+        "thread_root": post.get("root_id") or "",
+        "channel_type": channel_type,
+        "post_id": post.get("id"),
         "text": text,
         "sender": data.get("sender_name") or post.get("user_id") or "mattermost",
         "user_id": post.get("user_id"),
     }
+
+
+# ── Память диалога ────────────────────────────────────────────────────────────
+
+_HISTORY_LIMIT = 10
+
+
+def _posts_ascending(data: dict) -> list:
+    """Из ответа Mattermost {order, posts} вернуть посты в хронологическом порядке."""
+    posts = (data or {}).get("posts") or {}
+    rows = list(posts.values())
+    rows.sort(key=lambda p: p.get("create_at") or 0)
+    return rows
+
+
+def build_history(parsed: dict, bot_user_id: str, limit: int = _HISTORY_LIMIT) -> list:
+    """Собрать историю диалога для агента: список {role, content}.
+
+    Источник: тред (если сообщение в треде) либо последние посты канала (DM).
+    Текущее сообщение исключается. Роли: сообщения бота → assistant, прочие → user.
+    """
+    thread_root = parsed.get("thread_root")
+    if thread_root:
+        data = mattermost_service.get_thread_posts(thread_root)
+    else:
+        data = mattermost_service.get_channel_posts(parsed.get("channel_id"), per_page=limit + 5)
+    if not data:
+        return []
+
+    history = []
+    for p in _posts_ascending(data):
+        if p.get("id") == parsed.get("post_id"):
+            continue  # текущее сообщение
+        if (p.get("type") or "").startswith("system_"):
+            continue
+        msg = (p.get("message") or "").strip()
+        if not msg:
+            continue  # карточки/вложения без текста пропускаем
+        role = "assistant" if p.get("user_id") == bot_user_id else "user"
+        history.append({"role": role, "content": msg})
+    return history[-limit:]
 
 
 # ── WebSocket-цикл ────────────────────────────────────────────────────────────
@@ -126,23 +171,55 @@ def _ws_url() -> Optional[str]:
     return "wss://" + base + "/api/v4/websocket"
 
 
-async def _handle_event(event: dict, bot_user_id: str, bot_username: str) -> None:
+async def _typing_loop(ws, next_seq, channel_id: str, parent_id: str) -> None:
+    """Периодически слать индикатор «печатает…», пока бот думает.
+
+    Индикатор в Mattermost гаснет через несколько секунд, поэтому повторяем."""
+    try:
+        while True:
+            await ws.send(json.dumps({
+                "action": "user_typing",
+                "seq": next_seq(),
+                "data": {"channel_id": channel_id, "parent_id": parent_id or ""},
+            }))
+            await asyncio.sleep(3)
+    except asyncio.CancelledError:
+        pass
+    except Exception:
+        pass
+
+
+async def _handle_event(event: dict, bot_user_id: str, bot_username: str, ws, next_seq) -> None:
     parsed = parse_incoming(event, bot_user_id, bot_username)
     if not parsed:
         return
+
+    # Показать «печатает…» на время обдумывания (thread-safe: параллельно с агентом).
+    typing = asyncio.create_task(
+        _typing_loop(ws, next_seq, parsed["channel_id"], parsed.get("thread_root") or "")
+    )
     try:
         actor_role = await asyncio.to_thread(
             mattermost_service.resolve_system_role, parsed.get("user_id")
         )
+        history = await asyncio.to_thread(build_history, parsed, bot_user_id)
         # Агент — синхронный и делает блокирующие HTTP-вызовы, поэтому уводим
         # его в поток, чтобы не блокировать приём WebSocket-сообщений.
         answer = await asyncio.to_thread(
             lambda: hermes_agent.ask(
-                parsed["text"], actor_id=str(parsed["sender"]), actor_role=actor_role
+                parsed["text"], actor_id=str(parsed["sender"]),
+                actor_role=actor_role, history=history,
             )
         )
     except Exception as exc:  # уже залогировано/зааудировано в агенте
         answer = f"Не удалось получить ответ: {exc}"
+    finally:
+        typing.cancel()
+        try:
+            await typing
+        except Exception:
+            pass
+
     if answer:
         await asyncio.to_thread(
             mattermost_service.post_to_channel,
@@ -163,6 +240,13 @@ async def _run_once() -> None:
     bot_user_id = me.get("id") or ""
     bot_username = me.get("username") or ""
 
+    # Возрастающий seq для исходящих WS-действий (auth=1, дальше typing и т.п.).
+    _seq = {"n": 1}
+
+    def next_seq() -> int:
+        _seq["n"] += 1
+        return _seq["n"]
+
     async with websockets.connect(url, max_size=2**22, ping_interval=30, ping_timeout=20) as ws:
         # Авторизация бота.
         await ws.send(json.dumps({
@@ -180,7 +264,7 @@ async def _run_once() -> None:
             if not settings_store.is_hermes_chat_enabled():
                 continue
             try:
-                await _handle_event(event, bot_user_id, bot_username)
+                await _handle_event(event, bot_user_id, bot_username, ws, next_seq)
             except Exception:
                 logger.exception("Ошибка обработки сообщения бота Hermes")
 

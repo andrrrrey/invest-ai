@@ -128,8 +128,12 @@ def ask(
     *,
     actor_id: Optional[str] = None,
     actor_role: Optional[str] = None,
+    history: Optional[list] = None,
     max_steps: int = 8,
 ) -> str:
+    """История диалога (``history``) — список ``{"role": "user"|"assistant",
+    "content": str}`` предыдущих реплик; добавляется перед текущим вопросом и
+    обезличивается так же, как вопрос."""
     """Ответить на вопрос пользователя по реальным данным через инструменты."""
     if not settings_store.is_ai_enabled():
         raise ValueError(
@@ -166,10 +170,14 @@ def ask(
         label = _ROLE_LABELS.get(actor_role, actor_role)
         system_prompt += f" Вопрос задаёт пользователь с ролью: {label}."
 
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": _mask(question)},
-    ]
+    messages = [{"role": "system", "content": system_prompt}]
+    # Память диалога: предыдущие реплики (обезличиваются как обычный текст).
+    for h in (history or []):
+        role = h.get("role")
+        content = (h.get("content") or "").strip()
+        if role in ("user", "assistant") and content:
+            messages.append({"role": role, "content": _mask(content)})
+    messages.append({"role": "user", "content": _mask(question)})
     tools = registry.openai_tools()
     steps = 0
 
