@@ -101,6 +101,42 @@ def test_list_upcoming_deadlines_tool():
     assert res["overdue_count"] >= 1
 
 
+def test_get_project_returns_operational_content():
+    session = SessionLocal()
+    try:
+        p = Project(
+            name="Найм DBA-инженера тест",
+            project_type="operational",
+            status="approved",
+            description=None,
+            financial_model={
+                "op_category": "R&D",
+                "op_mvz_main": "7", "op_mvz_sub1": "7.1", "op_mvz_sub2": "7.1.1",
+                "op_investment_type": "Защита и устойчивость",
+                "op_requested_resource": "<p>Запрашиваю ФОТ, стоимость <b>330 000</b> рублей</p>",
+                "op_investment_thesis": "<ul><li>рост техдолга</li><li>риск оттока</li></ul>",
+                "op_metrics": "0 падений",
+            },
+            value_score_data={"total": 31, "band": "Efficiency Play"},
+            decision_route="efficiency_play",
+        )
+        session.add(p)
+        session.commit()
+        pid = p.id
+    finally:
+        session.close()
+
+    res = registry.call_tool("get_project", {"project_id": pid})
+    content = res["content"]
+    # HTML вычищен, содержание доступно.
+    assert "Запрашиваю ФОТ" in content["requested_resource"]
+    assert "<" not in content["requested_resource"]
+    assert "рост техдолга" in content["investment_thesis"]
+    assert content["mvz"] == "7 / 7.1 / 7.1.1"
+    assert content["category"] == "R&D"
+    assert res["value_score"]["total"] == 31
+
+
 def test_portfolio_stats_tool():
     _seed_project()
     stats = registry.call_tool("get_portfolio_stats")
