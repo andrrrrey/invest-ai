@@ -141,6 +141,29 @@ def test_agent_unmasks_tool_arguments_for_find_projects(monkeypatch):
     assert secret in answer
 
 
+def test_agent_forces_final_answer_when_steps_exhausted(monkeypatch):
+    """Если модель всё время зовёт инструменты и не даёт текст, агент делает
+    принудительный финальный вызов без инструментов и всё равно отвечает."""
+    _seed_named_project("Проект для форс-ответа")
+
+    captured = []
+    # На каждом из шагов — только вызов инструмента, затем принудительный финал.
+    script = [_FakeMsg(tool_calls=[_FakeToolCall(f"c{i}", "list_projects", "{}")]) for i in range(3)]
+    script.append(_FakeMsg(content="Итоговый ответ по портфелю."))
+
+    monkeypatch.setattr(
+        hermes_agent, "_client_and_model",
+        lambda: (_FakeClient(script, captured), "test-model", "routerai"),
+    )
+    monkeypatch.setattr(settings_store, "is_ai_enabled", lambda: True)
+    monkeypatch.setattr(settings_store, "is_anonymize_enabled", lambda: False)
+
+    answer = hermes_agent.ask("сводка по портфелю", actor_id="tester", max_steps=3)
+    assert answer == "Итоговый ответ по портфелю."
+    # Последний вызов был без инструментов (tool_choice="none").
+    assert captured[-1].get("tool_choice") == "none"
+
+
 def test_agent_blocked_when_ai_disabled(monkeypatch):
     monkeypatch.setattr(settings_store, "is_ai_enabled", lambda: False)
     import pytest

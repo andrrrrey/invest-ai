@@ -53,7 +53,10 @@ _SYSTEM_PROMPT_BASE = (
     "url в результатах инструментов (markdown-ссылкой), чтобы можно было "
     "перейти в карточку. "
     "Роли и порядок согласования (CFO и менеджер согласуют, CEO наблюдает) "
-    "неизменны."
+    "неизменны. "
+    "Не вызывай один и тот же инструмент повторно с теми же аргументами. "
+    "Как только собрал достаточно данных — сразу дай окончательный ответ "
+    "текстом, без лишних вызовов инструментов."
 )
 
 _SYSTEM_PROMPT_READONLY = (
@@ -125,7 +128,7 @@ def ask(
     *,
     actor_id: Optional[str] = None,
     actor_role: Optional[str] = None,
-    max_steps: int = 6,
+    max_steps: int = 8,
 ) -> str:
     """Ответить на вопрос пользователя по реальным данным через инструменты."""
     if not settings_store.is_ai_enabled():
@@ -240,19 +243,39 @@ def ask(
                     }
                 )
 
-        # Лимит шагов исчерпан.
+        # Лимит шагов исчерпан — принудительно просим финальный ответ БЕЗ
+        # инструментов (по уже собранным данным), чтобы не отдавать пользователю
+        # заглушку, если модель «зациклилась» на вызовах инструментов.
+        messages.append({
+            "role": "system",
+            "content": (
+                "Достаточно данных. Сформулируй окончательный ответ пользователю "
+                "по-русски на основе уже полученных результатов инструментов. "
+                "Не вызывай инструменты."
+            ),
+        })
+        final = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            tool_choice="none",
+            temperature=0.2,
+            max_tokens=900,
+        )
+        final_content = final.choices[0].message.content or ""
+        answer = az.unmask(final_content) if anonymize_on else final_content
+        answer = answer.strip()
         audit_service.log_event(
             action="hermes.answer",
             actor_type="hermes",
             actor_id=actor_id,
-            result="error",
-            error_message="Достигнут лимит шагов агента",
+            result="ok" if answer else "error",
+            error_message=None if answer else "Пустой финальный ответ агента",
             ai_provider=provider,
             ai_model=model,
             anonymized=anonymize_on,
-            meta={"steps": steps},
+            meta={"steps": steps, "forced_final": True},
         )
-        return "Не удалось сформировать ответ за отведённое число шагов. Уточните вопрос."
+        return answer or "Не удалось сформировать ответ. Уточните вопрос."
     except Exception as exc:
         audit_service.log_event(
             action="hermes.answer",
