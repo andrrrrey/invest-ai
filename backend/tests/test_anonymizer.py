@@ -65,6 +65,27 @@ def test_stateful_anonymizer_consistent_across_calls():
     assert az.unmask("Ответ по [PROJECT_1]") == "Ответ по Альфа"
 
 
+def test_short_numeric_terms_do_not_corrupt_other_numbers():
+    """Регресс: короткий числовой код МВЗ не должен портить цифры внутри других
+    чисел (id проекта, даты) — замена только по границам слова."""
+    text = "Проект ID: 52, утверждён 2026-06-29, бюджет 500"
+    masked, mapping = anonymizer.anonymize(text, {"mvz": ["5", "2"]})
+    # Числа сохранены целиком.
+    assert "52" in masked
+    assert "2026-06-29" in masked
+    assert "500" in masked
+    # Отдельный токен «5»/«2» в этом тексте не встречается — маскировать нечего.
+    assert masked == text
+
+
+def test_standalone_numeric_term_is_masked_but_neighbors_not():
+    text = "Код 5 и число 52"
+    masked, mapping = anonymizer.anonymize(text, {"mvz": ["5"]})
+    assert "52" in masked                 # не тронуто
+    assert "Код 5 " not in masked         # отдельная «5» замаскирована
+    assert anonymizer.deanonymize(masked, mapping) == text
+
+
 def test_mask_obj_preserves_numeric_id():
     """Регресс: числовой код МВЗ не должен портить целочисленный id проекта."""
     az = anonymizer.Anonymizer()
