@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import datetime as _dt
+import re
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -77,23 +78,74 @@ def find_projects(db: Session, query: str) -> dict:
     return {"count": len(rows), "query": q, "projects": [_project_brief(p) for p in rows]}
 
 
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _plain(value) -> Optional[str]:
+    """Очистить rich-text (HTML из редактора) до простого текста для ИИ."""
+    if value is None:
+        return None
+    s = _TAG_RE.sub(" ", str(value))
+    s = (
+        s.replace("&nbsp;", " ").replace("&amp;", "&")
+        .replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", '"')
+    )
+    s = re.sub(r"\s+", " ", s).strip()
+    return s or None
+
+
+def _operational_content(fm: dict) -> dict:
+    """Содержательные поля операционной заявки (текст без HTML)."""
+    def _drivers() -> Optional[str]:
+        ds = fm.get("op_value_drivers") or []
+        other = fm.get("op_value_drivers_other") or ""
+        out = [other if d == "__other__" else d for d in ds]
+        return "; ".join(str(d) for d in out if d) or None
+
+    mvz = " / ".join(
+        str(fm.get(k)) for k in ("op_mvz_main", "op_mvz_sub1", "op_mvz_sub2") if fm.get(k)
+    ) or None
+    return {
+        "category": fm.get("op_category"),
+        "mvz": mvz,
+        "investment_type": fm.get("op_investment_type"),
+        "requested_resource": _plain(fm.get("op_requested_resource")),
+        "investment_thesis": _plain(fm.get("op_investment_thesis")),
+        "key_metric": _plain(fm.get("op_metrics")),
+        "baseline": _plain(fm.get("op_baseline")),
+        "target": _plain(fm.get("op_target")),
+        "economics": _plain(fm.get("op_economics")),
+        "stop_loss": _plain(fm.get("op_stop_loss")),
+        "stage_gates": _plain(fm.get("op_stage_gates")),
+        "value_drivers": _drivers(),
+    }
+
+
 def get_project(db: Session, project_id: int) -> dict:
-    """Детали одного проекта: статус, метрики, уровень риска, история статусов."""
+    """Детали одного проекта: статус, метрики, уровень риска, история статусов.
+
+    Для операционных заявок содержание (запрашиваемый ресурс, инвестиционный
+    тезис, метрика, экономика и т.д.) лежит в financial_model.op_*, а не в
+    поле description — поэтому оно добавляется отдельным блоком ``content``.
+    """
     p = db.get(Project, project_id)
     if not p:
         return {"error": f"Проект {project_id} не найден"}
     metrics = p.metrics or {}
     risks = p.risks_data or {}
     scd = p.smart_contract_data or {}
-    return {
+    fm = p.financial_model or {}
+    ptype = p.project_type or "investment"
+
+    result = {
         "id": p.id,
         "name": p.name,
-        "project_type": p.project_type or "investment",
+        "project_type": ptype,
         "status": p.status or "draft",
         "business_unit": p.business_unit,
         "owner": p.owner,
         "stage": p.stage,
-        "description": p.description,
+        "description": _plain(p.description),
         "metrics": {
             k: metrics.get(k) for k in ("npv", "irr", "dpp", "ltvCac", "pi")
         }
@@ -103,8 +155,22 @@ def get_project(db: Session, project_id: int) -> dict:
         or risks.get("overall_risk"),
         "milestones_count": len(scd.get("milestones") or []),
         "status_history": p.status_history or [],
-        "url": links.project_url(p.project_type, p.id),
+        "url": links.project_url(ptype, p.id),
     }
+
+    # Содержательные поля заявки (для ответа «о чём проект»).
+    if ptype == "operational":
+        result["content"] = _operational_content(fm)
+        vs = p.value_score_data or {}
+        result["value_score"] = {"total": vs.get("total"), "band": vs.get("band")}
+        result["decision_route"] = p.decision_route
+    elif ptype == "smart_contract":
+        result["content"] = {
+            "short_description": _plain(scd.get("shortDescription")),
+            "business_effect": _plain(scd.get("businessEffect")),
+            "curator": scd.get("curator"),
+        }
+    return result
 
 
 def get_portfolio_stats(db: Session, project_type: Optional[str] = None) -> dict:
