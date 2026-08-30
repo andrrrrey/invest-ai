@@ -334,13 +334,17 @@ def call_tool(
     actor_type: str = "hermes",
     actor_id: Optional[str] = None,
     db=None,
+    audit_arguments: Optional[dict] = None,
 ) -> dict:
     """Выполнить разрешённую операцию по имени. Всегда пишет аудит.
 
-    Аргументы инструментов — это идентификаторы и фильтры (не конфиденциальные
-    данные), поэтому безопасно фиксируются в метаданных аудита.
+    ``arguments`` — реальные аргументы для выполнения (у агента они уже
+    деобезличены). ``audit_arguments`` — что писать в аудит вместо реальных
+    (обезличенные), чтобы конфиденциальный текст не попадал в журнал; если не
+    задано, используются ``arguments``.
     """
     arguments = arguments or {}
+    audit_args = audit_arguments if audit_arguments is not None else arguments
     spec = _ALL_BY_NAME.get(name)
     if spec is None:
         audit_service.log_event(
@@ -378,7 +382,7 @@ def call_tool(
             result="ok",
             target_type="tool",
             target_id=name,
-            meta={"args": arguments},
+            meta={"args": audit_args},
         )
         return result
     except Exception as exc:
@@ -390,7 +394,7 @@ def call_tool(
             error_message=f"{type(exc).__name__}: {exc}",
             target_type="tool",
             target_id=name,
-            meta={"args": arguments},
+            meta={"args": audit_args},
         )
         return {"error": f"Ошибка инструмента {name}: {exc}"}
     finally:

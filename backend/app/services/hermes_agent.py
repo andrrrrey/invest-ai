@@ -125,7 +125,7 @@ def ask(
     *,
     actor_id: Optional[str] = None,
     actor_role: Optional[str] = None,
-    max_steps: int = 5,
+    max_steps: int = 6,
 ) -> str:
     """Ответить на вопрос пользователя по реальным данным через инструменты."""
     if not settings_store.is_ai_enabled():
@@ -146,6 +146,17 @@ def ask(
 
     def _mask(text: str) -> str:
         return az.mask(text, terms) if anonymize_on else text
+
+    def _unmask_args(value):
+        """Деобезличить аргументы вызова инструмента: модель оперирует метками
+        (напр. query=«[PROJECT_1]»), а инструмент работает по реальным данным."""
+        if isinstance(value, dict):
+            return {k: _unmask_args(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [_unmask_args(v) for v in value]
+        if isinstance(value, str):
+            return az.unmask(value)
+        return value
 
     system_prompt = _system_prompt()
     if actor_role:
@@ -208,8 +219,13 @@ def ask(
                     args = json.loads(tc.function.arguments or "{}")
                 except json.JSONDecodeError:
                     args = {}
+                # Модель работает в обезличенном пространстве — восстанавливаем
+                # реальные значения аргументов для выполнения, а в аудит пишем
+                # обезличенные (без конфиденциального текста).
+                exec_args = _unmask_args(args) if anonymize_on else args
                 result = registry.call_tool(
-                    tc.function.name, args, actor_type="hermes", actor_id=actor_id
+                    tc.function.name, exec_args, actor_type="hermes",
+                    actor_id=actor_id, audit_arguments=args,
                 )
                 # Обезличиваем СТРУКТУРНО: маскируются только строковые значения,
                 # числа (в т.ч. id проекта) сохраняются — иначе короткий числовой
