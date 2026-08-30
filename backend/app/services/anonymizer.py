@@ -92,8 +92,15 @@ class Anonymizer:
             for term, category in items:
                 if term not in text:
                     continue
+                # Заменяем термин только как ОТДЕЛЬНЫЙ токен (границы слова), чтобы
+                # короткий числовой код МВЗ (напр. «5») не портил цифры внутри
+                # других чисел (id проекта «52», даты «2026»). \w в Python
+                # покрывает латиницу, кириллицу и цифры.
+                pattern = re.compile(r"(?<!\w)" + re.escape(term) + r"(?!\w)")
+                if not pattern.search(text):
+                    continue
                 placeholder = self._register(term, category)
-                text = text.replace(term, placeholder)
+                text = pattern.sub(lambda m: placeholder, text)
 
         # 2) Контакты: email и телефоны.
         text = _EMAIL_RE.sub(lambda m: self._register(m.group(0), "contact"), text)
