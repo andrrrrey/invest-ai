@@ -133,6 +133,35 @@ def resolve_system_role(mm_user_id: Optional[str]) -> Optional[str]:
         db.close()
 
 
+def get_thread_posts(root_id: str) -> Optional[dict]:
+    """Посты треда Mattermost: {"order": [...], "posts": {id: post}} или None."""
+    if not is_configured() or not root_id:
+        return None
+    try:
+        r = httpx.get(f"{_base()}/api/v4/posts/{root_id}/thread", headers=_headers(), timeout=_TIMEOUT)
+        if r.status_code == 200:
+            return r.json()
+    except Exception:
+        logger.exception("Mattermost: не удалось получить тред")
+    return None
+
+
+def get_channel_posts(channel_id: str, per_page: int = 20) -> Optional[dict]:
+    """Последние посты канала (для памяти диалога в DM)."""
+    if not is_configured() or not channel_id:
+        return None
+    try:
+        r = httpx.get(
+            f"{_base()}/api/v4/channels/{channel_id}/posts",
+            headers=_headers(), params={"per_page": per_page}, timeout=_TIMEOUT,
+        )
+        if r.status_code == 200:
+            return r.json()
+    except Exception:
+        logger.exception("Mattermost: не удалось получить историю канала")
+    return None
+
+
 def get_me() -> Optional[dict]:
     """Информация о самом боте (id, username) — для WebSocket-слушателя."""
     if not is_configured():

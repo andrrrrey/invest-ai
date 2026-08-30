@@ -164,6 +164,31 @@ def test_agent_forces_final_answer_when_steps_exhausted(monkeypatch):
     assert captured[-1].get("tool_choice") == "none"
 
 
+def test_agent_includes_history_before_question(monkeypatch):
+    """История диалога добавляется перед текущим вопросом (и обезличивается)."""
+    captured = []
+    script = [_FakeMsg(content="Ответ с учётом контекста.")]
+    monkeypatch.setattr(
+        hermes_agent, "_client_and_model",
+        lambda: (_FakeClient(script, captured), "test-model", "routerai"),
+    )
+    monkeypatch.setattr(settings_store, "is_ai_enabled", lambda: True)
+    monkeypatch.setattr(settings_store, "is_anonymize_enabled", lambda: False)
+
+    history = [
+        {"role": "user", "content": "Что со статусом?"},
+        {"role": "assistant", "content": "Проект в статусе draft."},
+    ]
+    hermes_agent.ask("а бюджет?", actor_id="tester", history=history)
+
+    msgs = captured[0]["messages"]
+    # system, 2 истории, текущий вопрос
+    assert msgs[0]["role"] == "system"
+    assert msgs[1]["content"] == "Что со статусом?"
+    assert msgs[2]["role"] == "assistant" and msgs[2]["content"] == "Проект в статусе draft."
+    assert msgs[3]["content"] == "а бюджет?"
+
+
 def test_agent_blocked_when_ai_disabled(monkeypatch):
     monkeypatch.setattr(settings_store, "is_ai_enabled", lambda: False)
     import pytest
