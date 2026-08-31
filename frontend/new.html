@@ -619,14 +619,15 @@
                                 <input type="text" x-model="form.owner" placeholder="Имя инициатора">
                             </div>
                             <template x-if="isCfoRole && !projectId">
-                                <div class="field">
-                                    <label>Завести за сотрудника (ответственный)</label>
+                                <div class="field" style="border:1.5px dashed #C7C9FF;border-radius:12px;padding:12px 14px;background:#F5F5FF">
+                                    <label>Оформить заявку за сотрудника <span style="font-weight:400;color:var(--muted)">(только для CFO)</span></label>
                                     <select x-model="form.owner_user_id" @change="onOwnerSelect()">
-                                        <option value="">— я сам —</option>
+                                        <option value="">— оформляю на себя —</option>
                                         <template x-for="e in employees" :key="e.id">
                                             <option :value="e.id" x-text="e.full_name + ' · ' + employeeRoleLabel(e.role)"></option>
                                         </template>
                                     </select>
+                                    <p class="hint">Выбранный сотрудник станет ответственным (владельцем) заявки. Ответственного можно сменить и позже — в карточке проекта.</p>
                                 </div>
                             </template>
                         </div>
@@ -1221,13 +1222,15 @@
                     <div class="field"><label>Ответственный / Owner</label>
                         <input type="text" x-model="form.owner" placeholder="Имя"></div>
                     <template x-if="isCfoRole && !projectId">
-                        <div class="field"><label>Завести за сотрудника (ответственный)</label>
+                        <div class="field" style="border:1.5px dashed #C7C9FF;border-radius:12px;padding:12px 14px;background:#F5F5FF">
+                            <label>Оформить заявку за сотрудника <span style="font-weight:400;color:var(--muted)">(только для CFO)</span></label>
                             <select x-model="form.owner_user_id" @change="onOwnerSelect()">
-                                <option value="">— я сам —</option>
+                                <option value="">— оформляю на себя —</option>
                                 <template x-for="e in employees" :key="e.id">
                                     <option :value="e.id" x-text="e.full_name + ' · ' + employeeRoleLabel(e.role)"></option>
                                 </template>
                             </select>
+                            <p class="hint">Выбранный сотрудник станет ответственным (владельцем). Сменить можно и позже — в карточке проекта.</p>
                         </div>
                     </template>
                     <div class="field"><label>Стадия проекта</label>
