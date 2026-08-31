@@ -186,10 +186,11 @@
                             <div class="info-row"><span class="lbl">Инициатор</span><span class="val" x-text="project.owner || '—'"></span></div>
                             <div class="info-row" x-show="isCfo">
                                 <span class="lbl">Ответственный</span>
-                                <span class="val">
+                                <span class="val" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+                                    <span x-text="project.owner || '—'"></span>
                                     <button @click="openReassignModal()"
-                                        style="background:#EEF0FF;border:none;border-radius:10px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;color:#5E5CE6">
-                                        <i class="fas fa-user-pen" style="margin-right:4px"></i>Изменить
+                                        style="background:#EEF0FF;border:none;border-radius:10px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;color:#5E5CE6;white-space:nowrap">
+                                        <i class="fas fa-user-pen" style="margin-right:4px"></i>Изменить ответственного
                                     </button>
                                 </span>
                             </div>
