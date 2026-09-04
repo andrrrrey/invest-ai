@@ -89,6 +89,9 @@ def _seed_admin():
     from .models.user import User
     from .auth import hash_password, generate_password
     from .config import settings
+    from sqlalchemy.exc import IntegrityError
+    import logging
+    _log = logging.getLogger(__name__)
 
     db = SessionLocal()
     try:
@@ -116,7 +119,14 @@ def _seed_admin():
             ]
             for u in seed_users:
                 db.add(u)
-            db.commit()
+            try:
+                db.commit()
+            except IntegrityError as exc:
+                # Another uvicorn worker seeded these users concurrently between
+                # our count()==0 check and this commit. Benign — the rows exist.
+                db.rollback()
+                _log.warning("Seed users already created by a concurrent worker — skipping: %s", exc)
+                return
             print("[init_db] Seed users created (CEO, CFO).")
             if not settings.SEED_CEO_PASSWORD or not settings.SEED_CFO_PASSWORD:
                 print(
@@ -138,6 +148,9 @@ def _seed_service_account():
     from .models.user import User
     from .auth import hash_password, generate_password
     from .config import settings
+    from sqlalchemy.exc import IntegrityError
+    import logging
+    _log = logging.getLogger(__name__)
 
     db = SessionLocal()
     try:
@@ -152,7 +165,15 @@ def _seed_service_account():
                     is_active=True,
                 )
             )
-            db.commit()
+            try:
+                db.commit()
+            except IntegrityError as exc:
+                # Another uvicorn worker created the service account concurrently
+                # between our existence check and this commit. Benign — the row
+                # exists, so treat it as success instead of crashing startup.
+                db.rollback()
+                _log.warning("Hermes service account already created by a concurrent worker — skipping: %s", exc)
+                return
             print("[init_db] Hermes service account created (read-only, role=ceo).")
     finally:
         db.close()
