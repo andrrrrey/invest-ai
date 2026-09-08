@@ -125,6 +125,8 @@ Hermes работает поверх действующего «Инвестиц
   `list_pending_approvals`, `get_project_facts`, `get_milestones`,
   `list_upcoming_deadlines`, `get_tranches`, `get_comments`,
   `list_attachments`, `get_forecast`, `compare_projects`,
+  `rank_projects` (детерминированный топ/рейтинг по NPV/IRR/DPP/PI/
+  LTV-CAC/Value Score — сортировка и отбор в коде, а не в LLM),
   `portfolio_by_dimension`, `budget_status`, `list_overdue_fact`,
   `get_audit_trail`, `risk_overview`. Write-инструменты (при
   `hermes_write_enabled`): `update_fact`, `update_milestone_status`,

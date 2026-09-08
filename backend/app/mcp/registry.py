@@ -198,6 +198,42 @@ TOOL_SPECS = [
         "handler": tools.compare_projects,
     },
     {
+        "name": "rank_projects",
+        "description": (
+            "Детерминированный ТОП/рейтинг проектов по числовому показателю "
+            "(npv | irr | pi | ltvCac | value_score | dpp). Используй ВСЕГДА, "
+            "когда просят «топ», «лучшие», «худшие», «крупнейшие», "
+            "«отсортируй по …», «первые N по …» — НЕ сортируй и не отбирай "
+            "проекты сам. Можно сузить по статусу и типу. Сортировка и отбор "
+            "выполняются в коде; проекты без этого показателя (напр. "
+            "операционные заявки без NPV/IRR) в рейтинг не входят и "
+            "возвращаются отдельно — не показывай их со значением «0»."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "metric": {
+                    "type": "string",
+                    "description": "npv | irr | pi | ltvCac | value_score | dpp (по умолчанию npv).",
+                },
+                "top_n": {"type": "integer", "description": "Сколько проектов вернуть (по умолчанию 10)."},
+                "status": {
+                    "type": "string",
+                    "description": "Опциональный фильтр статуса: draft | pending_approval | approved | rejected | rework_needed.",
+                },
+                "project_type": {
+                    "type": "string",
+                    "description": "Опциональный фильтр типа: investment | operational | smart_contract.",
+                },
+                "order": {
+                    "type": "string",
+                    "description": "asc | desc. По умолчанию «лучшие сверху» (для dpp — по возрастанию, иначе по убыванию).",
+                },
+            },
+        },
+        "handler": tools.rank_projects,
+    },
+    {
         "name": "portfolio_by_dimension",
         "description": "Сводка портфеля в разрезе: business_unit | owner | project_type | status (счётчики и NPV).",
         "parameters": {

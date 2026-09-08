@@ -497,6 +497,111 @@ def portfolio_by_dimension(db: Session, dimension: str = "business_unit") -> dic
     return {"dimension": dimension, "groups": result}
 
 
+# Показатели, по которым можно детерминированно ранжировать проекты.
+# ``source`` — где лежит значение, ``better`` — что считается «лучше» (для DPP
+# меньше = лучше, для остальных больше = лучше), ``label`` — как называть в ответе.
+_RANK_METRICS = {
+    "npv": {"source": "metrics", "better": "high", "label": "NPV"},
+    "irr": {"source": "metrics", "better": "high", "label": "IRR"},
+    "pi": {"source": "metrics", "better": "high", "label": "PI"},
+    "ltvCac": {"source": "metrics", "better": "high", "label": "LTV/CAC"},
+    "value_score": {"source": "value_score", "better": "high", "label": "Value Score"},
+    "dpp": {"source": "metrics", "better": "low", "label": "DPP"},
+}
+
+
+def _metric_value(p: Project, metric: str) -> Optional[float]:
+    """Числовое значение показателя проекта или ``None``, если его нет/не число."""
+    if metric == "value_score":
+        raw = (p.value_score_data or {}).get("total")
+    else:
+        raw = (p.metrics or {}).get(metric)
+    if raw is None:
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def rank_projects(
+    db: Session,
+    metric: str = "npv",
+    top_n: int = 10,
+    status: Optional[str] = None,
+    project_type: Optional[str] = None,
+    order: Optional[str] = None,
+) -> dict:
+    """Детерминированный топ проектов по числовому показателю (NPV/IRR/DPP/…).
+
+    Ранжирование, сортировка и отбор выполняются В КОДЕ, а не языковой моделью —
+    это исключает ошибки агрегации и «придуманные» цифры. Проекты БЕЗ значения
+    показателя (например, у операционных заявок нет NPV/IRR) в рейтинг НЕ
+    попадают: они возвращаются отдельно (``without_metric_*``), чтобы их не
+    показывали с ложным «0».
+    """
+    metric = (metric or "npv").strip()
+    if metric not in _RANK_METRICS:
+        return {
+            "error": (
+                f"Неизвестный показатель: {metric}. Доступно: "
+                + ", ".join(sorted(_RANK_METRICS))
+            )
+        }
+    spec = _RANK_METRICS[metric]
+    try:
+        top_n = max(1, min(int(top_n), 50))
+    except (TypeError, ValueError):
+        top_n = 10
+    # Направление сортировки: по умолчанию «лучшие» сверху (для DPP это меньшие
+    # значения, для остальных — большие). Можно переопределить через order.
+    order = (order or "").strip().lower()
+    if order not in ("asc", "desc"):
+        order = "asc" if spec["better"] == "low" else "desc"
+
+    q = db.query(Project)
+    if status:
+        q = q.filter(Project.status == status)
+    if project_type:
+        q = q.filter(Project.project_type == project_type)
+    rows = q.all()
+
+    ranked: list = []
+    without: list = []
+    for p in rows:
+        card = {
+            "id": p.id,
+            "name": p.name,
+            "project_type": p.project_type or "investment",
+            "status": p.status or "draft",
+            "owner": p.owner,
+            "url": links.project_url(p.project_type, p.id),
+        }
+        val = _metric_value(p, metric)
+        if val is None:
+            without.append(card)
+        else:
+            ranked.append({**card, metric: val})
+
+    ranked.sort(key=lambda c: c[metric], reverse=(order == "desc"))
+    ranked = ranked[:top_n]
+    for i, c in enumerate(ranked, start=1):
+        c["rank"] = i
+
+    return {
+        "metric": metric,
+        "metric_label": spec["label"],
+        "order": order,
+        "filters": {"status": status, "project_type": project_type},
+        "count": len(ranked),
+        "projects": ranked,
+        # Проекты без этого показателя — их нельзя ранжировать по нему и НЕЛЬЗЯ
+        # показывать со значением «0». Возвращаем счётчик и небольшой пример.
+        "without_metric_count": len(without),
+        "without_metric_sample": without[:10],
+    }
+
+
 def budget_status(db: Session) -> dict:
     """Статус инвестиционного бюджета: лимит, одобрено (транши), доступно."""
     stats = portfolio_service.compute_stats(db, user=None)
