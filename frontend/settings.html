@@ -211,6 +211,7 @@
             <a href="/smart-contracts" class="nav-link"><i class="fas fa-file-contract"></i> Смарт-контракты</a>
             <a href="/export" class="nav-link" id="nav-export"><i class="fas fa-chart-bar"></i> Отчетность</a>
             <a href="/settings" class="nav-link active"><i class="fas fa-cog"></i> Настройки</a>
+            <a href="/knowledge" class="nav-link" id="nav-knowledge"><i class="fas fa-brain"></i> База знаний</a>
             <a href="/audit" class="nav-link" id="nav-audit"><i class="fas fa-clipboard-list"></i> Аудит</a>
             <a href="/users" class="nav-link" id="nav-users"><i class="fas fa-users"></i> Пользователи</a>
             <a href="/profile" class="nav-link"><i class="fas fa-user-circle"></i> Мой профиль</a>
@@ -707,9 +708,11 @@
                 hermes_write_enabled: false,
                 hermes_chat_enabled: true,
                 digest_enabled: false,
+                knowledge_enabled: true,
             },
             hermesToggles: [
                 { key: 'hermes_chat_enabled', title: 'Ответы на обычные сообщения', desc: 'Отвечать на личные сообщения боту и @упоминания в каналах, а не только на команду /hermes. Требует настроенного бота Mattermost.' },
+                { key: 'knowledge_enabled', title: 'База знаний', desc: 'Учитывать знания компании из раздела «База знаний»: закреплённые — всегда в контексте, остальные бот находит по смыслу. Управление — на экране «База знаний».' },
                 { key: 'anonymize_enabled', title: 'Обезличивание данных', desc: 'Скрывать имена, названия и коды перед отправкой во внешний ИИ (рекомендуется).' },
                 { key: 'anonymize_round_amounts', title: 'Округлять суммы', desc: 'Дополнительно округлять финансовые суммы при обезличивании.' },
                 { key: 'reminders_enabled', title: 'Напоминания по дедлайнам', desc: 'Фоновая рассылка напоминаний заявителям по приближающимся дедлайнам майлстоунов.' },
@@ -764,6 +767,7 @@
                             hermes_write_enabled: !!data.hermes_write_enabled,
                             hermes_chat_enabled: data.hermes_chat_enabled !== false,
                             digest_enabled: !!data.digest_enabled,
+                            knowledge_enabled: data.knowledge_enabled !== false,
                         };
                     }
                 } catch(e) {

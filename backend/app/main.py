@@ -28,6 +28,7 @@ from .api.v1 import fact as fact_router
 from .api.v1 import mattermost as mattermost_router
 from .api.v1 import milestones as milestones_router
 from .api.v1 import audit as audit_router
+from .api.v1 import knowledge as knowledge_router
 
 app = FastAPI(
     title="Инвестиционный процессор",
@@ -93,6 +94,7 @@ app.include_router(fact_router.router, prefix="/api/v1")
 app.include_router(mattermost_router.router, prefix="/api/v1")
 app.include_router(milestones_router.router, prefix="/api/v1")
 app.include_router(audit_router.router, prefix="/api/v1")
+app.include_router(knowledge_router.router, prefix="/api/v1")
 
 
 @app.on_event("startup")

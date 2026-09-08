@@ -53,6 +53,24 @@ TOOL_SPECS = [
         "handler": tools.find_projects,
     },
     {
+        "name": "search_knowledge",
+        "description": (
+            "Найти внутренние знания компании: глоссарий, методологию, "
+            "регламенты, правила, FAQ. Используй, когда вопрос про терминологию, "
+            "определения, как принято считать/оформлять, внутренние правила и "
+            "прочие знания, которых нет в данных проектов."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Суть вопроса/термин для поиска."},
+                "top_k": {"type": "integer", "description": "Сколько записей вернуть (по умолчанию 5)."},
+            },
+            "required": ["query"],
+        },
+        "handler": tools.search_knowledge,
+    },
+    {
         "name": "get_project",
         "description": "Детали одного проекта: статус, метрики, уровень риска, история статусов.",
         "parameters": {
@@ -322,6 +340,8 @@ def openai_tools() -> list:
     Write-инструменты добавляются только когда включён режим записи.
     """
     specs = list(TOOL_SPECS)
+    if not settings_store.is_knowledge_enabled():
+        specs = [s for s in specs if s["name"] != "search_knowledge"]
     if settings_store.is_hermes_write_enabled():
         specs += WRITE_TOOL_SPECS
     return [_spec_to_openai(spec) for spec in specs]

@@ -23,6 +23,9 @@ logger = logging.getLogger("hermes.ai")
 OPENAI_MODEL = "gpt-5.4"
 ANTHROPIC_MODEL = "claude-sonnet-4-6"
 ROUTERAI_BASE_URL = "https://routerai.ru/api/v1"
+# Модель эмбеддингов по умолчанию (OpenAI-совместимая). Реальная берётся из
+# настроек (settings_store.get_embedding_model()).
+DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
 
 SYSTEM_PROMPT = (
     "Ты — AI-ассистент инвестиционного процессора. "
@@ -167,6 +170,95 @@ def _chat(
         meta=meta,
     )
     return result
+
+
+class EmbeddingsUnavailable(RuntimeError):
+    """Эмбеддинги недоступны (нет ключа/провайдера или ошибка API).
+
+    Вызывающий код (knowledge_service) перехватывает это и уходит в
+    keyword-фолбэк, не роняя основной функционал."""
+
+
+def _embed_client_and_model():
+    """Клиент и модель для эмбеддингов.
+
+    Эмбеддинги работают по OpenAI-совместимому API. Провайдер routerai
+    использует свой ключ и base_url; для openai/anthropic берётся ключ OpenAI
+    (у Anthropic нет embeddings API). Если подходящего ключа нет —
+    ``EmbeddingsUnavailable``.
+    """
+    provider = settings_store.get_ai_provider()
+    model = settings_store.get_embedding_model()
+    if provider == "routerai":
+        key = settings_store.get_routerai_key()
+        if not key:
+            raise EmbeddingsUnavailable("RouterAI API ключ не настроен.")
+        return OpenAI(api_key=key, base_url=ROUTERAI_BASE_URL), model, "routerai"
+    key = settings_store.get_openai_key()
+    if not key:
+        raise EmbeddingsUnavailable(
+            "Для эмбеддингов нужен ключ OpenAI (или переключите провайдера на RouterAI)."
+        )
+    return OpenAI(api_key=key), model, "openai"
+
+
+def embed_texts(
+    texts,
+    *,
+    actor_type: str = "system",
+    actor_id: Optional[str] = None,
+) -> list:
+    """Посчитать эмбеддинги для списка текстов (единая точка егресса).
+
+    Перед отправкой во внешний провайдер тексты обезличиваются (как и в
+    ``_chat``), вызов фиксируется в аудите (``action="ai.embed"``). Возвращает
+    список векторов (``list[list[float]]``) в порядке входных текстов.
+
+    Бросает ``EmbeddingsUnavailable``, если AI выключен или нет ключа —
+    knowledge_service перехватывает и уходит в keyword-поиск.
+    """
+    if not texts:
+        return []
+    if not settings_store.is_ai_enabled():
+        raise EmbeddingsUnavailable("AI-функции отключены в настройках.")
+
+    client, model, provider = _embed_client_and_model()
+
+    try:
+        anonymize_on = settings_store.is_anonymize_enabled()
+    except Exception:
+        anonymize_on = True
+
+    inputs = [anonymizer.anonymize(t)[0] if anonymize_on else t for t in texts]
+
+    try:
+        response = client.embeddings.create(model=model, input=inputs)
+    except Exception as exc:
+        audit_service.log_event(
+            action="ai.embed",
+            actor_type=actor_type,
+            actor_id=actor_id,
+            result="error",
+            error_message=f"{type(exc).__name__}: {exc}",
+            ai_provider=provider,
+            ai_model=model,
+            anonymized=anonymize_on,
+            meta={"count": len(texts)},
+        )
+        raise EmbeddingsUnavailable(f"{type(exc).__name__}: {exc}") from exc
+
+    vectors = [list(item.embedding) for item in response.data]
+    audit_service.log_event(
+        action="ai.embed",
+        actor_type=actor_type,
+        actor_id=actor_id,
+        result="ok",
+        ai_provider=provider,
+        ai_model=model,
+        anonymized=anonymize_on,
+        meta={"count": len(texts)},
+    )
+    return vectors
 
 
 def _strip_fences(text: str) -> str:

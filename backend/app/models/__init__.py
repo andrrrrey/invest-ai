@@ -8,3 +8,4 @@ from .tranche import Tranche, TriggerChecklistItem, TrancheHistory  # noqa: F401
 from .fact_entry import FactEntry  # noqa: F401
 from .notification import Notification  # noqa: F401
 from .audit_log import AuditLog  # noqa: F401
+from .knowledge import KnowledgeEntry  # noqa: F401

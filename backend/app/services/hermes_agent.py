@@ -25,7 +25,7 @@ from .. import settings_store
 from ..database import SessionLocal
 from ..models.project import Project
 from ..mcp import registry
-from . import ai_service, alert_service, audit_service, anonymizer
+from . import ai_service, alert_service, audit_service, anonymizer, knowledge_service
 
 logger = logging.getLogger("hermes.agent")
 
@@ -39,6 +39,9 @@ _SYSTEM_PROMPT_BASE = (
     "(поиск проекта по названию, список проектов, детали проекта, сводка "
     "портфеля, заявки на согласование, факт по проекту, майлстоуны, "
     "сроки/дедлайны). "
+    "Для вопросов про внутренние знания компании — терминологию, определения, "
+    "методологию, регламенты, правила, FAQ — используй инструмент "
+    "search_knowledge. "
     "Если пользователь называет проект словами, а не числовым id — сначала "
     "найди его через find_projects, затем при необходимости бери детали по "
     "полученному id. "
@@ -145,9 +148,11 @@ def ask(
     anonymize_on = settings_store.is_anonymize_enabled()
     az = anonymizer.Anonymizer()
 
+    knowledge_on = settings_store.is_knowledge_enabled()
     db = SessionLocal()
     try:
         terms = _global_sensitive_terms(db) if anonymize_on else None
+        pinned = knowledge_service.pinned_block(db) if knowledge_on else ""
     finally:
         db.close()
 
@@ -169,6 +174,11 @@ def ask(
     if actor_role:
         label = _ROLE_LABELS.get(actor_role, actor_role)
         system_prompt += f" Вопрос задаёт пользователь с ролью: {label}."
+    # Закреплённые (pinned) знания компании — всегда в системном промпте.
+    # Обезличиваем так же, как вопрос/историю, чтобы конфиденциальный текст не
+    # уходил во внешний ИИ.
+    if pinned:
+        system_prompt += "\n\nЗнания компании (учитывай в ответах):\n" + _mask(pinned)
 
     messages = [{"role": "system", "content": system_prompt}]
     # Память диалога: предыдущие реплики (обезличиваются как обычный текст).

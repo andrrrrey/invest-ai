@@ -30,6 +30,11 @@ Hermes работает поверх действующего «Инвестиц
 - **Напоминания по дедлайнам** майлстоунов (фоновый планировщик).
 - **Обновление данных** (факт, статус майлстоунов) через помощника — под контролем,
   по явному запросу (без принятия решений за людей).
+- **База знаний («дообучение»).** CFO задаёт боту новые знания — глоссарий,
+  методологию, регламенты, FAQ — на экране **«База знаний»**. Закреплённые
+  (pinned) знания всегда добавляются в контекст бота; остальные Hermes находит
+  по смыслу (семантический поиск по эмбеддингам с фолбэком на keyword) через
+  инструмент `search_knowledge`. Флаг `knowledge_enabled` (по умолчанию on).
 
 ## Безопасность (4 столпа)
 
@@ -62,6 +67,9 @@ Hermes работает поверх действующего «Инвестиц
 | PATCH | `/api/v1/projects/{id}/status` | Смена статуса (единая логика согласования) |
 | PATCH | `/api/v1/projects/{id}/milestones/{index}/status` | Персист статуса майлстоуна |
 | GET | `/api/v1/audit/` | Журнал аудита (только CFO) |
+| GET/POST/PUT/DELETE | `/api/v1/knowledge/` | База знаний бота — CRUD (только CFO) |
+| POST | `/api/v1/knowledge/search` | Тестовый поиск по базе знаний (только CFO) |
+| POST | `/api/v1/knowledge/reindex` | Пересчитать эмбеддинги знаний (только CFO) |
 
 ## Настройки
 
@@ -90,6 +98,10 @@ Hermes работает поверх действующего «Инвестиц
   Требует настроенного бота (`MATTERMOST_BOT_TOKEN` + `MATTERMOST_BASE_URL`).
 - `digest_enabled` (**off**) — еженедельный дайджест по портфелю руководству
   (CFO/CEO/менеджеры) по понедельникам в 09:00.
+- `knowledge_enabled` (**on**) — база знаний: закреплённые знания в системном
+  промпте + инструмент `search_knowledge`. Env-override `HERMES_KNOWLEDGE_ENABLED`.
+  Модель эмбеддингов — настройка `embedding_model` (по умолчанию
+  `text-embedding-3-small`, через провайдера openai/routerai).
 
 ## Эксплуатация
 
@@ -99,7 +111,8 @@ Hermes работает поверх действующего «Инвестиц
   `hermes.approval_card_sent`, `status.change`, `write.fact`, `write.milestone`,
   `hermes.deadline_reminder`, `hermes.weekly_digest`.
   Read-only MCP-инструменты: `find_projects` (поиск по названию/владельцу/
-  бизнес-юниту/МВЗ), `list_projects`, `get_project`, `get_portfolio_stats`,
+  бизнес-юниту/МВЗ), `search_knowledge` (поиск по базе знаний компании),
+  `list_projects`, `get_project`, `get_portfolio_stats`,
   `list_pending_approvals`, `get_project_facts`, `get_milestones`,
   `list_upcoming_deadlines`, `get_tranches`, `get_comments`,
   `list_attachments`, `get_forecast`, `compare_projects`,

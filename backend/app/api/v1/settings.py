@@ -43,6 +43,8 @@ class SettingsUpdate(BaseModel):
     hermes_write_enabled: Optional[bool] = None
     hermes_chat_enabled: Optional[bool] = None
     digest_enabled: Optional[bool] = None
+    knowledge_enabled: Optional[bool] = None
+    embedding_model: Optional[str] = None
 
 
 def _mask_key(key: str | None) -> str | None:
@@ -96,6 +98,8 @@ def get_settings(_=Depends(require_cfo)) -> dict:
         "hermes_write_enabled": settings_store.is_hermes_write_enabled(),
         "hermes_chat_enabled": settings_store.is_hermes_chat_enabled(),
         "digest_enabled": settings_store.is_digest_enabled(),
+        "knowledge_enabled": settings_store.is_knowledge_enabled(),
+        "embedding_model": settings_store.get_embedding_model(),
         # Признак, что значение задано переменной окружения (env приоритетнее файла).
         "env_overrides": {
             "mattermost_base_url": bool(os.getenv("MATTERMOST_BASE_URL")),
@@ -105,6 +109,7 @@ def get_settings(_=Depends(require_cfo)) -> dict:
             "mattermost_alert_webhook": bool(os.getenv("MATTERMOST_ALERT_WEBHOOK")),
             "app_base_url": bool(os.getenv("APP_BASE_URL")),
             "hermes_chat_enabled": os.getenv("HERMES_CHAT_ENABLED") is not None,
+            "knowledge_enabled": os.getenv("HERMES_KNOWLEDGE_ENABLED") is not None,
         },
     }
 
@@ -158,6 +163,10 @@ def update_settings(body: SettingsUpdate, _=Depends(require_cfo)) -> dict:
                 start_scheduler()
             except Exception:
                 pass
+    if body.knowledge_enabled is not None:
+        settings_store.set_knowledge_enabled(body.knowledge_enabled)
+    if body.embedding_model is not None:
+        settings_store.set_embedding_model(body.embedding_model)
     if body.hermes_write_enabled is not None:
         settings_store.set_hermes_write_enabled(body.hermes_write_enabled)
     if body.hermes_chat_enabled is not None:
