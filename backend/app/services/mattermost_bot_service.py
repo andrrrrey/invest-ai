@@ -23,6 +23,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import threading
 from typing import Optional
 
@@ -33,6 +34,11 @@ logger = logging.getLogger("hermes.bot_ws")
 
 # Типы каналов Mattermost.
 _CHANNEL_DIRECT = "D"
+
+# @all / @channel / @here — широковещательные обращения ко всему каналу.
+# Mattermost разворачивает их в список mentions со ВСЕМИ участниками канала
+# (включая бота), поэтому такие сообщения нельзя считать обращением к боту.
+_BROADCAST_MENTION_RE = re.compile(r"(?<![\w@])@(?:all|channel|here)\b", re.IGNORECASE)
 
 _started = False
 _lock_handle = None  # держим файловый дескриптор блокировки на всё время жизни
@@ -49,7 +55,8 @@ def parse_incoming(event: dict, bot_user_id: str, bot_username: str) -> Optional
     Отвечаем на:
       • личные сообщения боту (channel_type == 'D');
       • @упоминания бота в любом канале (по mentions или по тексту @username).
-    Игнорируем: свои сообщения, сообщения ботов, системные посты, пустой текст.
+    Игнорируем: свои сообщения, сообщения ботов, системные посты, пустой текст, а
+    также широковещательные обращения @all/@channel/@here (если бот не назван явно).
     """
     if not event or event.get("event") != "posted":
         return None
@@ -80,18 +87,27 @@ def parse_incoming(event: dict, bot_user_id: str, bot_username: str) -> Optional
 
     channel_type = data.get("channel_type")
 
-    # @упоминания: список id из события или @username в тексте.
-    mentioned = False
+    mention_tag = f"@{bot_username}" if bot_username else None
+
+    # Явное @упоминание бота по его хендлу в тексте.
+    explicit_mention = bool(mention_tag and mention_tag.lower() in text.lower())
+
+    # Широковещательное обращение (@all/@channel/@here) — это НЕ обращение к боту,
+    # даже если Mattermost добавил его id в список mentions.
+    has_broadcast = bool(_BROADCAST_MENTION_RE.search(text))
+
+    # @упоминание по списку id из события — учитываем, только если это не результат
+    # широковещательного @all/@channel/@here, разворачиваемого на всех участников.
+    id_mention = False
     raw_mentions = data.get("mentions")
-    if raw_mentions:
+    if raw_mentions and not has_broadcast:
         try:
             ids = json.loads(raw_mentions) if isinstance(raw_mentions, str) else raw_mentions
-            mentioned = bot_user_id in ids
+            id_mention = bot_user_id in ids
         except (json.JSONDecodeError, TypeError):
-            mentioned = False
-    mention_tag = f"@{bot_username}" if bot_username else None
-    if not mentioned and mention_tag and mention_tag.lower() in text.lower():
-        mentioned = True
+            id_mention = False
+
+    mentioned = explicit_mention or id_mention
 
     is_direct = channel_type == _CHANNEL_DIRECT
     if not (is_direct or mentioned):
