@@ -415,5 +415,40 @@ def set_hermes_write_enabled(enabled: bool) -> None:
     _save(data)
 
 
+def is_knowledge_enabled() -> bool:
+    """Подключена ли база знаний Hermes (pinned-блок в промпте + инструмент
+    ``search_knowledge``). По умолчанию ВКЛЮЧЕНО. Переменная окружения
+    HERMES_KNOWLEDGE_ENABLED (1/0/true/false) имеет приоритет над файлом.
+    """
+    env = os.getenv("HERMES_KNOWLEDGE_ENABLED")
+    if env is not None:
+        return env.strip().lower() in ("1", "true", "yes", "on")
+    val = _load().get("knowledge_enabled")
+    if val is None:
+        return True
+    return bool(val)
+
+
+def set_knowledge_enabled(enabled: bool) -> None:
+    data = _load()
+    data["knowledge_enabled"] = bool(enabled)
+    _save(data)
+
+
+def get_embedding_model() -> str:
+    """Модель эмбеддингов для семантического поиска по базе знаний.
+
+    По умолчанию OpenAI-совместимая ``text-embedding-3-small``. Работает через
+    активного провайдера openai/routerai (у anthropic нет embeddings API —
+    используется ключ OpenAI при его наличии)."""
+    return _load().get("embedding_model") or "text-embedding-3-small"
+
+
+def set_embedding_model(model: str) -> None:
+    data = _load()
+    data["embedding_model"] = model.strip()
+    _save(data)
+
+
 def get_all() -> dict:
     return _load()

@@ -20,7 +20,7 @@ from ..models.comment import Comment
 from ..models.attachment import Attachment
 from ..models.audit_log import AuditLog
 from ..models.user import User
-from ..services import portfolio_service, write_service, links, mattermost_service
+from ..services import portfolio_service, write_service, links, mattermost_service, knowledge_service
 
 
 def _project_brief(p: Project) -> dict:
@@ -76,6 +76,19 @@ def find_projects(db: Session, query: str) -> dict:
 
     rows = [p for p in db.query(Project).order_by(Project.id.desc()).all() if _matches(p)]
     return {"count": len(rows), "query": q, "projects": [_project_brief(p) for p in rows]}
+
+
+def search_knowledge(db: Session, query: str, top_k: int = 5) -> dict:
+    """Найти внутренние знания компании (глоссарий, регламенты, методология, FAQ).
+
+    Семантический поиск по базе знаний с фолбэком на keyword-поиск.
+    """
+    q = (query or "").strip()
+    if not q:
+        return {"count": 0, "results": [], "note": "Пустой запрос поиска"}
+    top_k = max(1, min(int(top_k or 5), 10))
+    results = knowledge_service.search(db, q, top_k=top_k)
+    return {"count": len(results), "query": q, "results": results}
 
 
 _TAG_RE = re.compile(r"<[^>]+>")
