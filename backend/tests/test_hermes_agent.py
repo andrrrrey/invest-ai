@@ -198,11 +198,9 @@ def test_agent_blocked_when_ai_disabled(monkeypatch):
 
 
 def test_agent_denies_non_privileged_role(monkeypatch):
-    """Контроль доступа: рядовой сотрудник (или неопознанный пользователь) НЕ
+    """Контроль доступа: рядовой заявитель (или неопознанный пользователь) НЕ
     получает данные — помощник отвечает отказом, к ИИ не обращается, событие
     пишется в аудит."""
-    import pytest
-
     # ИИ «включён», но до него дело не должно дойти — гейт срабатывает раньше.
     monkeypatch.setattr(settings_store, "is_ai_enabled", lambda: True)
 
@@ -211,7 +209,7 @@ def test_agent_denies_non_privileged_role(monkeypatch):
 
     monkeypatch.setattr(hermes_agent, "_client_and_model", _boom)
 
-    for role in ("manager", "owner", None, "guest"):
+    for role in ("owner", None, "guest"):
         answer = hermes_agent.ask("сводка по портфелю", actor_id="stranger", actor_role=role)
         assert "нет доступа" in answer.lower()
 
@@ -229,9 +227,11 @@ def test_agent_denies_non_privileged_role(monkeypatch):
         session.close()
 
 
-def test_agent_allows_ceo_and_cfo():
+def test_agent_authorization_by_role():
+    # Доступ есть у руководства: CFO, CEO и менеджеров.
     assert hermes_agent.is_authorized("ceo") is True
     assert hermes_agent.is_authorized("cfo") is True
-    assert hermes_agent.is_authorized("manager") is False
+    assert hermes_agent.is_authorized("manager") is True
+    # Рядовой заявитель и неопознанный пользователь — без доступа.
     assert hermes_agent.is_authorized("owner") is False
     assert hermes_agent.is_authorized(None) is False
