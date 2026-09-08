@@ -70,6 +70,39 @@ def test_channel_mention_by_text_is_handled():
     assert res["text"] == "сводка"
 
 
+def test_broadcast_all_in_channel_ignored():
+    # @all разворачивается Mattermost в mentions со всеми участниками (включая бота),
+    # но это не обращение к боту — он должен молчать.
+    ev = _event("@all сегодня дебаты в 14:00", channel_type="O", mentions=[BOT_ID])
+    assert parse_incoming(ev, BOT_ID, BOT_NAME) is None
+
+
+def test_broadcast_channel_in_channel_ignored():
+    ev = _event("@channel важное объявление", channel_type="O", mentions=[BOT_ID])
+    assert parse_incoming(ev, BOT_ID, BOT_NAME) is None
+
+
+def test_broadcast_here_in_channel_ignored():
+    ev = _event("@here кто на месте?", channel_type="O", mentions=[BOT_ID])
+    assert parse_incoming(ev, BOT_ID, BOT_NAME) is None
+
+
+def test_broadcast_with_explicit_mention_is_handled():
+    # Явный хендл бота рядом с @all — обращение к боту, отвечаем (хендл вырезаем).
+    ev = _event("@all и @hermes дайте сводку", channel_type="O", mentions=[BOT_ID])
+    res = parse_incoming(ev, BOT_ID, BOT_NAME)
+    assert res is not None
+    # Хендл бота вырезан, широковещательный @all в тексте остаётся.
+    assert "@hermes" not in res["text"]
+    assert res["text"].startswith("@all")
+
+
+def test_direct_message_with_broadcast_still_handled():
+    # В личке отвечаем всегда, даже если в тексте затесался @all.
+    res = parse_incoming(_event("@all статус проекта"), BOT_ID, BOT_NAME)
+    assert res is not None
+
+
 def test_reply_goes_to_thread_root():
     ev = _event("вопрос в треде", root_id="root99")
     res = parse_incoming(ev, BOT_ID, BOT_NAME)
