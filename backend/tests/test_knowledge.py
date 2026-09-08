@@ -206,7 +206,7 @@ def test_agent_injects_pinned_knowledge(db, monkeypatch):
     monkeypatch.setattr(settings_store, "is_anonymize_enabled", lambda: False)
     monkeypatch.setattr(settings_store, "is_knowledge_enabled", lambda: True)
 
-    hermes_agent.ask("Что такое NPV?", actor_id="tester")
+    hermes_agent.ask("Что такое NPV?", actor_id="tester", actor_role="cfo")
 
     system_msg = captured[0]["messages"][0]["content"]
     assert "Знания компании" in system_msg

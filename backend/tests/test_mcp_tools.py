@@ -173,3 +173,56 @@ def test_tool_call_is_audited_ok():
         assert row is not None and row.result == "ok"
     finally:
         session.close()
+
+
+def _seed_ranked_projects() -> dict:
+    """Три investment-проекта с уникально большими NPV (чтобы гарантированно
+    были в топе, вне зависимости от прочих сидов) и один operational без NPV."""
+    session = SessionLocal()
+    try:
+        a = Project(name="Ранг A", project_type="investment", status="approved",
+                    metrics={"npv": 9_000_000_000_000, "irr": 30, "dpp": 5})
+        b = Project(name="Ранг B", project_type="investment", status="approved",
+                    metrics={"npv": 8_000_000_000_000, "irr": 20, "dpp": 3})
+        c = Project(name="Ранг C", project_type="investment", status="approved",
+                    metrics={"npv": 7_000_000_000_000, "irr": 25, "dpp": 8})
+        op = Project(name="Ранг OP", project_type="operational", status="approved",
+                     metrics={})  # у операционной заявки NPV не рассчитывается
+        session.add_all([a, b, c, op])
+        session.commit()
+        return {"a": a.id, "b": b.id, "c": c.id, "op": op.id}
+    finally:
+        session.close()
+
+
+def test_rank_projects_sorts_deterministically_by_npv():
+    ids = _seed_ranked_projects()
+    res = registry.call_tool("rank_projects", {"metric": "npv", "top_n": 3, "project_type": "investment"})
+    top_ids = [p["id"] for p in res["projects"]]
+    # Детерминированный порядок по убыванию NPV: A > B > C.
+    assert top_ids == [ids["a"], ids["b"], ids["c"]]
+    assert [p["rank"] for p in res["projects"]] == [1, 2, 3]
+    assert res["projects"][0]["npv"] == 9_000_000_000_000
+    assert res["order"] == "desc"
+
+
+def test_rank_projects_excludes_projects_without_metric():
+    ids = _seed_ranked_projects()
+    res = registry.call_tool("rank_projects", {"metric": "npv", "project_type": "operational", "top_n": 50})
+    ranked_ids = [p["id"] for p in res["projects"]]
+    # Операционная заявка без NPV НЕ попадает в рейтинг и не показывается с «0».
+    assert ids["op"] not in ranked_ids
+    assert res["without_metric_count"] >= 1
+
+
+def test_rank_projects_default_order_and_override():
+    # Для DPP «лучше» — меньше, поэтому по умолчанию сортировка по возрастанию.
+    assert registry.call_tool("rank_projects", {"metric": "dpp"})["order"] == "asc"
+    assert registry.call_tool("rank_projects", {"metric": "npv"})["order"] == "desc"
+    # Явное направление переопределяет умолчание.
+    assert registry.call_tool("rank_projects", {"metric": "npv", "order": "asc"})["order"] == "asc"
+
+
+def test_rank_projects_unknown_metric_errors():
+    res = registry.call_tool("rank_projects", {"metric": "wat"})
+    assert "error" in res

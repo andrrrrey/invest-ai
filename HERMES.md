@@ -36,7 +36,7 @@ Hermes работает поверх действующего «Инвестиц
   по смыслу (семантический поиск по эмбеддингам с фолбэком на keyword) через
   инструмент `search_knowledge`. Флаг `knowledge_enabled` (по умолчанию on).
 
-## Безопасность (4 столпа)
+## Безопасность (5 столпов)
 
 1. **Единая точка общения с ИИ** — `services/ai_service.py::_chat`. Здесь встроены
    обезличивание и аудит, поэтому они работают во всех сценариях.
@@ -57,6 +57,15 @@ Hermes работает поверх действующего «Инвестиц
 
 Служебный аккаунт помощника `hermes-bot` (роль `ceo`, read-only) создаётся на
 старте. Операции на запись отключены по умолчанию.
+
+5. **Контроль доступа по роли** — `services/hermes_agent.py::is_authorized`.
+   Помощник работает под сервис-аккаунтом с полным доступом на чтение, поэтому
+   ответы на вопросы по проектам и портфелю (показатели NPV/IRR, суммы, статусы
+   согласования) выдаются **только руководству — CFO, CEO и менеджерам**.
+   Рядовым заявителям (роль `owner`) и неопознанным пользователям (нет в
+   системе) Hermes отвечает отказом, не обращаясь к данным и внешнему ИИ; отказ
+   фиксируется в аудите (`action="hermes.access_denied"`, `result="denied"`).
+   Роль спрашивающего определяется по e-mail Mattermost (`resolve_system_role`).
 
 ## Ключевые эндпоинты
 
@@ -116,6 +125,8 @@ Hermes работает поверх действующего «Инвестиц
   `list_pending_approvals`, `get_project_facts`, `get_milestones`,
   `list_upcoming_deadlines`, `get_tranches`, `get_comments`,
   `list_attachments`, `get_forecast`, `compare_projects`,
+  `rank_projects` (детерминированный топ/рейтинг по NPV/IRR/DPP/PI/
+  LTV-CAC/Value Score — сортировка и отбор в коде, а не в LLM),
   `portfolio_by_dimension`, `budget_status`, `list_overdue_fact`,
   `get_audit_trail`, `risk_overview`. Write-инструменты (при
   `hermes_write_enabled`): `update_fact`, `update_milestone_status`,

@@ -73,7 +73,7 @@ def test_agent_masks_outbound_and_restores_and_uses_tools(monkeypatch):
     monkeypatch.setattr(settings_store, "is_ai_enabled", lambda: True)
     monkeypatch.setattr(settings_store, "is_anonymize_enabled", lambda: True)
 
-    answer = hermes_agent.ask(f"Каков статус проекта «{secret}»?", actor_id="tester")
+    answer = hermes_agent.ask(f"Каков статус проекта «{secret}»?", actor_id="tester", actor_role="cfo")
 
     # Финальный ответ пользователю — с восстановленным реальным названием.
     assert secret in answer
@@ -131,7 +131,7 @@ def test_agent_unmasks_tool_arguments_for_find_projects(monkeypatch):
     monkeypatch.setattr(settings_store, "is_ai_enabled", lambda: True)
     monkeypatch.setattr(settings_store, "is_anonymize_enabled", lambda: True)
 
-    answer = hermes_agent.ask(f"расскажи про проект «{secret}»", actor_id="tester")
+    answer = hermes_agent.ask(f"расскажи про проект «{secret}»", actor_id="tester", actor_role="cfo")
 
     # find_projects получил РЕАЛЬНОЕ название (деобезличенный аргумент) и нашёл проект.
     exec_args, res = captured_tool_results["find"]
@@ -158,7 +158,7 @@ def test_agent_forces_final_answer_when_steps_exhausted(monkeypatch):
     monkeypatch.setattr(settings_store, "is_ai_enabled", lambda: True)
     monkeypatch.setattr(settings_store, "is_anonymize_enabled", lambda: False)
 
-    answer = hermes_agent.ask("сводка по портфелю", actor_id="tester", max_steps=3)
+    answer = hermes_agent.ask("сводка по портфелю", actor_id="tester", actor_role="cfo", max_steps=3)
     assert answer == "Итоговый ответ по портфелю."
     # Последний вызов был без инструментов (tool_choice="none").
     assert captured[-1].get("tool_choice") == "none"
@@ -179,7 +179,7 @@ def test_agent_includes_history_before_question(monkeypatch):
         {"role": "user", "content": "Что со статусом?"},
         {"role": "assistant", "content": "Проект в статусе draft."},
     ]
-    hermes_agent.ask("а бюджет?", actor_id="tester", history=history)
+    hermes_agent.ask("а бюджет?", actor_id="tester", actor_role="cfo", history=history)
 
     msgs = captured[0]["messages"]
     # system, 2 истории, текущий вопрос
@@ -194,4 +194,44 @@ def test_agent_blocked_when_ai_disabled(monkeypatch):
     import pytest
 
     with pytest.raises(ValueError):
-        hermes_agent.ask("сводка по портфелю")
+        hermes_agent.ask("сводка по портфелю", actor_role="cfo")
+
+
+def test_agent_denies_non_privileged_role(monkeypatch):
+    """Контроль доступа: рядовой заявитель (или неопознанный пользователь) НЕ
+    получает данные — помощник отвечает отказом, к ИИ не обращается, событие
+    пишется в аудит."""
+    # ИИ «включён», но до него дело не должно дойти — гейт срабатывает раньше.
+    monkeypatch.setattr(settings_store, "is_ai_enabled", lambda: True)
+
+    def _boom():
+        raise AssertionError("ИИ не должен вызываться для неавторизованной роли")
+
+    monkeypatch.setattr(hermes_agent, "_client_and_model", _boom)
+
+    for role in ("owner", None, "guest"):
+        answer = hermes_agent.ask("сводка по портфелю", actor_id="stranger", actor_role=role)
+        assert "нет доступа" in answer.lower()
+
+    # Отказы зафиксированы в аудите.
+    session = SessionLocal()
+    try:
+        row = (
+            session.query(AuditLog)
+            .filter(AuditLog.action == "hermes.access_denied")
+            .order_by(AuditLog.id.desc())
+            .first()
+        )
+        assert row is not None and row.result == "denied"
+    finally:
+        session.close()
+
+
+def test_agent_authorization_by_role():
+    # Доступ есть у руководства: CFO, CEO и менеджеров.
+    assert hermes_agent.is_authorized("ceo") is True
+    assert hermes_agent.is_authorized("cfo") is True
+    assert hermes_agent.is_authorized("manager") is True
+    # Рядовой заявитель и неопознанный пользователь — без доступа.
+    assert hermes_agent.is_authorized("owner") is False
+    assert hermes_agent.is_authorized(None) is False
