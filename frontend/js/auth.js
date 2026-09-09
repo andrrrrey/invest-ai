@@ -165,20 +165,27 @@ function patchSidebar() {
         }
     }
 
-    // Inject the "Аудит" nav link for CFO on every page (centralised so we don't
-    // edit every page's sidebar). Guarded against duplicates on pages that already
-    // include it statically (settings, audit).
+    // Inject the CFO-only nav links ("База знаний" and "Аудит") on every page
+    // (centralised so we don't edit every page's sidebar). Guarded against
+    // duplicates on pages that already include them statically (settings,
+    // knowledge, audit). Both links are inserted before "Пользователи" and in
+    // the canonical order: База знаний → Аудит.
     const sidebarEl = document.getElementById('sidebar');
     const navMenu = sidebarEl && sidebarEl.querySelector('.nav-menu');
-    if (navMenu && getUserRole() === 'cfo' && !document.getElementById('nav-audit')) {
-        const auditLink = document.createElement('a');
-        auditLink.href = '/audit';
-        auditLink.className = 'nav-link';
-        auditLink.id = 'nav-audit';
-        auditLink.innerHTML = '<i class="fas fa-clipboard-list"></i> Аудит';
+    if (navMenu && getUserRole() === 'cfo') {
         const usersLink = document.getElementById('nav-users');
-        if (usersLink) navMenu.insertBefore(auditLink, usersLink);
-        else navMenu.appendChild(auditLink);
+        const insertNav = (id, href, iconClass, label) => {
+            if (document.getElementById(id)) return;
+            const link = document.createElement('a');
+            link.href = href;
+            link.className = 'nav-link';
+            link.id = id;
+            link.innerHTML = `<i class="${iconClass}"></i> ${label}`;
+            if (usersLink) navMenu.insertBefore(link, usersLink);
+            else navMenu.appendChild(link);
+        };
+        insertNav('nav-knowledge', '/knowledge', 'fas fa-brain', 'База знаний');
+        insertNav('nav-audit', '/audit', 'fas fa-clipboard-list', 'Аудит');
     }
 
     // Inject collapse toggle button as sibling of sidebar (outside sidebar's overflow)
