@@ -974,6 +974,7 @@ function scWizard() {
     return {
         step: 1,
         userName: '',
+        _docFiles: [],
         gptLoading: false,
         aiSummaryLoading: false,
         aiSummary: '',
@@ -1108,7 +1109,26 @@ function scWizard() {
         },
 
         onDocsChange(e) {
-            this.form.documents = Array.from(e.target.files || []).map(f => f.name);
+            const files = Array.from(e.target.files || []);
+            // Сохраняем сами файлы для последующей загрузки после создания контракта,
+            // и имена — для payload и подписи в интерфейсе.
+            this._docFiles = files;
+            this.form.documents = files.map(f => f.name);
+        },
+
+        async uploadDocuments(projectId) {
+            const files = this._docFiles || [];
+            for (const file of files) {
+                const fd = new FormData();
+                fd.append('file', file);
+                try {
+                    await fetch('/api/v1/projects/' + projectId + '/attachments', {
+                        method: 'POST',
+                        headers: { Authorization: 'Bearer ' + localStorage.getItem('invest_token') },
+                        body: fd,
+                    });
+                } catch (e) { /* имя файла всё равно сохранено в smart_contract_data.documents */ }
+            }
         },
 
         recalcCoins(idx) {
@@ -1404,6 +1424,8 @@ function scWizard() {
                     return;
                 }
                 const created = await res.json();
+                // Загружаем прикреплённые документы как реальные вложения контракта
+                await this.uploadDocuments(created.id);
                 this.submitted = true;
                 window.location.href = '/smart-contract?id=' + created.id;
             } catch (e) {
