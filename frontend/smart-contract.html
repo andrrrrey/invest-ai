@@ -574,6 +574,80 @@
             </div>
         </template>
 
+        <!-- ═══ ДОКУМЕНТЫ ══════════════════════════════════════════ -->
+        <div class="card-block" style="margin-top:16px" x-data="scAttachmentsApp()" x-init="loadAttachments()">
+            <div class="block-title"><i class="fas fa-paperclip" style="color:var(--accent)"></i> Документы</div>
+
+            <!-- Реальные загруженные файлы -->
+            <div x-show="attachments.length > 0" style="margin-bottom:12px">
+                <template x-for="a in attachments" :key="a.id">
+                    <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#F8F7F3;border-radius:12px;margin-bottom:8px">
+                        <i class="fas fa-file-alt" style="color:var(--accent);font-size:18px;flex-shrink:0"></i>
+                        <div style="flex:1;min-width:0">
+                            <p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" x-text="a.original_name"></p>
+                            <p style="font-size:11px;color:#8E8E93" x-text="fmtFileSize(a.file_size) + ' · ' + fmtDateShort(a.uploaded_at) + ' · ' + a.uploader_name"></p>
+                        </div>
+                        <button @click="downloadFile(a)" title="Скачать" style="background:#EEF0FF;border:none;border-radius:10px;padding:7px 12px;cursor:pointer;color:var(--accent);font-size:13px">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Документы, указанные при создании контракта (имена файлов) -->
+            <template x-if="legacyDocs.length > 0">
+                <div style="margin-bottom:12px">
+                    <p style="font-size:11px;color:#8E8E93;margin-bottom:6px">Указаны при создании контракта:</p>
+                    <template x-for="(name, i) in legacyDocs" :key="i">
+                        <div style="display:flex;align-items:center;gap:12px;padding:9px 14px;background:#FBFAF6;border:1px dashed #E5E5ED;border-radius:12px;margin-bottom:6px">
+                            <i class="fas fa-file" style="color:#B0B0B8;font-size:16px;flex-shrink:0"></i>
+                            <p style="flex:1;min-width:0;font-size:13px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" x-text="name"></p>
+                            <span style="font-size:11px;color:#B0B0B8">файл не загружен</span>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <div x-show="!attachments.length && !legacyDocs.length && !uploading" style="color:#8E8E93;font-size:13px;margin-bottom:10px">Документы не прикреплены</div>
+
+            <div style="display:flex;gap:10px;align-items:center">
+                <input type="file" x-ref="fileInput" accept=".pdf,.docx,.md" style="display:none" @change="uploadFile($event)">
+                <button @click="$refs.fileInput.click()" :disabled="uploading"
+                    style="background:#EEF0FF;border:1.5px solid #C7C9FF;color:var(--accent);border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
+                    <i class="fas" :class="uploading ? 'fa-spinner fa-spin' : 'fa-upload'"></i>
+                    <span x-text="uploading ? 'Загружаем...' : 'Прикрепить файл'"></span>
+                </button>
+                <span style="font-size:11px;color:#8E8E93">PDF, DOCX, MD · до 25 МБ</span>
+            </div>
+        </div>
+
+        <!-- ═══ КОММЕНТАРИИ ══════════════════════════════════════════ -->
+        <div class="card-block" style="margin-top:16px" x-data="scCommentsApp()" x-init="loadComments()">
+            <div class="block-title"><i class="fas fa-comments" style="color:var(--accent)"></i> Комментарии</div>
+            <div style="margin-bottom:14px">
+                <template x-for="c in comments" :key="c.id">
+                    <div style="padding:12px 16px;background:#F8F7F3;border-radius:14px;margin-bottom:10px">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+                            <span style="font-size:12px;font-weight:700;color:var(--accent)" x-text="c.author_name"></span>
+                            <span style="font-size:11px;color:#8E8E93" x-text="fmtDateShort(c.created_at)"></span>
+                        </div>
+                        <p style="font-size:13px;line-height:1.5;color:#1C1C1E;white-space:pre-wrap" x-text="c.text"></p>
+                    </div>
+                </template>
+                <p x-show="!comments.length" style="font-size:13px;color:#8E8E93;margin-bottom:10px">Комментариев пока нет</p>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start">
+                <textarea x-model="commentText" placeholder="Написать комментарий..."
+                    style="flex:1;resize:vertical;min-height:70px;padding:10px 14px;border:1.5px solid #E5E5ED;border-radius:12px;font-size:13px;font-family:inherit;outline:none"
+                    @keydown.ctrl.enter="submitComment()"></textarea>
+                <button @click="submitComment()" :disabled="!commentText.trim() || submittingComment"
+                    style="background:var(--accent);color:white;border:none;border-radius:12px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+            <p style="font-size:11px;color:#8E8E93;margin-top:4px">Ctrl+Enter для отправки</p>
+        </div>
+
     </main>
 </div>
 
@@ -877,6 +951,115 @@ function scView() {
             this.arbitrationResult = `Решение AI-арбитража по milestone «${ms?.name || '—'}»:\n\nПо итогам 3 независимых запросов к Claude Opus (temperature=0), решение большинством голосов (3/3): milestone частично выполнен. Критерий M (измеримость) выполнен — зафиксировано ${ms?.criteria?.match(/\d+/)?.[0] || '—'} обработанных тикетов. Критерий T (период) — данные предоставлены за сокращённый период в связи с правилом малой выборки.\n\nРешение: выплатить 75% от суммы milestone (${ms ? Math.round(ms.coins * 0.75).toLocaleString('ru-RU') : '—'} coin). Оставшиеся 25% переносятся на следующий период при подтверждении полного соответствия.`;
             this.contract.hasDispute = false;
         },
+    };
+}
+
+// ── Общие помощники ────────────────────────────────────────────────────
+function _scProjectId() {
+    return new URLSearchParams(location.search).get('id');
+}
+function _scFmtDateShort(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// ── Документы (вложения) ───────────────────────────────────────────────
+function scAttachmentsApp() {
+    return {
+        attachments: [],
+        legacyDocs: [],
+        uploading: false,
+        async loadAttachments() {
+            const id = _scProjectId();
+            if (!id) return;
+            try {
+                const res = await authFetch('/api/v1/projects/' + id + '/attachments');
+                if (res.ok) this.attachments = await res.json();
+            } catch (e) {}
+            // Документы, указанные в мастере создания (имена файлов в smart_contract_data)
+            try {
+                const res = await authFetch('/api/v1/projects/' + id);
+                if (res.ok) {
+                    const p = await res.json();
+                    const docs = (p.smart_contract_data || {}).documents || [];
+                    this.legacyDocs = Array.isArray(docs) ? docs.filter(Boolean) : [];
+                }
+            } catch (e) {}
+        },
+        async uploadFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            this.uploading = true;
+            const fd = new FormData();
+            fd.append('file', file);
+            try {
+                const res = await fetch('/api/v1/projects/' + _scProjectId() + '/attachments', {
+                    method: 'POST',
+                    headers: { Authorization: 'Bearer ' + localStorage.getItem('invest_token') },
+                    body: fd,
+                });
+                if (res.ok) {
+                    const a = await res.json();
+                    this.attachments.unshift(a);
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert(err.detail || 'Ошибка загрузки файла');
+                }
+            } catch (e) { alert('Ошибка: ' + e.message); }
+            finally { this.uploading = false; event.target.value = ''; }
+        },
+        async downloadFile(a) {
+            try {
+                const res = await authFetch('/api/v1/attachments/' + a.id + '/download');
+                if (!res.ok) { alert('Ошибка скачивания'); return; }
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url; link.download = a.original_name;
+                document.body.appendChild(link); link.click();
+                document.body.removeChild(link);
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch (e) { alert('Ошибка: ' + e.message); }
+        },
+        fmtFileSize(bytes) {
+            if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' МБ';
+            if (bytes >= 1024) return Math.round(bytes / 1024) + ' КБ';
+            return bytes + ' Б';
+        },
+        fmtDateShort: _scFmtDateShort,
+    };
+}
+
+// ── Комментарии ────────────────────────────────────────────────────────
+function scCommentsApp() {
+    return {
+        comments: [],
+        commentText: '',
+        submittingComment: false,
+        async loadComments() {
+            const id = _scProjectId();
+            if (!id) return;
+            try {
+                const res = await authFetch('/api/v1/projects/' + id + '/comments');
+                if (res.ok) this.comments = await res.json();
+            } catch (e) {}
+        },
+        async submitComment() {
+            if (!this.commentText.trim()) return;
+            this.submittingComment = true;
+            try {
+                const res = await authFetch('/api/v1/projects/' + _scProjectId() + '/comments', {
+                    method: 'POST',
+                    body: JSON.stringify({ text: this.commentText.trim() }),
+                });
+                if (res.ok) {
+                    const c = await res.json();
+                    this.comments.unshift(c);
+                    this.commentText = '';
+                }
+            } catch (e) {} finally { this.submittingComment = false; }
+        },
+        fmtDateShort: _scFmtDateShort,
     };
 }
 </script>
