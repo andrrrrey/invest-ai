@@ -43,6 +43,12 @@ class FactEntryRead(BaseModel):
         from_attributes = True
 
 
+class FactDeleteIn(BaseModel):
+    year: int
+    month: int
+    metric_name: str
+
+
 class ForecastRowIn(BaseModel):
     month: str                      # "YYYY-MM"
     forecast: Optional[float] = None
@@ -129,6 +135,44 @@ def upsert_fact(
     for e in updated:
         db.refresh(e)
     return [_to_read(e) for e in updated]
+
+
+@router.post("/projects/{project_id}/fact/delete")
+def delete_fact(
+    project_id: int,
+    items: List[FactDeleteIn],
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Удалить ранее введённые фактические значения.
+
+    Обнуляет ``fact_value`` для указанных ячеек (метрика/год/месяц). Если у
+    записи нет и планового значения — строка удаляется целиком. Возвращает
+    число затронутых ячеек. POST (а не DELETE) — чтобы тело запроса надёжно
+    проходило через прокси.
+    """
+    get_accessible_project(project_id, db, current_user)
+    affected = 0
+    for item in items:
+        entry = (
+            db.query(FactEntry)
+            .filter_by(
+                project_id=project_id,
+                year=item.year,
+                month=item.month,
+                metric_name=item.metric_name,
+            )
+            .first()
+        )
+        if not entry:
+            continue
+        if entry.plan_value is not None:
+            entry.fact_value = None
+        else:
+            db.delete(entry)
+        affected += 1
+    db.commit()
+    return {"deleted": affected}
 
 
 @router.get("/projects/{project_id}/fact/forecast-data")
