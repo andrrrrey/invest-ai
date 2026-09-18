@@ -891,8 +891,22 @@
                                                 <div style="height:100%;border-radius:5px" :style="'width:' + c.barPct + '%;background:' + c.dotColor"></div>
                                             </div>
                                         </div>
+                                        <div x-show="c.entries.length" style="border-top:1px solid #F0F0F0;margin-top:14px;padding-top:12px">
+                                            <p style="font-size:11px;font-weight:700;color:#8E8E93;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Внесённые значения</p>
+                                            <template x-for="e in c.entries" :key="e.ym">
+                                                <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:13px">
+                                                    <span style="color:#8E8E93" x-text="e.label"></span>
+                                                    <span style="display:flex;align-items:center;gap:10px">
+                                                        <span style="font-weight:700;color:#1C1C1E" x-text="e.valueLabel"></span>
+                                                        <button @click="deleteCardFact(c, e.ym, e.label)" title="Удалить значение" type="button"
+                                                            style="border:none;background:transparent;color:#FF3B30;cursor:pointer;font-size:15px;line-height:1;padding:0;font-weight:700">×</button>
+                                                    </span>
+                                                </div>
+                                            </template>
+                                        </div>
                                         <div style="border-top:1px solid #F0F0F0;margin-top:14px;padding-top:12px">
-                                            <p style="font-size:11px;font-weight:700;color:#8E8E93;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px">Внести факт</p>
+                                            <p style="font-size:11px;font-weight:700;color:#8E8E93;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">Внести факт</p>
+                                            <p style="font-size:11px;color:#8E8E93;margin-bottom:8px;line-height:1.4">Выберите месяц и введите фактическое значение — оно попадёт в «Факт», обновит «Достижение» и появится в списке выше.</p>
                                             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                                                 <input type="month" x-model="c.entryMonth"
                                                     style="padding:6px 8px;border:1.5px solid #E5E5ED;border-radius:8px;font-size:12px;outline:none;color:#1C1C1E">
@@ -1597,12 +1611,17 @@
                             factPeriod = M[parseInt(mo) - 1] + ' ' + y;
                             factDate = factPeriod;
                         }
+                        // All entered fact values (newest first) — shown on the card, each deletable.
+                        const entries = facts.map(f => {
+                            const [ey, em] = f.ym.split('-');
+                            return { ym: f.ym, label: M[parseInt(em) - 1] + ' ' + ey, valueLabel: fmtVal(f.fact) };
+                        });
                         return {
                             name: t.name, source: t.source,
                             factLabel: fmtVal(factVal), factPeriod, factDate,
                             targetLabel: fmtVal(targetVal),
                             achievement, barPct: achievement == null ? 0 : Math.min(100, achievement),
-                            dotColor, borderColor,
+                            dotColor, borderColor, entries,
                             entryMonth: currentYm, entryValue: '', saving: false,
                         };
                     });
@@ -1631,6 +1650,18 @@
                         card.saving = false;
                     }
                 } catch(e) { alert('Ошибка: ' + e.message); card.saving = false; }
+            },
+            async deleteCardFact(card, ym, label) {
+                if (!confirm('Удалить фактическое значение за ' + (label || ym) + '?')) return;
+                const [y, mo] = ym.split('-').map(Number);
+                try {
+                    const res = await authFetch('/api/v1/projects/' + _opProjectId() + '/fact/delete', {
+                        method: 'POST',
+                        body: JSON.stringify([{ year: y, month: mo, metric_name: card.name }]),
+                    });
+                    if (res.ok) await this.loadMetrics();
+                    else { const err = await res.json().catch(() => ({})); alert(err.detail || 'Ошибка удаления'); }
+                } catch(e) { alert('Ошибка: ' + e.message); }
             },
         };
     }
