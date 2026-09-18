@@ -885,7 +885,7 @@
                                             </div>
                                             <div style="display:flex;justify-content:space-between;font-size:13px">
                                                 <span style="color:#8E8E93">Достижение</span>
-                                                <span style="font-weight:800" :style="'color:' + c.dotColor" x-text="c.achievement !== null ? c.achievement + '%' : '—'"></span>
+                                                <span style="font-weight:800" :style="'color:' + c.dotColor" x-text="c.achievementLabel"></span>
                                             </div>
                                             <div style="height:8px;background:#F0F0F0;border-radius:5px;margin-top:8px;overflow:hidden">
                                                 <div style="height:100%;border-radius:5px" :style="'width:' + c.barPct + '%;background:' + c.dotColor"></div>
@@ -1620,7 +1620,9 @@
                             name: t.name, source: t.source,
                             factLabel: fmtVal(factVal), factPeriod, factDate,
                             targetLabel: fmtVal(targetVal),
-                            achievement, barPct: achievement == null ? 0 : Math.min(100, achievement),
+                            achievement,
+                            achievementLabel: achievement == null ? '—' : (achievement > 100 ? '>100%' : achievement + '%'),
+                            barPct: achievement == null ? 0 : Math.min(100, achievement),
                             dotColor, borderColor, entries,
                             entryMonth: currentYm, entryValue: '', saving: false,
                         };
