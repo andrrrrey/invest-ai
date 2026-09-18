@@ -887,10 +887,20 @@
                                                 <div style="height:100%;border-radius:5px" :style="'width:' + c.barPct + '%;background:' + c.dotColor"></div>
                                             </div>
                                         </div>
-                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
-                                            <span style="font-size:11px;color:#8E8E93" x-text="c.factDate"></span>
-                                            <button @click="activeTab='fact'"
-                                                style="background:white;border:1.5px solid #E5E5ED;border-radius:10px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">Внести факт</button>
+                                        <div style="border-top:1px solid #F0F0F0;margin-top:14px;padding-top:12px">
+                                            <p style="font-size:11px;font-weight:700;color:#8E8E93;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px">Внести факт</p>
+                                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                                                <input type="month" x-model="c.entryMonth"
+                                                    style="padding:6px 8px;border:1.5px solid #E5E5ED;border-radius:8px;font-size:12px;outline:none;color:#1C1C1E">
+                                                <input type="text" inputmode="decimal" x-model="c.entryValue" placeholder="Значение"
+                                                    @keydown.enter="saveCardFact(c)"
+                                                    style="flex:1;min-width:90px;padding:6px 8px;border:1.5px solid #D0EDD9;border-radius:8px;font-size:12px;text-align:right;color:#2D9B63;font-weight:600;outline:none">
+                                                <button @click="saveCardFact(c)" :disabled="c.saving"
+                                                    style="background:var(--accent-purple);color:white;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">
+                                                    <i class="fas" :class="c.saving ? 'fa-spinner fa-spin' : 'fa-check'"></i>
+                                                    <span x-show="!c.saving">Сохранить</span>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </template>
@@ -1537,6 +1547,8 @@
                     }
                     const M = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
                     const fmtVal = (v) => v == null ? '—' : Number(v).toLocaleString('ru-RU');
+                    const now = new Date();
+                    const currentYm = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
                     let red = 0;
                     this.cards = targets.map(t => {
                         // Latest fact
@@ -1564,11 +1576,34 @@
                             targetLabel: fmtVal(targetVal),
                             achievement, barPct: achievement == null ? 0 : Math.min(100, achievement),
                             dotColor, borderColor,
+                            entryMonth: currentYm, entryValue: '', saving: false,
                         };
                     });
                     this.redZoneCount = red;
                 } catch(e) {}
                 finally { this.loadingMetrics = false; }
+            },
+            async saveCardFact(card) {
+                if (!card.entryMonth || card.entryValue === '' || card.entryValue == null) {
+                    alert('Укажите период и значение факта'); return;
+                }
+                const [y, mo] = card.entryMonth.split('-').map(Number);
+                const val = parseFloat(String(card.entryValue).replace(/\s/g, '').replace(',', '.'));
+                if (isNaN(val) || !y || !mo) { alert('Некорректное значение или период'); return; }
+                card.saving = true;
+                try {
+                    const res = await authFetch('/api/v1/projects/' + _opProjectId() + '/fact', {
+                        method: 'PUT',
+                        body: JSON.stringify([{ year: y, month: mo, metric_name: card.name, fact_value: val, plan_value: null }]),
+                    });
+                    if (res.ok) {
+                        await this.loadMetrics();   // rebuilds cards with the new latest fact
+                    } else {
+                        const err = await res.json().catch(() => ({}));
+                        alert(err.detail || 'Ошибка сохранения');
+                        card.saving = false;
+                    }
+                } catch(e) { alert('Ошибка: ' + e.message); card.saving = false; }
             },
         };
     }

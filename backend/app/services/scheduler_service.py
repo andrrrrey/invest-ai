@@ -21,7 +21,7 @@ from ..database import SessionLocal
 from ..models.project import Project
 from ..models.user import User
 from .. import settings_store
-from . import mattermost_service, audit_service
+from . import mattermost_service, audit_service, links
 
 logger = logging.getLogger("hermes.scheduler")
 
@@ -70,9 +70,10 @@ def run_deadline_reminders(window_days: int = 3) -> int:
             if not owner_email:
                 continue
             lines = "\n".join(f"• {title} — до {d.isoformat()}" for title, d in due)
+            type_label = links.project_type_label(p.project_type)
             ok = mattermost_service.post_to_email(
                 owner_email,
-                f"Напоминание по проекту «{p.name or '(без названия)'}»: "
+                f"Напоминание по проекту «{p.name or '(без названия)'}» ({type_label}): "
                 f"приближаются дедлайны майлстоунов. Обновите факт и статус:\n{lines}",
             )
             if ok:
@@ -130,7 +131,8 @@ def build_weekly_digest(db) -> str:
         lines.append(f"**Дедлайны (7 дней), просрочено {deadlines.get('overdue_count', 0)}:**")
         for d in dl[:8]:
             mark = "⚠️ просрочен" if d.get("overdue") else f"через {d.get('days_left')} дн."
-            lines.append(f"• {d.get('project')} — {d.get('milestone')} ({mark})")
+            tag = f" [{d.get('type')}]" if d.get("type") else ""
+            lines.append(f"• {d.get('project')}{tag} — {d.get('milestone')} ({mark})")
 
     if risks.get("count"):
         lines.append("")
@@ -138,7 +140,8 @@ def build_weekly_digest(db) -> str:
         for r in (risks.get("projects") or [])[:8]:
             link = r.get("url")
             name = f"[{r.get('name')}]({link})" if link else r.get("name")
-            lines.append(f"• {name}")
+            tag = f" [{r.get('type')}]" if r.get("type") else ""
+            lines.append(f"• {name}{tag}")
 
     if overdue_fact.get("count"):
         lines.append("")
@@ -146,7 +149,8 @@ def build_weekly_digest(db) -> str:
         for p in (overdue_fact.get("projects") or [])[:8]:
             link = p.get("url")
             name = f"[{p.get('name')}]({link})" if link else p.get("name")
-            lines.append(f"• {name} (последний факт: {p.get('last_fact') or 'нет'})")
+            tag = f" [{p.get('type')}]" if p.get("type") else ""
+            lines.append(f"• {name}{tag} (последний факт: {p.get('last_fact') or 'нет'})")
 
     base = links.app_base_url()
     if base:

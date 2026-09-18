@@ -203,6 +203,7 @@ def _approval_card(
     base = (settings_store.get_mattermost_integration_url() or "").rstrip("/")
     action_url = f"{base}/api/v1/mattermost/actions"
     project_link = links.project_url(project_type, project_id)
+    type_label = links.project_type_label(project_type)
 
     def _action(action_id: str, name: str, style: str, decision: str) -> dict:
         return {
@@ -219,13 +220,13 @@ def _approval_card(
             },
         }
 
-    text = f"Заявитель: {applicant_name}"
+    text = f"Тип: {type_label}\nЗаявитель: {applicant_name}"
     if project_link:
         text += f"\n[Открыть проект →]({project_link})"
     text += "\nВыберите решение:"
 
     card = {
-        "fallback": f"Заявка на согласование: {project_name}",
+        "fallback": f"Заявка на согласование ({type_label}): {project_name}",
         "color": "#2f81f7",
         "title": f"Заявка на согласование: {project_name}",
         "text": text,
