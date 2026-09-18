@@ -18,6 +18,18 @@ _PATH_BY_TYPE = {
     "smart_contract": "/smart-contract",
 }
 
+# Тип проекта -> человекочитаемое название (для сообщений бота).
+_LABEL_BY_TYPE = {
+    "investment": "Инвестиционный проект",
+    "operational": "Операционная заявка",
+    "smart_contract": "Смарт-контракт",
+}
+
+
+def project_type_label(project_type: Optional[str]) -> str:
+    """Русское название типа проекта для уведомлений (по умолчанию — инвестиционный)."""
+    return _LABEL_BY_TYPE.get(project_type or "", _LABEL_BY_TYPE["investment"])
+
 
 def app_base_url() -> Optional[str]:
     base = settings_store.get_app_base_url()

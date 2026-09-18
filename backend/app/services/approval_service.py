@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from ..models.project import Project
 from ..models.user import User
-from . import audit_service, mattermost_service
+from . import audit_service, links, mattermost_service
 from .notification_service import notify_approvers, notify_owner
 from .email_service import send_approval_request_emails, send_status_notification_email
 
@@ -182,7 +182,8 @@ def _notify_owner_decision_mm(
     if not owner_email:
         return
     label = _OWNER_STATUS_LABELS.get(new_status, new_status)
-    text = f"Проект «{project_name}» — {label}."
+    type_label = links.project_type_label(project.project_type)
+    text = f"Проект «{project_name}» ({type_label}) — {label}."
     if new_status == "rejected" and comment:
         text += f"\nПричина: {comment}"
     try:
@@ -221,9 +222,10 @@ def _on_pending_approval(db: Session, project: Project, project_name: str, appli
         owner = db.get(User, project.user_id) if project.user_id else None
         owner_email = mattermost_service.mattermost_email(owner)
         if owner_email:
+            type_label = links.project_type_label(project.project_type)
             mattermost_service.post_to_email(
                 owner_email,
-                f"Проект «{project_name}» отправлен на согласование. "
+                f"Проект «{project_name}» ({type_label}) отправлен на согласование. "
                 "Пожалуйста, обновите фактические показатели и статус майлстоунов.",
             )
             audit_service.log_event(
@@ -326,7 +328,8 @@ def process_action(db: Session, context: dict, mm_user_id: Optional[str]) -> dic
         return {"ephemeral_text": exc.detail}
 
     label = _DONE_LABELS.get(new_status, new_status)
+    type_label = links.project_type_label(project.project_type)
     return {
-        "update": {"message": f"Заявка «{project.name}» {label} ({actor.full_name})."},
+        "update": {"message": f"Заявка «{project.name}» ({type_label}) {label} ({actor.full_name})."},
         "ephemeral_text": "Готово.",
     }

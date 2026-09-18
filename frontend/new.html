@@ -2269,7 +2269,7 @@
                                     <span>Масштаб ×2:</span><strong x-text="(form.vs_scalability||0)*2"></strong>
                                     <span>Unit-эк. ×2:</span><strong x-text="(form.vs_unit_economics||0)*2"></strong>
                                 </div>
-                                <p style="margin-top:8px;font-size:12px" :style="'color:' + vsBandColor();font-weight:700" x-text="vsBandLabel()"></p>
+                                <p style="margin-top:8px;font-size:12px" :style="'color:' + vsBandColor() + ';font-weight:700'" x-text="vsBandLabel()"></p>
                             </article>
                             <template x-if="riskScoreData">
                                 <article class="summary-card ai" x-data="{ riskExpanded: false }">

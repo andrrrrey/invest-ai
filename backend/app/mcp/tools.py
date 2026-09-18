@@ -296,6 +296,7 @@ def list_upcoming_deadlines(db: Session, window_days: int = 30) -> dict:
                 items.append({
                     "project_id": p.id,
                     "project": p.name,
+                    "type": links.project_type_label(p.project_type),
                     "milestone": m.get("title") or m.get("name"),
                     "status": m.get("status"),
                     "deadline": deadline.isoformat(),
@@ -639,6 +640,7 @@ def list_overdue_fact(db: Session, window_months: int = 2) -> dict:
         rows = db.query(FactEntry).filter(FactEntry.project_id == p.id).all()
         if not rows:
             overdue.append({"id": p.id, "name": p.name, "last_fact": None,
+                            "type": links.project_type_label(p.project_type),
                             "url": links.project_url(p.project_type, p.id)})
             continue
         last_ord = max(r.year * 12 + r.month for r in rows)
@@ -646,6 +648,7 @@ def list_overdue_fact(db: Session, window_months: int = 2) -> dict:
             y, m = divmod(last_ord - 1, 12)
             overdue.append({
                 "id": p.id, "name": p.name,
+                "type": links.project_type_label(p.project_type),
                 "last_fact": f"{y:04d}-{m + 1:02d}",
                 "url": links.project_url(p.project_type, p.id),
             })
@@ -691,6 +694,7 @@ def risk_overview(db: Session) -> dict:
                 "id": p.id,
                 "name": p.name,
                 "project_type": p.project_type or "investment",
+                "type": links.project_type_label(p.project_type),
                 "status": p.status or "draft",
                 "risk_level": _risk_level(p),
                 "url": links.project_url(p.project_type, p.id),
@@ -734,7 +738,8 @@ def request_fact_update(db: Session, project_id: int) -> dict:
     if not email:
         return {"error": "У проекта нет ответственного с email для Mattermost"}
     link = links.project_url(p.project_type, p.id)
-    msg = f"Просьба обновить фактические показатели по проекту «{p.name or '(без названия)'}»."
+    type_label = links.project_type_label(p.project_type)
+    msg = f"Просьба обновить фактические показатели по проекту «{p.name or '(без названия)'}» ({type_label})."
     if link:
         msg += f"\n{link}"
     ok = mattermost_service.post_to_email(email, msg)
