@@ -735,8 +735,12 @@
                                             </td>
                                             <template x-for="p in periods" :key="periodKey(p)">
                                                 <td style="padding:4px;border-bottom:1px solid #EAFAF0;background:white">
-                                                    <input type="text" inputmode="decimal" :value="fmtNum(getFact(metric,p))" @change="setFact(metric,p,parseNum($event.target.value))"
-                                                        style="width:82px;padding:4px 6px;border:1.5px solid #D0EDD9;border-radius:6px;font-size:12px;text-align:right;background:white;color:#2D9B63;font-weight:600;outline:none" placeholder="—">
+                                                    <div style="position:relative;width:82px">
+                                                        <input type="text" inputmode="decimal" :value="fmtNum(getFact(metric,p))" @change="setFact(metric,p,parseNum($event.target.value))"
+                                                            style="width:82px;padding:4px 16px 4px 6px;border:1.5px solid #D0EDD9;border-radius:6px;font-size:12px;text-align:right;background:white;color:#2D9B63;font-weight:600;outline:none;box-sizing:border-box" placeholder="—">
+                                                        <button x-show="getFact(metric,p)!==null" @click="setFact(metric,p,null)" title="Удалить значение" type="button"
+                                                            style="position:absolute;right:3px;top:50%;transform:translateY(-50%);border:none;background:transparent;color:#FF3B30;cursor:pointer;font-size:13px;line-height:1;padding:0;font-weight:700">×</button>
+                                                    </div>
                                                 </td>
                                             </template>
                                         </tr>
@@ -1194,6 +1198,7 @@
             periods: [],
             _gridPlan: {},
             _gridFact: {},
+            _savedFactKeys: new Set(),   // ячейки с фактом, сохранённым в БД (для удаления)
             newMetricName: '',
             factDirty: false,
             factSaving: false,
@@ -1340,6 +1345,7 @@
                             }
                             this._gridPlan = newPlan;
                             this._gridFact = newFact;
+                            this._savedFactKeys = new Set(Object.keys(newFact));
                         }
                     }
                     this.$nextTick(() => this._renderChart());
@@ -1348,19 +1354,40 @@
             async saveFact() {
                 this.factSaving = true;
                 const payload = [];
+                const deletions = [];
                 for (const metric of this.metricNames) {
                     for (const p of this.periods) {
+                        const key = this._cellKey(metric,p);
                         const plan = this.getPlan(metric,p), fact = this.getFact(metric,p);
                         if (plan!==null||fact!==null) payload.push({year:p.year,month:p.month,metric_name:metric,plan_value:plan,fact_value:fact});
+                        // Факт был сохранён ранее, а сейчас очищен → удаляем его в БД.
+                        if (fact===null && this._savedFactKeys.has(key)) deletions.push({year:p.year,month:p.month,metric_name:metric});
                     }
                 }
-                if (!payload.length) { this.factSaving=false; return; }
+                if (!payload.length && !deletions.length) { this.factSaving=false; return; }
+                const pid = _opProjectId();
                 try {
-                    const res = await authFetch('/api/v1/projects/' + _opProjectId() + '/fact', {
-                        method:'PUT', body:JSON.stringify(payload),
-                    });
-                    if (res.ok) this.factDirty=false;
-                    else { const err=await res.json().catch(()=>({})); alert(err.detail||'Ошибка сохранения'); }
+                    if (payload.length) {
+                        const res = await authFetch('/api/v1/projects/' + pid + '/fact', {
+                            method:'PUT', body:JSON.stringify(payload),
+                        });
+                        if (!res.ok) { const err=await res.json().catch(()=>({})); alert(err.detail||'Ошибка сохранения'); return; }
+                    }
+                    if (deletions.length) {
+                        const del = await authFetch('/api/v1/projects/' + pid + '/fact/delete', {
+                            method:'POST', body:JSON.stringify(deletions),
+                        });
+                        if (!del.ok) { const err=await del.json().catch(()=>({})); alert(err.detail||'Ошибка удаления'); return; }
+                    }
+                    this.factDirty = false;
+                    // Пересобираем набор сохранённых фактов из актуальной сетки.
+                    const saved = new Set();
+                    for (const metric of this.metricNames) {
+                        for (const p of this.periods) {
+                            if (this.getFact(metric,p)!==null) saved.add(this._cellKey(metric,p));
+                        }
+                    }
+                    this._savedFactKeys = saved;
                 } catch(e) { alert('Ошибка: '+e.message); }
                 finally { this.factSaving=false; }
             },
