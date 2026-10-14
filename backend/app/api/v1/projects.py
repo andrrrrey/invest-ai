@@ -74,16 +74,24 @@ def _is_own(project: Project, user: User) -> bool:
 
 
 def _is_route_participant(db: Session, project: Project, user: User) -> bool:
-    """Согласующий (или заказчик) контракта/приказа видит его карточку."""
+    """Согласующий (или заказчик) контракта/приказа и сотрудник, упомянутый
+    в комментарии, видят карточку — иначе ссылка из уведомления не откроется."""
     from ...models.approval_step import ApprovalStep
+    from ...models.comment import Comment
     scd = project.smart_contract_data or {}
     if str(scd.get("customerUserId") or "") == str(user.id):
         return True
-    return (
+    if (
         db.query(ApprovalStep.id)
         .filter(ApprovalStep.project_id == project.id, ApprovalStep.assignee_id == user.id)
         .first()
         is not None
+    ):
+        return True
+    mentions = db.query(Comment.mentions).filter(Comment.project_id == project.id).all()
+    return any(
+        any(m.get("id") == user.id for m in (row[0] or []))
+        for row in mentions
     )
 
 

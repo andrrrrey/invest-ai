@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -9,6 +9,8 @@ from ...database import get_db
 from ...models.comment import Comment
 from ...models.project import Project
 from ...auth import get_current_user
+from ...services import links, mention_service
+from ...services.contract_notifications import notify_user
 from .projects import get_accessible_project
 
 router = APIRouter(tags=["comments"])
@@ -23,6 +25,7 @@ class CommentRead(BaseModel):
     text: str
     created_at: datetime
     author_name: str
+    mentions: Optional[List[Any]] = None
 
     class Config:
         from_attributes = True
@@ -47,6 +50,7 @@ def list_comments(
             text=c.text,
             created_at=c.created_at,
             author_name=c.author.full_name if c.author else "—",
+            mentions=c.mentions or [],
         )
         for c in rows
     ]
@@ -59,16 +63,32 @@ def create_comment(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    get_accessible_project(project_id, db, current_user)
+    project = get_accessible_project(project_id, db, current_user)
     if not body.text.strip():
         raise HTTPException(status_code=400, detail="Комментарий не может быть пустым")
-    c = Comment(project_id=project_id, user_id=current_user.id, text=body.text.strip())
+    text = body.text.strip()
+    mentioned = mention_service.parse_mentions(db, text, exclude_user_id=current_user.id)
+    c = Comment(
+        project_id=project_id, user_id=current_user.id, text=text,
+        mentions=[{"id": u.id, "full_name": u.full_name} for u in mentioned],
+    )
     db.add(c)
     db.commit()
     db.refresh(c)
+
+    # Упомянутым — уведомление от Баффета со ссылкой прямо на комментарий.
+    snippet = text if len(text) <= 300 else text[:297] + "…"
+    for u in mentioned:
+        notify_user(
+            db, u, project=project,
+            title=f"{current_user.full_name} упомянул(а) вас в комментарии",
+            message=f"{links.label_for(project)} «{project.name or 'без названия'}»: «{snippet}»",
+            anchor=f"comment-{c.id}",
+        )
     return CommentRead(
         id=c.id,
         text=c.text,
         created_at=c.created_at,
         author_name=current_user.full_name,
+        mentions=c.mentions or [],
     )
