@@ -18,6 +18,9 @@ class Project(Base):
     # контракт заводят за другого сотрудника) — сохраняет создателю доступ.
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
+    # Проект приказа (ЛНА): {attachment_id, generated_by_id, generated_at, source, title}
+    order_data = Column(JSON, nullable=True)
+
     # Step 1
     project_type = Column(String, default="investment")  # investment | operational
 

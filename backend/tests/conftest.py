@@ -11,6 +11,7 @@ _tmpdir = tempfile.mkdtemp(prefix="hermes-test-")
 os.environ["DATABASE_URL"] = f"sqlite:///{_tmpdir}/test.db"
 os.environ["SETTINGS_PATH"] = f"{_tmpdir}/settings.json"
 os.environ["APP_ENV"] = "test"
+os.environ["ATTACHMENTS_DIR"] = f"{_tmpdir}/attachments"
 # Никакого реального вебхука в тестах.
 os.environ.pop("MATTERMOST_ALERT_WEBHOOK", None)
 

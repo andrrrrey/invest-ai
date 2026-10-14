@@ -37,3 +37,12 @@
 .history-ev .h-diff { font-size: 12px; margin-top: 4px; color: #333; line-height: 1.45; word-break: break-word; }
 .history-ev .h-diff del { color: #B42318; background: #FFF0EF; text-decoration: line-through; padding: 0 3px; border-radius: 4px; }
 .history-ev .h-diff ins { color: #1A7A40; background: #EAF7EE; text-decoration: none; padding: 0 3px; border-radius: 4px; }
+
+/* Блок «Проект приказа» */
+.order-file { display: flex; gap: 12px; align-items: center; padding: 12px 14px; background: #F3F6FF; border: 1.5px solid #D6E0FF; border-radius: 14px; cursor: pointer; }
+.order-file:hover { border-color: #5E5CE6; }
+.order-file > .fa-file-word { font-size: 24px; color: #2B579A; }
+.order-file .of-name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.order-file .of-meta { font-size: 11px; color: #8E8E93; margin-top: 2px; }
+.order-notes { margin-top: 10px; background: #FFF8EB; border-radius: 12px; padding: 10px 12px; font-size: 12px; color: #5A3D00; line-height: 1.5; }
+.order-notes .lbl { color: #B05E00; }

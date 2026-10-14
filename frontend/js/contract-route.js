@@ -128,3 +128,84 @@ function historyFeed() {
         },
     };
 }
+
+/**
+ * Блок «Проект приказа (ЛНА)»: формирование .docx по согласованному
+ * документу, скачивание, загрузка исправленной версии.
+ * Маршрут согласования приказа показывает вложенный routeBlock('order').
+ */
+function orderBlock() {
+    return {
+        state: null,
+        loading: true,
+        busy: false,
+        error: '',
+        async init() {
+            await this.load();
+            window.addEventListener('route-updated', () => this.load());
+            window.addEventListener('order-generate', () => this.generate());
+        },
+        async load() {
+            const id = _routeProjectId();
+            if (!id) { this.loading = false; return; }
+            try {
+                const res = await authFetch(`/api/v1/projects/${id}/order`);
+                if (res.ok) this.state = await res.json();
+            } catch (e) {}
+            this.loading = false;
+        },
+        get order() { return this.state && this.state.order; },
+        get routeState() { return this.state && this.state.route && this.state.route.state; },
+        get canGenerate() {
+            return this.state && this.state.can_generate && this.routeState !== 'in_progress';
+        },
+        sourceLabel() {
+            return { ai: 'AI-ассистент по скиллу', template: 'шаблон (AI выключен)', upload: 'загружен вручную' }[this.order && this.order.source] || '';
+        },
+        fmt(iso) { return fmtDateTime(iso); },
+        async generate() {
+            if (!this.canGenerate || this.busy) return;
+            if (this.order && !confirm('Сформировать новый проект приказа? Согласование начнётся заново.')) return;
+            this.busy = true; this.error = '';
+            try {
+                const res = await authFetch(`/api/v1/projects/${_routeProjectId()}/order`, { method: 'POST' });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) { this.error = data.detail || 'Не удалось сформировать проект приказа'; return; }
+                this.state = data;
+                window.dispatchEvent(new CustomEvent('route-reload'));
+                window.dispatchEvent(new CustomEvent('attachments-reload'));
+            } catch (e) {
+                if (e.message !== 'Unauthorized') this.error = 'Ошибка сети';
+            } finally { this.busy = false; }
+        },
+        async upload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            this.busy = true; this.error = '';
+            const fd = new FormData();
+            fd.append('file', file);
+            try {
+                const res = await fetch(`/api/v1/projects/${_routeProjectId()}/order/upload`, {
+                    method: 'POST', headers: { Authorization: 'Bearer ' + getToken() }, body: fd,
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) { this.error = data.detail || 'Не удалось загрузить файл'; return; }
+                this.state = data;
+                window.dispatchEvent(new CustomEvent('route-reload'));
+                window.dispatchEvent(new CustomEvent('attachments-reload'));
+            } catch (e) { this.error = 'Ошибка сети'; }
+            finally { this.busy = false; event.target.value = ''; }
+        },
+        async download() {
+            const att = this.state && this.state.attachment;
+            if (!att) return;
+            const res = await authFetch(`/api/v1/attachments/${att.id}/download`);
+            if (!res.ok) { this.error = 'Не удалось скачать файл'; return; }
+            const url = URL.createObjectURL(await res.blob());
+            const a = document.createElement('a');
+            a.href = url; a.download = att.name;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        },
+    };
+}

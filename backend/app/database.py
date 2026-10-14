@@ -57,6 +57,7 @@ def init_db():
         ("projects", "rejection_reason", "TEXT"),
         ("projects", "created_by_id", "INTEGER REFERENCES users(id)"),
         ("comments", "mentions", "JSON"),
+        ("projects", "order_data", "JSON"),
     ]
 
     # Check which columns already exist via the dialect-agnostic Inspector,
