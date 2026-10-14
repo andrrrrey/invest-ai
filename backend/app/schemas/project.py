@@ -27,12 +27,14 @@ class ProjectCreate(ProjectBase):
 
 
 class ProjectUpdate(ProjectBase):
-    pass
+    # Смена ответственного при редактировании черновика контракта.
+    owner_user_id: Optional[int] = None
 
 
 class ProjectRead(ProjectBase):
     id: int
     user_id: Optional[int] = None
+    created_by_id: Optional[int] = None
     metrics: Optional[Any] = None
     rejection_reason: Optional[str] = None
     status_history: Optional[Any] = None

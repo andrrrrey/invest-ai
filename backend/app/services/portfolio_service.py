@@ -47,7 +47,8 @@ def compute_stats(
     """
     q = db.query(Project)
     if user is not None and getattr(user, "role", None) == "owner":
-        q = q.filter(Project.user_id == user.id)
+        from sqlalchemy import or_
+        q = q.filter(or_(Project.user_id == user.id, Project.created_by_id == user.id))
     if project_type:
         q = q.filter(Project.project_type == project_type)
     projects = q.all()

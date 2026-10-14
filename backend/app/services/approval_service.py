@@ -39,6 +39,10 @@ _DONE_LABELS = {
 }
 
 
+def _is_own(project: Project, actor: User) -> bool:
+    return project.user_id == actor.id or getattr(project, "created_by_id", None) == actor.id
+
+
 def check_permission(project: Project, new_status: str, actor: User) -> None:
     """Проверить право актора на переход (совпадает с прежней логикой эндпоинта)."""
     role = actor.role
@@ -54,13 +58,13 @@ def check_permission(project: Project, new_status: str, actor: User) -> None:
                 status_code=http_status.HTTP_403_FORBIDDEN,
                 detail="CEO не может подавать заявки на согласование",
             )
-        if role == "owner" and project.user_id != actor.id:
+        if role == "owner" and not _is_own(project, actor):
             raise HTTPException(
                 status_code=http_status.HTTP_403_FORBIDDEN,
                 detail="Нет доступа к этому проекту",
             )
     elif new_status == "draft":
-        if role == "owner" and project.user_id != actor.id:
+        if role == "owner" and not _is_own(project, actor):
             raise HTTPException(
                 status_code=http_status.HTTP_403_FORBIDDEN,
                 detail="Нет доступа к этому проекту",

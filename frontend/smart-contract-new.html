@@ -296,8 +296,14 @@
 
             <div class="grid-2">
                 <div class="field">
-                    <label>Инициатор</label>
-                    <input type="text" :value="userName" readonly style="background:#F8F7F3;color:var(--muted)">
+                    <label>Ответственный</label>
+                    <select x-model.number="form.ownerUserId">
+                        <template x-for="u in directory" :key="u.id">
+                            <option :value="u.id" x-text="u.full_name + (u.id === currentUserId ? ' (я)' : '')" :selected="u.id === form.ownerUserId"></option>
+                        </template>
+                    </select>
+                    <span class="hint" x-show="form.ownerUserId && form.ownerUserId !== currentUserId"
+                          x-text="'Контракт заводится за сотрудника. Создатель: ' + userName + ' — доступ к контракту сохраняется.'"></span>
                 </div>
                 <div class="field">
                     <label>Куратор</label>
@@ -1011,6 +1017,7 @@ function scWizard() {
             distributionNote: '',
             needsRecruitment: false,
             documents: [],
+            ownerUserId: null,        // ответственный (по умолчанию — текущий пользователь)
             // ── Лидерский контракт ──
             fixedSalaryMonthly: 0,    // желаемая фиксированная часть (оклад), ₽/мес
             variableTotal: 0,         // желаемая переменная часть за весь период, ₽
@@ -1036,6 +1043,7 @@ function scWizard() {
         },
 
         typeLocked: false,
+        currentUserId: getUserId(),
         projectId: null,
         savingDraft: false,
         draftSavedAt: '',
@@ -1072,6 +1080,7 @@ function scWizard() {
             }
             setContractNav(this.form.scType);
             this.userName = getUserName() || 'Текущий пользователь';
+            this.form.ownerUserId = this.currentUserId;
             const role = getUserRole();
             if (role === 'cfo' || role === 'manager') {
                 const el = document.getElementById('nav-users');
@@ -1109,6 +1118,7 @@ function scWizard() {
                 const scd = p.smart_contract_data || {};
                 this.projectId = p.id;
                 Object.assign(this.form, {
+                    ownerUserId: p.user_id || this.currentUserId,
                     scType: scd.scType === 'leadership' ? 'leadership' : 'smart',
                     name: p.name || '',
                     businessUnit: p.business_unit || '',
@@ -1154,6 +1164,7 @@ function scWizard() {
         buildPayload() {
             return {
                 project_type: 'smart_contract',
+                owner_user_id: this.form.ownerUserId || null,
                 name: this.form.name || 'Черновик контракта',
                 business_unit: this.form.businessUnit,
                 description: this.form.shortDescription,
