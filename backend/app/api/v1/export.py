@@ -4,7 +4,9 @@ Generates a PDF or Excel management report for the portfolio.
 Accessible to CEO, CFO, manager (owner role is blocked via require_not_owner).
 """
 
-from typing import Literal
+from typing import List, Literal, Optional
+from datetime import date as _date
+import datetime as _dt
 import json
 import re
 
@@ -278,3 +280,49 @@ def export_report(
         media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ── Реестр контрактов ───────────────────────────────────────────────────
+
+class ContractsRegistryRequest(BaseModel):
+    format: Literal["pdf", "excel"] = "excel"
+    sc_type: Optional[str] = None             # smart | leadership | None — все
+    statuses: List[str] = []
+    date_from: Optional[_date] = None
+    date_to: Optional[_date] = None
+    owner_id: Optional[int] = None
+
+
+@router.post("/contracts-registry")
+def export_contracts_registry(
+    req: ContractsRegistryRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_not_owner),
+):
+    """Выгрузка реестра контрактов (все контракты по фильтрам, без выбора проекта)."""
+    from ...services import contract_registry
+    rows = contract_registry.collect(
+        db, current_user, sc_type=req.sc_type, statuses=req.statuses,
+        date_from=req.date_from, date_to=req.date_to, owner_id=req.owner_id,
+    )
+    owner_name = db.get(User, req.owner_id).full_name if req.owner_id and db.get(User, req.owner_id) else None
+    filters_text = contract_registry.describe_filters(
+        req.sc_type, req.statuses, req.date_from, req.date_to, owner_name
+    )
+    stamp = _dt.date.today().strftime("%Y-%m-%d")
+    if req.format == "excel":
+        buf = contract_registry.build_excel(rows, filters_text)
+        media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        name = f"Реестр_контрактов_{stamp}.xlsx"
+    else:
+        buf = contract_registry.build_pdf(rows, filters_text, current_user.full_name)
+        media_type = "application/pdf"
+        name = f"Реестр_контрактов_{stamp}.pdf"
+    return StreamingResponse(buf, media_type=media_type, headers=_attachment_headers(name))
+
+
+def _attachment_headers(filename: str) -> dict:
+    """Content-Disposition с кириллическим именем файла (RFC 5987)."""
+    from urllib.parse import quote
+    ascii_name = filename.encode("ascii", "ignore").decode() or "report"
+    return {"Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename)}"}

@@ -68,13 +68,43 @@ def _get_project_or_404(project_id: int, db: Session) -> Project:
     return project
 
 
-def _check_project_access(project: Project, current_user: User):
-    """Owner can only access their own projects."""
-    if current_user.role == "owner" and project.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Нет доступа к этому проекту",
-        )
+def _is_own(project: Project, user: User) -> bool:
+    """Проект «свой»: пользователь — ответственный или тот, кто его создал."""
+    return project.user_id == user.id or project.created_by_id == user.id
+
+
+def _is_route_participant(db: Session, project: Project, user: User) -> bool:
+    """Согласующий (или заказчик) контракта/приказа и сотрудник, упомянутый
+    в комментарии, видят карточку — иначе ссылка из уведомления не откроется."""
+    from ...models.approval_step import ApprovalStep
+    from ...models.comment import Comment
+    scd = project.smart_contract_data or {}
+    if str(scd.get("customerUserId") or "") == str(user.id):
+        return True
+    if (
+        db.query(ApprovalStep.id)
+        .filter(ApprovalStep.project_id == project.id, ApprovalStep.assignee_id == user.id)
+        .first()
+        is not None
+    ):
+        return True
+    mentions = db.query(Comment.mentions).filter(Comment.project_id == project.id).all()
+    return any(
+        any(m.get("id") == user.id for m in (row[0] or []))
+        for row in mentions
+    )
+
+
+def _check_project_access(project: Project, current_user: User, db: Session | None = None):
+    """Owner can only access their own projects (and ones they approve)."""
+    if current_user.role != "owner" or _is_own(project, current_user):
+        return
+    if db is not None and _is_route_participant(db, project, current_user):
+        return
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Нет доступа к этому проекту",
+    )
 
 
 def get_accessible_project(project_id: int, db: Session, current_user: User) -> Project:
@@ -85,7 +115,7 @@ def get_accessible_project(project_id: int, db: Session, current_user: User) -> 
     project via a direct id (IDOR).
     """
     project = _get_project_or_404(project_id, db)
-    _check_project_access(project, current_user)
+    _check_project_access(project, current_user, db)
     return project
 
 
@@ -93,13 +123,28 @@ def get_accessible_project(project_id: int, db: Session, current_user: User) -> 
 def list_projects(
     status: str | None = None,
     project_type: str | None = None,
+    sc_type: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Список проектов.
+
+    ``sc_type`` (``smart`` | ``leadership``) — вид контракта; применяется
+    только вместе с ``project_type=smart_contract`` и разделяет реестры
+    смарт-контрактов и лидерских контрактов.
+    """
     q = db.query(Project)
     # Owners see only their own projects, except approved projects are visible system-wide
     if current_user.role == "owner" and status != "approved":
-        q = q.filter(Project.user_id == current_user.id)
+        from ...models.approval_step import ApprovalStep
+        approving = db.query(ApprovalStep.project_id).filter(ApprovalStep.assignee_id == current_user.id)
+        q = q.filter(
+            or_(
+                Project.user_id == current_user.id,
+                Project.created_by_id == current_user.id,
+                Project.id.in_(approving),
+            )
+        )
     if status:
         q = q.filter(Project.status == status)
     if project_type:
@@ -114,7 +159,11 @@ def list_projects(
                 Project.project_type != "smart_contract",
             )
         )
-    return q.order_by(Project.created_at.desc()).all()
+    projects = q.order_by(Project.created_at.desc()).all()
+    if project_type == "smart_contract" and sc_type:
+        from ...services.contract_utils import filter_by_sc_type
+        projects = filter_by_sc_type(projects, sc_type)
+    return projects
 
 
 @router.post("/", response_model=ProjectRead, status_code=201)
@@ -136,20 +185,26 @@ def create_project(
 
     # Auto-assign owner from current user by default.
     project_data["user_id"] = current_user.id
+    project_data["created_by_id"] = current_user.id
     if not project_data.get("owner"):
         project_data["owner"] = current_user.full_name
 
     # CFO may file an application on behalf of another employee: the named
     # employee becomes the responsible owner (both the FK and the display name).
-    if owner_user_id is not None and current_user.role == "cfo":
-        target = db.get(User, owner_user_id)
-        if not target or not target.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Указан несуществующий или неактивный ответственный",
-            )
+    # Contracts: any author may name the responsible employee (a contract is
+    # often drafted by someone on the leader's behalf).
+    is_contract = project_data.get("project_type") == "smart_contract"
+    target = None
+    if owner_user_id is not None and (current_user.role == "cfo" or is_contract):
+        target = _active_user_or_400(db, owner_user_id)
         project_data["user_id"] = target.id
         project_data["owner"] = target.full_name
+
+    if is_contract:
+        from ...services.coin_rate_service import apply_creation_rate
+        project_data["smart_contract_data"] = apply_creation_rate(
+            db, project_data.get("smart_contract_data")
+        )
 
     project = Project(**project_data)
     db.add(project)
@@ -157,7 +212,20 @@ def create_project(
     _recalc_and_save(project, db)
     db.commit()
     db.refresh(project)
+    if is_contract and target is not None:
+        from ...services.contract_notifications import notify_assigned_responsible
+        notify_assigned_responsible(db, project, current_user, target)
     return project
+
+
+def _active_user_or_400(db: Session, user_id) -> User:
+    target = db.get(User, user_id) if user_id is not None else None
+    if not target or not target.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Указан несуществующий или неактивный ответственный",
+        )
+    return target
 
 
 @router.get("/{project_id}", response_model=ProjectRead)
@@ -167,7 +235,7 @@ def get_project(
     current_user: User = Depends(get_current_user),
 ):
     project = _get_project_or_404(project_id, db)
-    _check_project_access(project, current_user)
+    _check_project_access(project, current_user, db)
     return project
 
 
@@ -187,23 +255,62 @@ def update_project(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="CEO не может редактировать проекты",
         )
+    is_contract = (project.project_type or "") == "smart_contract"
     # Owner can only edit their own draft or pending_approval projects
-    if current_user.role == "owner" and project.status not in ("draft", "pending_approval"):
+    # (contracts: draft or returned for rework — they are edited in the wizard).
+    owner_editable = ("draft", "rework_needed") if is_contract else ("draft", "pending_approval")
+    if current_user.role == "owner" and (project.status or "draft") not in owner_editable:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Заявитель может редактировать только черновики и заявки на согласовании",
+            detail=(
+                "Заявитель может редактировать только черновики и контракты на доработке"
+                if is_contract
+                else "Заявитель может редактировать только черновики и заявки на согласовании"
+            ),
         )
 
     update_data = data.model_dump(exclude_unset=True)
     # Never allow changing the ownership via update
     update_data.pop("user_id", None)
+    new_owner_id = update_data.pop("owner_user_id", None)
+    new_owner = None
+    # Contract drafts: the responsible employee can be changed while editing.
+    if (
+        is_contract
+        and new_owner_id is not None
+        and new_owner_id != project.user_id
+        and (project.status or "draft") in ("draft", "rework_needed")
+    ):
+        new_owner = _active_user_or_400(db, new_owner_id)
+        project.user_id = new_owner.id
+        update_data["owner"] = new_owner.full_name
+    if is_contract:
+        # Статус контракта меняется только через PATCH /status и маршрут
+        # согласования — иначе PUT позволял бы обойти согласующих.
+        update_data.pop("status", None)
+
+    before = None
+    if is_contract:
+        from ...services import change_log
+        before = change_log.snapshot(project)
+
+    if is_contract and "smart_contract_data" in update_data:
+        from ...services.coin_rate_service import apply_creation_rate
+        update_data["smart_contract_data"] = apply_creation_rate(
+            db, update_data["smart_contract_data"], project.created_at
+        )
 
     for field, value in update_data.items():
         setattr(project, field, value)
 
     _recalc_and_save(project, db)
+    if before is not None:
+        change_log.record_diff(db, project, before, current_user.id)
     db.commit()
     db.refresh(project)
+    if new_owner is not None:
+        from ...services.contract_notifications import notify_assigned_responsible
+        notify_assigned_responsible(db, project, current_user, new_owner)
     return project
 
 
@@ -252,19 +359,19 @@ def reassign_project(
         )
 
     project = _get_project_or_404(project_id, db)
+    target = _active_user_or_400(db, body.get("user_id"))
 
-    new_owner_id = body.get("user_id")
-    target = db.get(User, new_owner_id) if new_owner_id is not None else None
-    if not target or not target.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Указан несуществующий или неактивный ответственный",
-        )
-
+    if (project.project_type or "") == "smart_contract" and project.owner != target.full_name:
+        from ...services import change_log
+        change_log.log(db, project.id, current_user.id, "owner", "Ответственный",
+                       project.owner, target.full_name)
     project.user_id = target.id
     project.owner = target.full_name
     db.commit()
     db.refresh(project)
+    if (project.project_type or "") == "smart_contract":
+        from ...services.contract_notifications import notify_assigned_responsible
+        notify_assigned_responsible(db, project, current_user, target)
     return project
 
 
@@ -347,7 +454,7 @@ def delete_project(
         )
     # Applicant (owner) may delete only their OWN draft.
     if role == "owner" and (
-        project.user_id != current_user.id or (project.status or "draft") != "draft"
+        not _is_own(project, current_user) or (project.status or "draft") != "draft"
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

@@ -37,6 +37,7 @@ def compute_stats(
     db: Session,
     project_type: Optional[str] = None,
     user=None,
+    sc_type: Optional[str] = None,
 ) -> dict:
     """Собрать агрегированные показатели портфеля.
 
@@ -46,12 +47,17 @@ def compute_stats(
     """
     q = db.query(Project)
     if user is not None and getattr(user, "role", None) == "owner":
-        q = q.filter(Project.user_id == user.id)
+        from sqlalchemy import or_
+        q = q.filter(or_(Project.user_id == user.id, Project.created_by_id == user.id))
     if project_type:
         q = q.filter(Project.project_type == project_type)
     projects = q.all()
+    if project_type == "smart_contract" and sc_type:
+        from .contract_utils import filter_by_sc_type
+        projects = filter_by_sc_type(projects, sc_type)
 
-    by_status = {"draft": 0, "pending_approval": 0, "approved": 0, "rejected": 0}
+    by_status = {"draft": 0, "pending_approval": 0, "approved": 0, "rejected": 0,
+                 "rework_needed": 0}
     by_type = {"investment": 0, "operational": 0}
     total_npv = 0.0
     irr_values = []
@@ -59,7 +65,8 @@ def compute_stats(
 
     sc_reward_rub = 0.0
     sc_reward_coins = 0.0
-    nav_rate = settings_store.get_nav_rate()
+    from .coin_rate_service import current_rate
+    nav_rate = current_rate(db)
 
     for p in projects:
         if (p.project_type or "") == "smart_contract":

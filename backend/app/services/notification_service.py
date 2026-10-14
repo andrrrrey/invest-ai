@@ -23,7 +23,13 @@ def create_notification(
     return n
 
 
-def notify_approvers(db: Session, project_id: int, project_name: str, applicant_name: str) -> None:
+def notify_approvers(
+    db: Session,
+    project_id: int,
+    project_name: str,
+    applicant_name: str,
+    link: str | None = None,
+) -> None:
     approvers = (
         db.query(User)
         .filter(User.role.in_(["cfo", "manager"]), User.is_active == True)
@@ -36,7 +42,7 @@ def notify_approvers(db: Session, project_id: int, project_name: str, applicant_
             title=f"Новая заявка на согласование",
             message=f"«{project_name}» — подал(а) {applicant_name}",
             project_id=project_id,
-            link=f"/project?id={project_id}",
+            link=link or f"/project?id={project_id}",
         )
 
 
@@ -47,6 +53,7 @@ def notify_owner(
     project_name: str,
     new_status: str,
     comment: str | None = None,
+    link: str | None = None,
 ) -> None:
     status_labels = {
         "approved": "Утверждён",
@@ -65,5 +72,5 @@ def notify_owner(
         title=f"Статус проекта изменён",
         message=message,
         project_id=project_id,
-        link=f"/project?id={project_id}",
+        link=link or f"/project?id={project_id}",
     )

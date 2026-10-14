@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Отчёт о выполненных работах — модуль контрактов</title>
+<style>
+  @page { size: A4; margin: 16mm 16mm 18mm 16mm; }
+  @page :first { margin: 0; }
+  :root {
+    --ink: #14213d;
+    --muted: #5b6475;
+    --accent: #1f6feb;
+    --accent-2: #0ea5a4;
+    --line: #e3e8f0;
+    --soft: #f4f7fb;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Inter", "DejaVu Sans", sans-serif;
+    color: var(--ink);
+    font-size: 10pt;
+    line-height: 1.45;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+
+  /* ---------- Cover ---------- */
+  .cover {
+    height: 297mm; width: 210mm;
+    position: relative; overflow: hidden;
+    background: linear-gradient(150deg, #0b1b3a 0%, #13306b 55%, #1f6feb 100%);
+    color: #fff;
+    padding: 28mm 22mm;
+    page-break-after: always;
+  }
+  .cover::before, .cover::after {
+    content: ""; position: absolute; border-radius: 50%;
+    background: rgba(255,255,255,.06);
+  }
+  .cover::before { width: 160mm; height: 160mm; right: -60mm; top: -40mm; }
+  .cover::after  { width: 110mm; height: 110mm; right: 20mm; bottom: -50mm; background: rgba(14,165,164,.18); }
+  .cover .tag {
+    display: inline-block; font-size: 9pt; letter-spacing: .18em; text-transform: uppercase;
+    border: 1px solid rgba(255,255,255,.45); border-radius: 20px; padding: 4px 12px;
+  }
+  .cover h1 {
+    font-size: 30pt; line-height: 1.12; font-weight: 800; margin: 26mm 0 6mm; max-width: 150mm;
+  }
+  .cover .sub { font-size: 13pt; color: rgba(255,255,255,.82); max-width: 140mm; }
+  .cover .meta {
+    position: absolute; left: 22mm; bottom: 26mm; right: 22mm;
+    display: flex; gap: 10mm; z-index: 2;
+  }
+  .cover .meta div { border-left: 2px solid var(--accent-2); padding-left: 4mm; }
+  .cover .meta .k { font-size: 8.5pt; text-transform: uppercase; letter-spacing: .12em; color: rgba(255,255,255,.65); }
+  .cover .meta .v { font-size: 14pt; font-weight: 700; margin-top: 1mm; }
+
+  /* ---------- Content ---------- */
+  h2 {
+    font-size: 15pt; margin: 0 0 4mm; padding-bottom: 2mm;
+    border-bottom: 2px solid var(--accent);
+    display: flex; align-items: center; gap: 3mm;
+  }
+  h2 .n {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 8mm; height: 8mm; border-radius: 2mm; background: var(--accent); color: #fff; font-size: 10pt;
+  }
+  section { margin-bottom: 8mm; }
+  .lead { font-size: 11pt; color: var(--muted); margin: 0 0 4mm; }
+
+  .goals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; }
+  .goal {
+    background: var(--soft); border: 1px solid var(--line); border-radius: 3mm;
+    padding: 3.5mm; font-size: 9pt; font-weight: 600;
+  }
+  .goal i { display: block; font-style: normal; font-size: 14pt; margin-bottom: 1.5mm; }
+
+  table.works { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 9pt; }
+  table.works thead th {
+    background: var(--ink); color: #fff; text-align: left; font-weight: 600;
+    padding: 3mm 3mm; font-size: 8.5pt; text-transform: uppercase; letter-spacing: .05em;
+  }
+  table.works thead th:first-child { border-top-left-radius: 2mm; }
+  table.works thead th:last-child { border-top-right-radius: 2mm; text-align: right; }
+  table.works td { padding: 3mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.works tbody tr { page-break-inside: avoid; break-inside: avoid; }
+  table.works tbody tr:nth-child(even) td { background: #fafbfd; }
+  td.num {
+    width: 9mm; font-weight: 700; color: var(--accent);
+  }
+  td.name { width: 44mm; font-weight: 700; }
+  td.price { width: 25mm; text-align: right; font-weight: 700; white-space: nowrap; }
+  td.price.incl { color: var(--accent-2); }
+  td.desc ul { margin: 1.5mm 0 0; padding-left: 4mm; }
+  td.desc li { margin: .5mm 0; }
+  .route {
+    display: inline-block; margin-top: 1.5mm; padding: 1mm 2.5mm; border-radius: 1.5mm;
+    background: #e8f0fe; color: #174ea6; font-weight: 600; font-size: 8.5pt;
+  }
+  .badge {
+    display: inline-block; margin-left: 1.5mm; padding: .3mm 2mm; border-radius: 10px;
+    background: #ccfbf1; color: #0f766e; font-size: 7.5pt; font-weight: 700; vertical-align: middle;
+  }
+
+  .total {
+    margin-top: 5mm; display: flex; justify-content: space-between; align-items: center;
+    background: linear-gradient(120deg, #13306b, #1f6feb); color: #fff;
+    border-radius: 3mm; padding: 5mm 7mm; page-break-inside: avoid;
+  }
+  .total .l { font-size: 11pt; opacity: .9; }
+  .total .l b { display: block; font-size: 13pt; opacity: 1; }
+  .total .v { font-size: 24pt; font-weight: 800; }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .card {
+    border: 1px solid var(--line); border-radius: 3mm; padding: 5mm; background: #fff;
+    page-break-inside: avoid;
+  }
+  .card h3 { margin: 0 0 3mm; font-size: 11pt; color: var(--accent); }
+  .card ul, .card ol { margin: 0; padding-left: 5mm; }
+  .card li { margin: 1.5mm 0; }
+  .card.q { background: var(--soft); }
+
+  .footer-note { margin-top: 10mm; font-size: 8.5pt; color: var(--muted); text-align: center; }
+
+  .status-done { display:inline-flex; align-items:center; gap:1.5mm; padding:.5mm 2.5mm; border-radius:10px;
+    background:#DCFCE7; color:#166534; font-size:7.5pt; font-weight:700; white-space:nowrap; }
+  td.desc p { margin: 0 0 1.5mm; }
+  td.desc .how { color: var(--muted); font-size: 8.5pt; margin-top: 1.5mm; }
+  td.desc .how b { color: var(--ink); }
+  .shots { display:grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+  .shot { break-inside: avoid; page-break-inside: avoid; border:1px solid var(--line); border-radius:3mm; padding:3mm; background:#fff; }
+  .shot img { width:100%; border-radius:2mm; display:block; border:1px solid var(--line); }
+  .shot .cap { font-size: 8.5pt; color: var(--muted); margin-top: 2mm; }
+  .shot.wide { grid-column: 1 / -1; }
+  .steps { counter-reset: s; list-style:none; padding:0; margin:0; }
+  .steps li { counter-increment: s; position:relative; padding-left: 9mm; margin: 2.5mm 0; }
+  .steps li::before { content: counter(s); position:absolute; left:0; top:-.3mm; width:6mm; height:6mm; border-radius:50%;
+    background: var(--accent); color:#fff; font-size:8pt; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .sign { display:grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 8mm; font-size: 9.5pt; }
+  .sign .line { border-bottom: 1px solid var(--ink); height: 10mm; margin-bottom: 1.5mm; }
+  h2 { break-after: avoid; page-break-after: avoid; }
+  .new-page { break-before: page; page-break-before: always; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <span class="tag">Отчёт о выполненных работах</span>
+  <h1>Доработка модуля лидерских и&nbsp;смарт-контрактов</h1>
+  <div class="sub">Платформа Invest AI. Все работы по коммерческому предложению выполнены и готовы к приёмке.</div>
+  <div class="meta">
+    <div><div class="k">Дата</div><div class="v">14.10.2026</div></div>
+    <div><div class="k">Выполнено</div><div class="v">14 из 14 пунктов</div></div>
+    <div><div class="k">Стоимость</div><div class="v">59 000 ₽</div></div>
+  </div>
+</div>
+
+<section>
+  <h2><span class="n">1</span>Итоги</h2>
+  <p class="lead">Модуль контрактов доработан полностью по коммерческому предложению. Работа с контрактами теперь идёт по циклу:</p>
+  <div class="goals">
+    <div class="goal"><i>📝</i>Черновик → отправка</div>
+    <div class="goal"><i>✅</i>Согласование по этапам через Баффета</div>
+    <div class="goal"><i>📄</i>PDF и проект приказа</div>
+    <div class="goal"><i>📊</i>Отчёты и история изменений</div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">2</span>Выполненные работы</h2>
+  <table class="works">
+    <thead><tr><th>№</th><th>Работа</th><th>Что сделано</th><th>Стоимость</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="num">1</td><td class="name">Два раздела контрактов<br><span class="status-done">✓ Выполнено</span></td>
+        <td class="desc"><p>В меню появилась группа «Контракты» с разделами «Смарт-контракты (Coin)» и «Лидерские контракты». У каждого раздела свой реестр: колонки по типу контракта, показатели, поиск, фильтр по статусу, флажок «Мои черновики» и своя кнопка создания.</p><p>Тип контракта отмечен бейджем в реестре, в карточке и в уведомлениях.</p><div class="how"><b>Где:</b> Меню → Контракты → нужный раздел → «Создать»</div></td>
+        <td class="price">4 000 ₽</td>
+      </tr>
+      <tr>
+        <td class="num">2</td><td class="name">Черновики<br><span class="status-done">✓ Выполнено</span></td>
+        <td class="desc"><p>Контракт можно сохранить на любом шаге мастера без заполнения обязательных полей, выйти и позже продолжить с того же шага без потери данных.</p><p>У черновиков и контрактов на доработке в карточке есть кнопка «Редактировать».</p><div class="how"><b>Где:</b> Кнопки «Сохранить черновик» и «Сохранить и выйти» в шапке мастера</div></td>
+        <td class="price">4 000 ₽</td>
+      </tr>
+      <tr>
+        <td class="num">3</td><td class="name">Выбор ответственного<br><span class="status-done">✓ Выполнено</span></td>
+        <td class="desc"><p>При создании контракта ответственным можно назначить любого сотрудника из списка. Назначенный сотрудник получает уведомление от Баффета.</p><p>Тот, кто завёл контракт за коллегу, сохраняет к нему доступ.</p><div class="how"><b>Где:</b> Мастер, шаг «Суть» → поле «Ответственный»</div></td>
+        <td class="price">1 000 ₽</td>
+      </tr>
+      <tr>
+        <td class="num">4</td><td class="name">Необязательная премия в лидерском контракте<br><span class="status-done">✓ Выполнено</span></td>
+        <td class="desc"><p>Лидерский контракт оформляется с одной фиксированной частью. Премию по этапам указывать не обязательно. В карточке и документах в этом случае пишется «без премии (только фикс)».</p><div class="how"><b>Где:</b> Мастер лидерского контракта: оставьте премию равной 0</div></td>
+        <td class="price">500 ₽</td>
+      </tr>
+      <tr>
+        <td class="num">5</td><td class="name">Роли согласующих<br><span class="status-done">✓ Выполнено</span></td>
+        <td class="desc"><p>В настройках сотрудники назначаются на роли C&amp;B, казначея системы Coin, финансового директора, юриста и CEO. Каждый согласует только свой этап, раздавать права администратора не нужно.</p><div class="how"><b>Где:</b> Настройки → «Роли согласования»</div></td>
+        <td class="price">5 500 ₽</td>
+      </tr>
+      <tr>
+        <td class="num">6</td><td class="name">Курс Coin на дату<br><span class="status-done">✓ Выполнено</span></td>
+        <td class="desc"><p>Новый раздел «Курс Coin» показывает текущий курс, курс на любую дату и полную историю курсов: кто и когда их устанавливал.</p><p>Курс устанавливают администратор и казначей. Вознаграждение контракта пересчитывается в Coin по курсу на дату его создания. Казначей может зафиксировать иной курс на своём этапе согласования.</p><div class="how"><b>Где:</b> Меню → Контракты → «Курс Coin»</div></td>
+        <td class="price">5 000 ₽</td>
+      </tr>
+      <tr>
+        <td class="num">7</td><td class="name">Маршрут согласования<br><span class="status-done">✓ Выполнено</span></td>
+        <td class="desc"><p><span class='route'>C&amp;B → Заказчик → Казначей Coin → Финансовый директор</span></p><p>Баффет уведомляет каждого согласующего по очереди. В личном сообщении есть кнопки «Согласовать» и «На доработку». Пока предыдущий согласующий не принял решение, контракт дальше не идёт. При возврате на доработку комментарий обязателен, после исправления маршрут начинается заново.</p><p>Если этап висит больше двух суток, Баффет напоминает о нём.</p><p>В карточке видно текущий этап, у кого контракт, дату отправки, решения и комментарии. На вкладке «История» — все изменения полей в формате «было → стало» и все согласования.</p><div class="how"><b>Где:</b> Карточка контракта → блок «Согласование» и вкладка «История»</div></td>
+        <td class="price">10 500 ₽</td>
+      </tr>
+      <tr>
+        <td class="num">8</td><td class="name">Теги в комментариях<br><span class="status-done">✓ Выполнено</span></td>
+        <td class="desc"><p>Коллегу можно отметить через @ (появится подсказка со списком сотрудников) или по фамилии. Отмеченный сотрудник получает уведомление от Баффета со ссылкой прямо на комментарий: страница сама прокручивается к нему и подсвечивает его.</p><p>Работает в контрактах, инвест-проектах и операционных заявках.</p><div class="how"><b>Где:</b> Поле комментария: наберите «@» и начало фамилии</div></td>
+        <td class="price">5 500 ₽</td>
+      </tr>
+      <tr>
+        <td class="num">9</td><td class="name">Новая визуализация карточки<br><span class="status-done">✓ Выполнено</span></td>
+        <td class="desc"><p>Карточка контракта сделана по образцу карточки проекта:</p><ul><li>показатели наверху;</li><li>этапы компактными карточками, критерии успеха раскрываются по клику;</li><li>справа панель «Управление» (ответственный, заказчик, куратор, курс), согласование и документы;</li><li>внизу комментарии.</li></ul><div class="how"><b>Где:</b> Откройте любой контракт из реестра</div></td>
+        <td class="price">5 500 ₽</td>
+      </tr>
+      <tr>
+        <td class="num">10</td><td class="name">AI-помощник в мастере контракта<br><span class="status-done">✓ Выполнено</span></td>
+        <td class="desc"><p>AI-помощник:</p><ul><li>формулирует описание и бизнес-эффект;</li><li>проверяет критерии этапов по SMART и подсказывает, что улучшить;</li><li>готовит резюме для согласующих;</li><li>помогает в спорах по этапам (AI-арбитраж с рекомендацией).</li></ul><p>Подтверждение выполнения этапа и споры сохраняются в системе.</p><div class="how"><b>Где:</b> Кнопки с иконкой ✨ в мастере; действия по этапу в карточке</div></td>
+        <td class="price incl">включено</td>
+      </tr>
+      <tr>
+        <td class="num">11</td><td class="name">Отчёт по контрактам<br><span class="status-done">✓ Выполнено</span></td>
+        <td class="desc"><p>Реестр контрактов выгружается в Excel или PDF. Фильтры: тип, статус, период, ответственный. В отчёте суммы в ₽ и Coin, курс, текущий этап согласования и у кого контракт.</p><div class="how"><b>Где:</b> Отчётность → «Реестр контрактов» или кнопка «Выгрузить реестр» в реестре</div></td>
+        <td class="price">3 000 ₽</td>
+      </tr>
+      <tr>
+        <td class="num">12</td><td class="name">PDF по контракту<br><span class="status-done">✓ Выполнено</span></td>
+        <td class="desc"><p>Документ по контракту в один клик. Содержит:</p><ul><li>паспорт;</li><li>описание и бизнес-эффект;</li><li>этапы с критериями;</li><li>команду или доход;</li><li>таблицу согласования;</li><li>историю изменений.</li></ul><div class="how"><b>Где:</b> Карточка контракта → «Скачать PDF»</div></td>
+        <td class="price">2 000 ₽</td>
+      </tr>
+      <tr>
+        <td class="num">13</td><td class="name">Проект приказа (ЛНА) по контракту<br><span class="status-done">✓ Выполнено</span></td>
+        <td class="desc"><p>По согласованному контракту одной кнопкой формируется проект приказа в .docx по скиллу «Постановка задач через ЛНА, план работ и приказ»:</p><ul><li>фирменный формат ПравоТеха;</li><li>приложение «План работ»: этапы контракта превращаются в задачи по формуле «результат — срок — критерий — ресурсы — подтверждение»;</li><li>заметки для юриста.</li></ul><p>Баффет рассылает документ на согласование: <span class='route'>C&amp;B → Юрист → CEO</span>. При возврате на доработку загружается исправленный файл, и маршрут запускается заново.</p><div class="how"><b>Где:</b> Карточка согласованного контракта → «Сформировать проект приказа»</div></td>
+        <td class="price">9 500 ₽</td>
+      </tr>
+      <tr>
+        <td class="num">14</td><td class="name">Приказ по инвест-проектам<br><span class="status-done">✓ Выполнено</span></td>
+        <td class="desc"><p>Для согласованных инвест-проектов и операционных заявок формируется приказ о выделении денежных средств с графиком траншей в приложении. Маршрут согласования тот же.</p><p>Текст сейчас собирается по временному шаблону, после получения шаблона компании он будет заменён.</p><div class="how"><b>Где:</b> Карточка согласованного проекта → блок «Проект приказа»</div></td>
+        <td class="price">3 000 ₽</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="total">
+    <div class="l"><b>Итого к оплате</b>14 пунктов, выполнены одним этапом</div>
+    <div class="v">59 000 ₽</div>
+  </div>
+</section>
+
+<section class="new-page">
+  <h2><span class="n">3</span>Как это выглядит</h2>
+  <div class="shots">
+    <div class="shot wide"><img src="img/card.jpg"><div class="cap">Новая карточка контракта: показатели, этапы, панель «Управление» и согласование</div></div>
+    <div class="shot wide"><img src="img/route.jpg"><div class="cap">Маршрут согласования: этапы, согласующие, даты, решения и комментарии</div></div>
+    <div class="shot"><img src="img/registry.jpg"><div class="cap">Отдельный реестр лидерских контрактов</div></div>
+    <div class="shot"><img src="img/rates.jpg"><div class="cap">Курс Coin на дату и история курсов</div></div>
+    <div class="shot wide"><img src="img/mention.jpg"><div class="cap">Тег коллеги в комментарии: открыт по ссылке из уведомления</div></div>
+    <div class="shot wide"><img src="img/order.jpg" style="max-width:120mm;margin:0 auto"><div class="cap">Проект приказа (.docx) в фирменном формате</div></div>
+  </div>
+  <p style="font-size:8.5pt;color:var(--muted);margin-top:3mm">На снимках — тестовые данные.</p>
+</section>
+
+<section class="new-page">
+  <h2><span class="n">4</span>Что нужно сделать для начала работы</h2>
+  <div class="card">
+    <ol class="steps">
+      <li><b>Назначить согласующих:</b> Настройки → «Роли согласования» — C&amp;B, казначей Coin, юрист (финансовый директор и CEO подставляются автоматически, при необходимости их можно изменить). Без назначенных ролей контракт не отправится на согласование — система подскажет, кого не хватает.</li>
+      <li><b>Установить курс Coin</b> в разделе «Курс Coin» (по умолчанию действует прежнее значение 10,1 ₽).</li>
+      <li><b>Подключить AI</b> в Настройках, чтобы работали AI-помощник и формирование приказов через AI. Без AI система продолжает работать: проверки и документы собираются по шаблонам.</li>
+      <li><b>Передать шаблон приказа о выделении денежных средств</b> для инвест-проектов (п. 14) — заменим временный шаблон.</li>
+      <li>Контракты, отправленные на согласование до обновления, рекомендуется отозвать в черновик и отправить заново, чтобы они прошли новый маршрут.</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">5</span>Дополнительно</h2>
+  <div class="card">
+    <ul>
+      <li>Уведомления по контрактам открывают нужную карточку контракта.</li>
+      <li>В PDF-отчёте по контракту отображаются названия и сроки всех этапов.</li>
+      <li>В разделе «Отчётность» контракты доступны и для отчёта по отдельному проекту.</li>
+      <li>Подтверждать выполнение этапов могут CFO и менеджер; все действия попадают в историю контракта.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">6</span>Приёмка работ</h2>
+  <p class="lead" style="font-size:10pt">Работы выполнены в полном объёме согласно коммерческому предложению. Стоимость работ — 59 000 (пятьдесят девять тысяч) рублей. Оплата производится после приёмки работ.</p>
+  <div class="sign">
+    <div><div class="line"></div>Исполнитель</div>
+    <div><div class="line"></div>Заказчик</div>
+  </div>
+</section>
+
+</body>
+</html>

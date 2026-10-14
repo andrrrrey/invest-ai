@@ -148,7 +148,7 @@
         .card-5 { background: var(--card-blue); color: white; }
 
         /* Таблица */
-        .section-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .section-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; gap: 16px; flex-wrap: wrap; }
         .section-title h2 { font-size: 18px; font-weight: 700; }
 
         .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -166,6 +166,19 @@
         .st-completed { background: #DDF0E1; color: #2D9B63; }
         .st-risk { background: #FFE5E5; color: #EB5757; }
         .st-draft { background: #F0F0F0; color: #8E8E93; }
+        .st-pending { background: #FFF4D6; color: #B7791F; }
+        .st-rework { background: #FFEBD9; color: #D9730D; }
+
+        .type-avatar { width:35px;height:35px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;flex-shrink:0; }
+        .type-avatar.smart { background: var(--accent-purple); }
+        .type-avatar.lead { background: #0EA5A4; }
+        .type-badge { display:inline-block;padding:1px 7px;border-radius:6px;font-size:10px;font-weight:700;margin-right:6px; }
+        .type-badge.smart { background:#EEEDFF;color:#5E5CE6; }
+        .type-badge.lead { background:#D7F5F2;color:#0F766E; }
+
+        .filters { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+        .filter-input { border:1px solid #E5E5E5; border-radius:12px; padding:10px 14px; font-size:13px; min-width:260px; font-family:inherit; }
+        .filter-check { font-size:13px; font-weight:600; display:flex; gap:6px; align-items:center; cursor:pointer; }
 
         .period-select {
             appearance: none; background: white; border: 1px solid #E5E5E5;
@@ -264,10 +277,10 @@
             <a href="#" class="nav-link" id="sidebar-logout" style="margin-top: auto; color: #EB5757;"><i class="fas fa-sign-out-alt"></i> Выйти</a>
         </aside>
 
-        <main class="main-content" x-data="dashboardApp()" x-init="init()" x-cloak>
+        <main class="main-content" x-data="contractsRegistryApp(SC_PAGE_TYPE)" x-init="init()" x-cloak>
             <header class="top-header">
                 <div class="header-left">
-                    <h1>Смарт-контракты</h1>
+                    <h1><i :class="meta.icon" style="color:var(--accent-purple);margin-right:8px"></i><span x-text="meta.title"></span></h1>
                 </div>
 
                 <div class="header-right">
@@ -302,7 +315,8 @@
                             </div>
                         </div>
                     </div>
-                    <button x-show="canCreate" class="btn btn-primary" onclick="window.location.href='/smart-contract-new'"><i class="fas fa-plus"></i> Создать смарт-контракт</button>
+                    <a x-show="!isOwner" class="btn btn-outline" :href="'/export?report=contracts&sc_type=' + scType" style="text-decoration:none"><i class="fas fa-file-excel"></i> Выгрузить реестр</a>
+                    <button x-show="canCreate" class="btn btn-primary" @click="window.location.href=createUrl"><i class="fas fa-plus"></i> <span x-text="meta.createLabel"></span></button>
                 </div>
             </header>
 
@@ -320,58 +334,85 @@
                 <div class="kpi-card card-3">
                     <div class="label"><i class="fas fa-check-circle"></i> Активные</div>
                     <div class="value" x-text="loading ? '...' : (stats.by_status?.approved || 0)"></div>
-                    <span class="trend" x-text="'Отклонено: ' + (stats.by_status?.rejected || 0)"></span>
+                    <span class="trend" x-text="'Доработка: ' + (stats.by_status?.rework_needed || 0) + ' · Откл.: ' + (stats.by_status?.rejected || 0)"></span>
                 </div>
                 <div class="kpi-card card-4">
-                    <div class="label"><i class="fas fa-ruble-sign"></i> Сумма вознаграждения</div>
+                    <div class="label"><i class="fas fa-ruble-sign"></i> <span x-text="isLeadership ? 'Фонд вознаграждения' : 'Сумма вознаграждения'"></span></div>
                     <div class="value" x-text="loading ? '...' : rewardRubFormatted"></div>
                 </div>
-                <div class="kpi-card card-5">
+                <div class="kpi-card card-5" x-show="!isLeadership">
                     <div class="label"><i class="fas fa-coins"></i> Всего коинов</div>
                     <div class="value" x-text="loading ? '...' : rewardCoinsFormatted"></div>
-                    <p style="font-size: 11px; opacity: 0.9;" x-text="'Курс NAV: ' + (stats.nav_rate || 10.1)"></p>
+                    <p style="font-size: 11px; opacity: 0.9;" x-text="'Текущий курс Coin: ' + (stats.nav_rate || 10.1) + ' ₽'"></p>
+                </div>
+                <div class="kpi-card card-5" x-show="isLeadership">
+                    <div class="label"><i class="fas fa-user-tie"></i> Руководителей</div>
+                    <div class="value" x-text="loading ? '...' : new Set(projects.map(p => p.owner).filter(Boolean)).size"></div>
+                    <p style="font-size: 11px; opacity: 0.9;">с лидерскими контрактами</p>
                 </div>
             </section>
 
-            <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
-                <h2>Последние смарт-контракты</h2>
-                <button x-show="!loading && displayProjects.length > 5" @click="showAllProjects = !showAllProjects"
-                    style="padding:8px 16px;border-radius:10px;border:1.5px solid #C7C9FF;background:white;color:#5E5CE6;font-size:13px;font-weight:600;cursor:pointer"
-                    x-text="showAllProjects ? 'Свернуть' : 'Показать все (' + displayProjects.length + ')'">
-                </button>
+            <div class="section-title">
+                <h2 x-text="meta.listTitle"></h2>
+                <div class="filters">
+                    <input type="search" class="filter-input" x-model="search" placeholder="Поиск: название, ответственный, куратор">
+                    <select class="period-select" x-model="statusFilter">
+                        <option value="">Все статусы</option>
+                        <template x-for="(label, key) in statusLabels" :key="key">
+                            <option :value="key" x-text="label"></option>
+                        </template>
+                    </select>
+                    <label class="filter-check"><input type="checkbox" x-model="myDraftsOnly"> Мои черновики</label>
+                </div>
             </div>
 
             <div class="table-responsive">
                 <template x-if="loading">
                     <p style="color: var(--text-muted); padding: 20px;">Загрузка данных...</p>
                 </template>
-                <template x-if="!loading && displayProjects.length === 0">
-                    <p style="color: var(--text-muted); padding: 20px;">Смарт-контрактов пока нет. <a href="/smart-contract-new" style="color: var(--accent-purple);">Создать первый</a></p>
+                <template x-if="!loading && projects.length === 0">
+                    <p style="color: var(--text-muted); padding: 20px;"><span x-text="meta.emptyText"></span> <a :href="createUrl" style="color: var(--accent-purple);">Создать первый</a></p>
                 </template>
-                <table class="projects-table" x-show="!loading && displayProjects.length > 0">
+                <template x-if="!loading && projects.length > 0 && filtered.length === 0">
+                    <p style="color: var(--text-muted); padding: 20px;">Нет контрактов по выбранным фильтрам.</p>
+                </template>
+                <table class="projects-table" x-show="!loading && filtered.length > 0">
                     <thead>
                         <tr>
                             <th>Контракт</th>
-                            <th>Куратор</th>
-                            <th>Вознаграждение</th>
+                            <th>Ответственный</th>
+                            <template x-if="!isLeadership"><th>Куратор</th></template>
+                            <template x-if="!isLeadership"><th>Вознаграждение</th></template>
+                            <template x-if="!isLeadership"><th>Coin</th></template>
+                            <template x-if="isLeadership"><th>Фикс</th></template>
+                            <template x-if="isLeadership"><th>Премия</th></template>
+                            <template x-if="isLeadership"><th>Итого</th></template>
                             <th>Статус</th>
                             <th>Дата создания</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <template x-for="p in recentProjects" :key="p.id">
+                        <template x-for="p in filtered" :key="p.id">
                             <tr class="project-row" @click="openProject(p)">
                                 <td>
                                     <div class="user-info">
-                                        <div style="width:35px;height:35px;border-radius:10px;background:var(--accent-purple);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px;flex-shrink:0" x-text="(p.name || '?').charAt(0).toUpperCase()"></div>
+                                        <div class="type-avatar" :class="isLeadership ? 'lead' : 'smart'"><i :class="meta.icon"></i></div>
                                         <div>
                                             <div x-text="p.name || '(без названия)'"></div>
-                                            <div style="font-size:11px;color:var(--text-muted)" x-text="p.business_unit || ''"></div>
+                                            <div style="font-size:11px;color:var(--text-muted)">
+                                                <span class="type-badge" :class="isLeadership ? 'lead' : 'smart'" x-text="meta.badge"></span>
+                                                <span x-text="p.business_unit || ''"></span>
+                                            </div>
                                         </div>
                                     </div>
                                 </td>
-                                <td style="color:var(--text-muted);font-size:13px" x-text="(p.smart_contract_data?.curator) || '—'"></td>
-                                <td x-text="rewardOf(p)"></td>
+                                <td style="font-size:13px" x-text="p.owner || '—'"></td>
+                                <template x-if="!isLeadership"><td style="color:var(--text-muted);font-size:13px" x-text="(p.smart_contract_data?.curator) || '—'"></td></template>
+                                <template x-if="!isLeadership"><td x-text="rewardOf(p)"></td></template>
+                                <template x-if="!isLeadership"><td x-text="coinsOf(p)"></td></template>
+                                <template x-if="isLeadership"><td x-text="fixedOf(p)"></td></template>
+                                <template x-if="isLeadership"><td style="font-size:13px" x-text="variableOf(p)"></td></template>
+                                <template x-if="isLeadership"><td x-text="leadershipTotalOf(p)"></td></template>
                                 <td><span class="status-pill" :class="statusClass(p)" x-text="statusLabel(p)"></span></td>
                                 <td style="color: var(--text-muted);" x-text="formatDate(p.created_at)"></td>
                             </tr>
@@ -382,7 +423,9 @@
         </main>
     </div>
 
+    <script>const SC_PAGE_TYPE = 'smart';</script>
     <script src="/js/auth.js"></script>
+    <script src="/js/contracts-registry.js"></script>
     <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
     <script>
         function toggleSidebar() {
@@ -413,98 +456,6 @@
                 document.getElementById('sidebar').classList.remove('active');
             }
         });
-
-        function dashboardApp() {
-            return {
-                ...authMixin(),
-                stats: { total: 0, by_status: {}, by_type: {}, nav_rate: 10.1, sc_reward_rub: 0, sc_reward_coins: 0 },
-                projects: [],
-                loading: true,
-                aiActive: false,
-
-                async init() {
-                    if (!redirectIfNotLoggedIn()) return;
-                    try {
-                        // All roles fetch the smart-contract list without forcing a status
-                        // filter. The backend scopes owners to their own contracts (any
-                        // status) and shows approvers (manager/CFO/CEO) the full set — so an
-                        // applicant sees every smart contract they created, not only approved
-                        // ones. Forcing status=approved previously hid their drafts/pending.
-                        const projUrl = '/api/v1/projects/?project_type=smart_contract';
-                        const [statsRes, projRes] = await Promise.all([
-                            authFetch('/api/v1/stats/?project_type=smart_contract'),
-                            authFetch(projUrl),
-                        ]);
-                        if (statsRes.ok) {
-                            this.stats = await statsRes.json();
-                            this.aiActive = this.stats.ai_active || false;
-                        }
-                        if (projRes.ok) this.projects = await projRes.json();
-                    } catch(e) {
-                        if (e.message !== 'Unauthorized') console.error('Ошибка загрузки данных:', e);
-                    } finally {
-                        this.loading = false;
-                    }
-                },
-
-                _fmtRub(n) {
-                    n = n || 0;
-                    if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(2) + ' млрд ₽';
-                    if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1) + ' млн ₽';
-                    if (Math.abs(n) >= 1e3) return Math.round(n / 1e3) + ' тыс ₽';
-                    return Math.round(n) + ' ₽';
-                },
-
-                get rewardRubFormatted() {
-                    return this._fmtRub(this.stats.sc_reward_rub);
-                },
-
-                get rewardCoinsFormatted() {
-                    const n = this.stats.sc_reward_coins || 0;
-                    if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(2) + ' млн';
-                    if (Math.abs(n) >= 1e3) return Math.round(n / 1e3) + ' тыс';
-                    return Math.round(n).toLocaleString('ru-RU');
-                },
-
-                get displayProjects() {
-                    return this.projects;
-                },
-
-                showAllProjects: false,
-
-                get recentProjects() {
-                    return this.showAllProjects ? this.displayProjects : this.displayProjects.slice(0, 5);
-                },
-
-                rewardOf(p) {
-                    const scd = p.smart_contract_data || {};
-                    const milestones = scd.milestones || [];
-                    const rub = milestones.reduce((s, m) => s + (parseFloat(m.rewardRub) || 0), 0);
-                    return rub ? this._fmtRub(rub) : '—';
-                },
-
-                statusLabel(p) {
-                    const map = { draft: 'Черновик', pending_approval: 'На согласовании', approved: 'Активен', rejected: 'Отклонён' };
-                    return map[p.status] || p.status;
-                },
-
-                statusClass(p) {
-                    if (p.status === 'approved') return 'st-completed';
-                    if (p.status === 'rejected') return 'st-risk';
-                    return 'st-draft';
-                },
-
-                formatDate(iso) {
-                    if (!iso) return '—';
-                    return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
-                },
-
-                openProject(p) {
-                    const id = typeof p === 'object' ? p.id : p;
-                    window.location.href = '/smart-contract?id=' + id;
-                },
-            };
-        }
 
         function bellApp() {
             return {

@@ -973,6 +973,81 @@
                                     <li class="history-item" style="border:none"><strong>Обновлён</strong>: <span x-text="fmtDate(project.updated_at || project.created_at)"></span></li>
                                 </ul>
                             </section>
+
+                <!-- ═══ Проект приказа (ЛНА) ═══ -->
+                <div class="card-block" id="order" x-data="orderBlock()" x-init="init()" x-show="state && (state.order || state.can_generate)">
+                    <div class="block-title" style="justify-content:space-between">
+                        <span><i class="fas fa-file-signature" style="color:var(--accent)"></i> Проект приказа (ЛНА)</span>
+                    </div>
+                    <template x-if="!order">
+                        <div>
+                            <p style="font-size:13px;color:#555;line-height:1.5;margin-bottom:12px">
+                                Проект согласован — можно сформировать проект приказа в фирменном формате. Баффет отправит его на согласование: C&amp;B → юрист → CEO.
+                            </p>
+                        </div>
+                    </template>
+                    <template x-if="order">
+                        <div>
+                            <div class="order-file" @click="download()">
+                                <i class="fas fa-file-word"></i>
+                                <div style="min-width:0;flex:1">
+                                    <div class="of-name" x-text="state.attachment ? state.attachment.name : 'Проект приказа.docx'"></div>
+                                    <div class="of-meta" x-text="order.generated_by + ' · ' + fmt(order.generated_at) + ' · ' + sourceLabel()"></div>
+                                </div>
+                                <i class="fas fa-download" style="color:var(--accent);font-size:14px"></i>
+                            </div>
+                            <template x-if="order.review_notes && order.review_notes.length">
+                                <div class="order-notes">
+                                    <div class="lbl"><i class="fas fa-scale-balanced"></i> На что обратить внимание юристу</div>
+                                    <template x-for="(n, i) in order.review_notes" :key="i"><div x-text="'• ' + n"></div></template>
+                                </div>
+                            </template>
+                            <div x-data="routeBlock('order')" x-init="init()" style="margin-top:12px">
+                                <template x-if="state && state.steps && state.cycle">
+                                    <div>
+                                        <div class="route-steps">
+                                            <template x-for="(st, i) in state.steps" :key="st.id || st.role">
+                                                <div class="route-step" :class="{ 'is-active': st.status === 'active', 'is-ok': st.status === 'approved', 'is-rework': st.status === 'rework' }">
+                                                    <div class="rs-num" x-text="'Этап ' + (i + 1)"></div>
+                                                    <div class="rs-role" x-text="st.role_label"></div>
+                                                    <div class="rs-who"><i class="fas fa-user" style="color:#C7C7CC;margin-right:4px"></i><span x-text="st.assignee || 'не назначен'"></span></div>
+                                                    <span class="rs-badge" :class="meta(st).cls"><i class="fas" :class="meta(st).icon"></i> <span x-text="meta(st).label"></span></span>
+                                                    <div class="rs-meta" x-show="st.decided_at" x-text="'Решение: ' + fmt(st.decided_at)"></div>
+                                                    <div class="rs-comment" x-show="st.comment" x-text="st.comment"></div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                        <template x-if="canDecide">
+                                            <div class="route-decide">
+                                                <div style="font-size:13px;font-weight:700;margin-bottom:8px">Ваше решение по проекту приказа</div>
+                                                <textarea rows="2" x-model="comment" placeholder="Комментарий (обязателен при возврате на доработку)"></textarea>
+                                                <div class="row">
+                                                    <button class="route-btn ok" @click="decide('approve')" :disabled="busy"><i class="fas fa-check"></i> Согласовать</button>
+                                                    <button class="route-btn rework" @click="decide('rework')" :disabled="busy"><i class="fas fa-rotate-left"></i> На доработку</button>
+                                                </div>
+                                                <p style="color:var(--danger);font-size:12px;font-weight:600;margin-top:8px" x-show="error" x-text="error"></p>
+                                            </div>
+                                        </template>
+                                        <p style="font-size:12px;color:#1A7A40;font-weight:700" x-show="state.state === 'approved'"><i class="fas fa-circle-check"></i> Согласован — можно передавать на подписание.</p>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                    <div class="stack" style="margin-top:12px" x-show="canGenerate">
+                        <button class="act primary" @click="generate()" :disabled="busy">
+                            <i class="fas" :class="busy ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles'"></i>
+                            <span x-text="busy ? 'Готовим документ…' : (order ? 'Сформировать заново' : 'Сформировать проект приказа')"></span>
+                        </button>
+                        <template x-if="order && routeState === 'rework'">
+                            <label class="act" style="text-align:center;cursor:pointer">
+                                <i class="fas fa-upload"></i> Загрузить исправленный .docx
+                                <input type="file" accept=".docx" style="display:none" @change="upload($event)">
+                            </label>
+                        </template>
+                    </div>
+                    <p style="color:var(--danger);font-size:12px;font-weight:600;margin-top:8px" x-show="error" x-text="error"></p>
+                </div>
                         </div>
                     </div>
 
@@ -1016,18 +1091,18 @@
                         <div x-data="commentsApp()" x-init="loadComments()">
                             <div style="margin-bottom:14px">
                                 <template x-for="c in comments" :key="c.id">
-                                    <div style="padding:12px 16px;background:#F8F7F3;border-radius:14px;margin-bottom:10px">
+                                    <div :id="'comment-' + c.id" style="padding:12px 16px;background:#F8F7F3;border-radius:14px;margin-bottom:10px">
                                         <div style="display:flex;justify-content:space-between;margin-bottom:5px">
                                             <span style="font-size:12px;font-weight:700;color:#5E5CE6" x-text="c.author_name"></span>
                                             <span style="font-size:11px;color:#8E8E93" x-text="fmtDateShort(c.created_at)"></span>
                                         </div>
-                                        <p style="font-size:13px;line-height:1.5;color:#1C1C1E;white-space:pre-wrap" x-text="c.text"></p>
+                                        <p style="font-size:13px;line-height:1.5;color:#1C1C1E" x-html="mentionHtml(c)"></p>
                                     </div>
                                 </template>
                                 <p x-show="!comments.length" style="font-size:13px;color:#8E8E93;margin-bottom:10px">Комментариев пока нет</p>
                             </div>
                             <div style="display:flex;gap:10px;align-items:flex-start">
-                                <textarea x-model="commentText" placeholder="Написать комментарий..."
+                                <textarea x-model="commentText" x-init="attachMentions($el)" placeholder="Написать комментарий… (@ — отметить коллегу, ему придёт уведомление)"
                                     style="flex:1;resize:vertical;min-height:70px;padding:10px 14px;border:1.5px solid #E5E5ED;border-radius:12px;font-size:13px;font-family:inherit;outline:none"
                                     @keydown.ctrl.enter="submitComment()"></textarea>
                                 <button @click="submitComment()" :disabled="!commentText.trim() || submittingComment"
@@ -1374,6 +1449,9 @@
 
     <script src="/js/purify.min.js"></script>
     <script src="/js/auth.js"></script>
+    <script src="/js/contract-route.js"></script>
+    <link rel="stylesheet" href="/css/contract-route.css">
+    <script src="/js/mentions.js"></script>
     <script src="/js/finance.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
@@ -1763,7 +1841,7 @@
                     if (!id) return;
                     try {
                         const res = await authFetch('/api/v1/projects/' + id + '/comments');
-                        if (res.ok) this.comments = await res.json();
+                        if (res.ok) { this.comments = await res.json(); focusCommentFromHash(); }
                     } catch(e) {}
                 },
                 async submitComment() {

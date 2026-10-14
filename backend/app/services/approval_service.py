@@ -39,9 +39,30 @@ _DONE_LABELS = {
 }
 
 
-def check_permission(project: Project, new_status: str, actor: User) -> None:
+def _is_own(project: Project, actor: User) -> bool:
+    return project.user_id == actor.id or getattr(project, "created_by_id", None) == actor.id
+
+
+def _is_contract(project: Project) -> bool:
+    return (project.project_type or "") == "smart_contract"
+
+
+def check_permission(project: Project, new_status: str, actor: User, *, via_route: bool = False) -> None:
     """Проверить право актора на переход (совпадает с прежней логикой эндпоинта)."""
     role = actor.role
+    if via_route:
+        # Решение принято согласующим на своём этапе маршрута (route_service
+        # уже проверил, что это назначенный согласующий).
+        return
+    if _is_contract(project) and new_status in ("approved", "rejected", "rework_needed"):
+        # Контракт согласуется по маршруту C&B → заказчик → казначей → финдиректор.
+        # Решение в обход маршрута — только CFO как администратор.
+        if role != "cfo":
+            raise HTTPException(
+                status_code=http_status.HTTP_403_FORBIDDEN,
+                detail="Контракт согласуется по маршруту — решение принимает согласующий текущего этапа",
+            )
+        return
     if new_status in ("approved", "rejected", "rework_needed"):
         if role not in ("cfo", "manager"):
             raise HTTPException(
@@ -54,13 +75,13 @@ def check_permission(project: Project, new_status: str, actor: User) -> None:
                 status_code=http_status.HTTP_403_FORBIDDEN,
                 detail="CEO не может подавать заявки на согласование",
             )
-        if role == "owner" and project.user_id != actor.id:
+        if role == "owner" and not _is_own(project, actor):
             raise HTTPException(
                 status_code=http_status.HTTP_403_FORBIDDEN,
                 detail="Нет доступа к этому проекту",
             )
     elif new_status == "draft":
-        if role == "owner" and project.user_id != actor.id:
+        if role == "owner" and not _is_own(project, actor):
             raise HTTPException(
                 status_code=http_status.HTTP_403_FORBIDDEN,
                 detail="Нет доступа к этому проекту",
@@ -98,21 +119,30 @@ def _notify(
     comment: Optional[str] = None,
 ) -> None:
     owner = db.get(User, project.user_id) if project.user_id else None
+    link = links.project_path(project.project_type, project.id)
+
+    # Контракт на согласовании: уведомления адресно по этапам маршрута
+    # (route_service), а не всем CFO/менеджерам сразу.
+    if new_status == "pending_approval" and _is_contract(project):
+        return
 
     # In-app
     try:
         if new_status == "pending_approval":
-            notify_approvers(db, project.id, project_name, actor.full_name)
+            notify_approvers(db, project.id, project_name, actor.full_name, link=link)
             db.commit()
         elif new_status == "rejected":
             # Заявителю, CFO и CEO — с причиной отклонения.
             for u in _rejection_recipients(db, owner):
                 notify_owner(
-                    db, u.id, project.id, project_name, new_status, comment=comment
+                    db, u.id, project.id, project_name, new_status,
+                    comment=comment, link=link,
                 )
             db.commit()
         elif new_status in ("approved", "draft", "rework_needed") and project.user_id:
-            notify_owner(db, project.user_id, project.id, project_name, new_status)
+            notify_owner(
+                db, project.user_id, project.id, project_name, new_status, link=link
+            )
             db.commit()
     except Exception:
         logger.exception("In-app notification failed for project %s", project.id)
@@ -182,7 +212,7 @@ def _notify_owner_decision_mm(
     if not owner_email:
         return
     label = _OWNER_STATUS_LABELS.get(new_status, new_status)
-    type_label = links.project_type_label(project.project_type)
+    type_label = links.label_for(project)
     text = f"Проект «{project_name}» ({type_label}) — {label}."
     if new_status == "rejected" and comment:
         text += f"\nПричина: {comment}"
@@ -222,7 +252,7 @@ def _on_pending_approval(db: Session, project: Project, project_name: str, appli
         owner = db.get(User, project.user_id) if project.user_id else None
         owner_email = mattermost_service.mattermost_email(owner)
         if owner_email:
-            type_label = links.project_type_label(project.project_type)
+            type_label = links.label_for(project)
             mattermost_service.post_to_email(
                 owner_email,
                 f"Проект «{project_name}» ({type_label}) отправлен на согласование. "
@@ -247,6 +277,7 @@ def apply_status_change(
     *,
     actor_type: str = "user",
     comment: Optional[str] = None,
+    via_route: bool = False,
 ) -> Project:
     """Применить смену статуса: права, история, уведомления, карточки, аудит.
 
@@ -254,9 +285,18 @@ def apply_status_change(
     сохраняется в ``project.rejection_reason``, попадает в таблицу проектов и
     отправляется заявителю, CFO и CEO.
     """
-    check_permission(project, new_status, actor)
+    check_permission(project, new_status, actor, via_route=via_route)
 
     comment = (comment or "").strip() or None
+
+    from . import route_service
+    starts_route = _is_contract(project) and new_status == "pending_approval"
+    if starts_route:
+        # Все согласующие должны быть назначены ДО смены статуса.
+        route_service.validate_route(db, project, "contract")
+    elif _is_contract(project) and project.status == "pending_approval" and not via_route:
+        # Отзыв или решение в обход маршрута — закрываем незавершённые этапы.
+        route_service.cancel_open(db, project.id, "contract")
 
     history = list(project.status_history or [])
     history.append(
@@ -288,13 +328,37 @@ def apply_status_change(
         meta={"new_status": new_status, "has_comment": bool(comment)},
     )
 
-    if new_status == "pending_approval":
+    if starts_route:
+        route_service.start_route(db, project, "contract", actor)
+    elif new_status == "pending_approval":
         _on_pending_approval(db, project, project_name, actor.full_name)
     elif new_status in ("approved", "rejected", "rework_needed"):
         # Личное уведомление заявителю о решении в Mattermost.
         _notify_owner_decision_mm(db, project, new_status, project_name, comment=comment)
 
     return project
+
+
+def _mm_actor(db: Session, mm_user_id: Optional[str]) -> Optional[User]:
+    """Пользователь системы по id в Mattermost (email или mattermost_email)."""
+    from sqlalchemy import func, or_
+    email = mattermost_service.get_user_email(mm_user_id) if mm_user_id else None
+    if not email:
+        return None
+    email = email.strip().lower()
+    return (
+        db.query(User)
+        .filter(or_(func.lower(User.email) == email, func.lower(User.mattermost_email) == email))
+        .first()
+    )
+
+
+def _on_contract_route_complete(db: Session, project: Project, actor: User, comment) -> None:
+    apply_status_change(db, project, "approved", actor, comment=comment, via_route=True)
+
+
+def _on_contract_route_rework(db: Session, project: Project, actor: User, comment) -> None:
+    apply_status_change(db, project, "rework_needed", actor, comment=comment, via_route=True)
 
 
 def process_action(db: Session, context: dict, mm_user_id: Optional[str]) -> dict:
@@ -304,6 +368,13 @@ def process_action(db: Session, context: dict, mm_user_id: Optional[str]) -> dic
     Идентифицирует пользователя по email из Mattermost и применяет ту же
     логику смены статуса — согласовывать по-прежнему могут только CFO/менеджер.
     """
+    if (context or {}).get("kind") == "route_step":
+        actor = _mm_actor(db, mm_user_id)
+        if actor is None:
+            return {"ephemeral_text": "Пользователь не распознан в системе."}
+        from . import route_service
+        return route_service.process_mm_action(db, context, actor)
+
     decision = (context or {}).get("decision")
     new_status = DECISION_TO_STATUS.get(decision)
     if not new_status:
@@ -317,8 +388,7 @@ def process_action(db: Session, context: dict, mm_user_id: Optional[str]) -> dic
     if project is None:
         return {"ephemeral_text": "Проект не найден."}
 
-    email = mattermost_service.get_user_email(mm_user_id) if mm_user_id else None
-    actor = db.query(User).filter(User.email == email).first() if email else None
+    actor = _mm_actor(db, mm_user_id)
     if actor is None:
         return {"ephemeral_text": "Пользователь не распознан в системе."}
 
@@ -328,8 +398,20 @@ def process_action(db: Session, context: dict, mm_user_id: Optional[str]) -> dic
         return {"ephemeral_text": exc.detail}
 
     label = _DONE_LABELS.get(new_status, new_status)
-    type_label = links.project_type_label(project.project_type)
+    type_label = links.label_for(project)
     return {
         "update": {"message": f"Заявка «{project.name}» ({type_label}) {label} ({actor.full_name})."},
         "ephemeral_text": "Готово.",
     }
+
+
+def _register_route_hooks() -> None:
+    from . import route_service
+    route_service.register_hooks(
+        "contract",
+        on_complete=_on_contract_route_complete,
+        on_rework=_on_contract_route_rework,
+    )
+
+
+_register_route_hooks()

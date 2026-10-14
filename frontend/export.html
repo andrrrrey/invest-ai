@@ -207,6 +207,24 @@
                 </div>
             </header>
 
+            <div class="report-section-label">Вид отчёта</div>
+            <div class="export-grid">
+                <div class="export-card" :class="{ selected: reportKind === 'project' }" @click="reportKind = 'project'; error = null">
+                    <div class="export-icon pdf-icon" style="background:#EEF0FF;color:#5E5CE6"><i class="fas fa-file-lines"></i></div>
+                    <div class="export-info">
+                        <h3>Отчёт по проекту</h3>
+                        <p>Подробный отчёт по выбранному проекту или контракту</p>
+                    </div>
+                </div>
+                <div class="export-card" :class="{ selected: reportKind === 'registry' }" @click="reportKind = 'registry'; error = null">
+                    <div class="export-icon excel-icon" style="background:#D7F5F2;color:#0F766E"><i class="fas fa-table-list"></i></div>
+                    <div class="export-info">
+                        <h3>Реестр контрактов</h3>
+                        <p>Все смарт- и лидерские контракты с фильтрами</p>
+                    </div>
+                </div>
+            </div>
+
             <div class="report-section-label">Форматы экспорта</div>
             <div class="export-grid">
                 <div class="export-card" :class="{ selected: format === 'pdf' }" @click="format = 'pdf'">
@@ -225,6 +243,62 @@
                 </div>
             </div>
 
+            <!-- ═══ Реестр контрактов ═══ -->
+            <template x-if="reportKind === 'registry'">
+            <div>
+            <div class="report-section-label">Фильтры реестра</div>
+            <div class="settings-card">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Тип контрактов</label>
+                        <select class="input-field" x-model="reg.sc_type">
+                            <option value="">Все контракты</option>
+                            <option value="smart">Смарт-контракты (Coin)</option>
+                            <option value="leadership">Лидерские контракты</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Ответственный</label>
+                        <select class="input-field" x-model="reg.owner_id">
+                            <option value="">Все</option>
+                            <template x-for="u in employees" :key="u.id">
+                                <option :value="u.id" x-text="u.full_name"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Создан с</label>
+                        <input type="date" class="input-field" x-model="reg.date_from">
+                    </div>
+                    <div class="form-group">
+                        <label>Создан по</label>
+                        <input type="date" class="input-field" x-model="reg.date_to">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom:14px">
+                    <label>Статусы (не выбрано — все)</label>
+                    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px">
+                        <template x-for="(label, key) in statusLabels" :key="key">
+                            <label class="checkbox-group" style="margin:0">
+                                <input type="checkbox" :value="key" x-model="reg.statuses">
+                                <span x-text="label"></span>
+                            </label>
+                        </template>
+                    </div>
+                </div>
+                <div x-show="error" style="background:#FFE5E5;color:#EB5757;padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:13px" x-text="error"></div>
+                <button class="btn btn-primary" style="width: 100%; padding: 16px; margin-top: 12px;" @click="generateRegistry()" :disabled="loading">
+                    <template x-if="!loading"><span><i class="fas fa-download" style="margin-right: 10px;"></i> Выгрузить реестр</span></template>
+                    <template x-if="loading"><span><i class="fas fa-spinner fa-spin" style="margin-right: 10px;"></i> Формирование...</span></template>
+                </button>
+            </div>
+            </div>
+            </template>
+
+            <template x-if="reportKind === 'project'">
+            <div>
             <div class="report-section-label">Настройки экспорта</div>
             <div class="settings-card">
                 <div class="form-row">
@@ -233,7 +307,7 @@
                         <select class="input-field" x-model="projectKind" @change="selectedProjectId = ''">
                             <option value="all">Все</option>
                             <option value="regular">Обычные проекты</option>
-                            <option value="smart">Смарт-контракты</option>
+                            <option value="smart">Смарт- и лидерские контракты</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -271,6 +345,8 @@
                     </template>
                 </button>
             </div>
+            </div>
+            </template>
         </main>
     </div>
 
@@ -300,6 +376,10 @@
         function exportApp() {
             return {
                 format: 'pdf',
+                reportKind: 'project',
+                reg: { sc_type: '', owner_id: '', date_from: '', date_to: '', statuses: [] },
+                statusLabels: { draft: 'Черновик', pending_approval: 'На согласовании', approved: 'Согласован', rework_needed: 'На доработке', rejected: 'Отклонён' },
+                employees: [],
                 selectedProjectId: '',
                 projectKind: 'all',
                 includeAi: true,
@@ -310,9 +390,24 @@
                 async init() {
                     if (!redirectIfNotLoggedIn()) return;
                     if (getUserRole() === 'owner') { window.location.href = '/'; return; }
+                    const qs = new URLSearchParams(location.search);
+                    if (qs.get('report') === 'contracts') {
+                        this.reportKind = 'registry';
+                        this.format = 'excel';
+                        this.reg.sc_type = ['smart', 'leadership'].includes(qs.get('sc_type')) ? qs.get('sc_type') : '';
+                    }
                     try {
-                        const res = await authFetch('/api/v1/projects/');
-                        if (res.ok) this.projects = await res.json();
+                        // Обычные проекты и контракты — отдельными запросами (контракты
+                        // не попадают в общий список проектов).
+                        const [res, scRes, dirRes] = await Promise.all([
+                            authFetch('/api/v1/projects/'),
+                            authFetch('/api/v1/projects/?project_type=smart_contract'),
+                            authFetch('/api/v1/users/directory'),
+                        ]);
+                        const regular = res.ok ? await res.json() : [];
+                        const contracts = scRes.ok ? await scRes.json() : [];
+                        this.projects = [...regular, ...contracts];
+                        if (dirRes.ok) this.employees = await dirRes.json();
                     } catch (e) {
                         if (e.message !== 'Unauthorized') console.error('Ошибка загрузки проектов:', e);
                     }
@@ -326,6 +421,45 @@
                         return this.projects.filter(p => p.project_type !== 'smart_contract');
                     }
                     return this.projects;
+                },
+
+                async _download(res, fallbackName) {
+                    const blob = await res.blob();
+                    const cd = res.headers.get('content-disposition') || '';
+                    const m = cd.match(/filename\*=UTF-8''([^;]+)/);
+                    const name = m ? decodeURIComponent(m[1]) : fallbackName;
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = name;
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                },
+
+                async generateRegistry() {
+                    this.loading = true;
+                    this.error = null;
+                    try {
+                        const body = {
+                            format: this.format,
+                            sc_type: this.reg.sc_type || null,
+                            owner_id: this.reg.owner_id ? parseInt(this.reg.owner_id) : null,
+                            date_from: this.reg.date_from || null,
+                            date_to: this.reg.date_to || null,
+                            statuses: this.reg.statuses,
+                        };
+                        const res = await authFetch('/api/v1/export/contracts-registry', { method: 'POST', body: JSON.stringify(body) });
+                        if (!res.ok) {
+                            let msg = 'Ошибка формирования реестра';
+                            try { const e = await res.json(); msg = e.detail || msg; } catch {}
+                            this.error = msg;
+                            return;
+                        }
+                        await this._download(res, this.format === 'pdf' ? 'contracts.pdf' : 'contracts.xlsx');
+                    } catch (e) {
+                        if (e.message !== 'Unauthorized') this.error = 'Ошибка соединения с сервером';
+                    } finally {
+                        this.loading = false;
+                    }
                 },
 
                 async generate() {

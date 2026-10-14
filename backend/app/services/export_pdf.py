@@ -528,86 +528,166 @@ def _render_investment_detail(p: dict, ai_comment: str | None) -> str:
 """
 
 
+def _fmt_ddmmyyyy(value) -> str:
+    if not value:
+        return "—"
+    v = str(value)
+    if len(v) >= 10 and v[4] == "-" and v[7] == "-":
+        return f"{v[8:10]}.{v[5:7]}.{v[0:4]}"
+    return v
+
+
+_MS_STATUS = {
+    "pending": "Ожидает", "in_progress": "Выполняется", "verify": "На верификации",
+    "paid": "Выполнен", "achieved": "Выполнен", "disputed": "Спор", "failed": "Не выполнен",
+}
+_STEP_STATUS = {
+    "waiting": "В очереди", "active": "На согласовании", "approved": "Согласовано",
+    "rework": "На доработку", "cancelled": "Отменён", "not_started": "Ожидает отправки",
+}
+
+
 def _render_smart_contract_detail(p: dict) -> str:
     sc = p.get("smart_contract_data") or {}
     is_leadership = sc.get("scType") == "leadership"
-    sc_type_label = "Лидерский контракт" if is_leadership else "Смарт-контракт (coins)"
+    sc_type_label = "Лидерский контракт" if is_leadership else "Смарт-контракт (вознаграждение в Coin)"
     contract_type_label = {"single": "Единый (один этап)", "phased": "Поэтапный"}.get(
         sc.get("contractType") or "", sc.get("contractType") or "—"
     )
-
-    passport = _kv_table([
-        ("Тип контракта", sc_type_label),
-        ("Структура", contract_type_label),
-        ("Куратор", _esc(sc.get("curator"))),
-        ("Набор команды после согласования", "Да" if sc.get("needsRecruitment") else "Нет"),
-        ("Курс NAV", _esc(sc.get("navRate"))),
-        ("Итого вознаграждение", _fmt(sc.get("totalRewardRub"), " ₽")),
-        ("Итого coins", _fmt(sc.get("totalCoins"), "", 2) if sc.get("totalCoins") is not None else "—"),
-    ])
-
-    # Milestones
     milestones = sc.get("milestones") or []
+    total_rub = sum(float(m.get("rewardRub") or 0) for m in milestones)
+    total_coins = sum(float(m.get("coins") or 0) for m in milestones)
+
+    rows = [
+        ("Тип контракта", sc_type_label),
+        ("Статус", _status_label(p.get("status"))),
+        ("Структура", contract_type_label),
+        ("Бизнес-юнит", _esc(p.get("business_unit")) or "—"),
+        ("Ответственный", _esc(p.get("owner")) or "—"),
+        ("Заказчик", _esc(sc.get("customerName")) or "—"),
+        ("Куратор", _esc(sc.get("curator")) or "—"),
+        ("Дедлайн", _fmt_ddmmyyyy(sc.get("deadline"))),
+    ]
+    if not is_leadership:
+        rate = sc.get("navRate")
+        rate_txt = f"{_esc(rate)} ₽ за 1 Coin" if rate else "—"
+        if sc.get("navRateDate"):
+            rate_txt += f" (на {_fmt_ddmmyyyy(sc.get('navRateDate'))})"
+        if sc.get("navRateManual"):
+            rate_txt += ", зафиксирован казначеем"
+        rows += [
+            ("Курс Coin", rate_txt),
+            ("Итого вознаграждение", _fmt(total_rub, " ₽")),
+            ("Итого Coin", _fmt(total_coins)),
+            ("Набор команды после согласования", "Да" if sc.get("needsRecruitment") else "Нет"),
+        ]
+    passport = _kv_table(rows)
+
     ms_table = ""
     if milestones:
         body = ""
-        for ms in milestones:
+        for i, ms in enumerate(milestones, start=1):
+            amount = _fmt(ms.get("rewardRub"), " ₽")
+            if not is_leadership:
+                amount += f"<br><span style='color:#888'>{_fmt(ms.get('coins'))} Coin</span>"
+            details = _esc(ms.get("criteria") or "")
+            extra = []
+            if ms.get("baseline") or ms.get("target"):
+                extra.append(f"Было: {_esc(ms.get('baseline') or '—')} → цель: {_esc(ms.get('target') or '—')}")
+            if ms.get("dataSource"):
+                extra.append(f"Источник: {_esc(ms.get('dataSource'))}")
+            if extra:
+                details += "<br><span style='color:#888'>" + "; ".join(extra) + "</span>"
             body += (
-                f"<tr><td>{_esc(ms.get('title'))}</td>"
-                f"<td>{_esc(ms.get('targetDate'))}</td>"
-                f"<td class='num'>{_fmt(ms.get('rewardRub'), ' ₽')}</td>"
-                f"<td class='num'>{_fmt(ms.get('coins'), '', 2) if ms.get('coins') is not None else '—'}</td></tr>"
+                f"<tr><td>{i}</td><td><b>{_esc(ms.get('name') or ms.get('title'))}</b></td>"
+                f"<td>{_fmt_ddmmyyyy(ms.get('deadline') or ms.get('targetDate'))}</td>"
+                f"<td>{details}</td>"
+                f"<td class='num'>{amount}</td>"
+                f"<td>{_MS_STATUS.get(ms.get('status') or 'pending', _esc(ms.get('status')))}</td></tr>"
             )
         ms_table = (
-            "<div class='section-banner'>Milestones</div>"
-            "<table><thead><tr><th>Этап</th><th>Дедлайн</th>"
-            "<th class='num'>Вознаграждение</th><th class='num'>Coins</th></tr></thead>"
+            "<div class='section-banner'>4. Этапы (milestones)</div>"
+            "<table><thead><tr><th>№</th><th>Этап</th><th>Дедлайн</th><th>Критерий успеха</th>"
+            f"<th class='num'>{'Премия' if is_leadership else 'Вознаграждение'}</th><th>Статус</th></tr></thead>"
             f"<tbody>{body}</tbody></table>"
         )
 
-    # Team
     team = sc.get("team") or []
     team_table = ""
-    if team:
+    if team and not is_leadership:
         body = "".join(
             f"<tr><td>{_esc(t.get('name'))}</td><td>{_esc(t.get('role'))}</td>"
-            f"<td class='num'>{_fmt(t.get('coins'), '', 2) if t.get('coins') is not None else '—'}</td></tr>"
+            f"<td class='num'>{_fmt(t.get('coins'))}</td></tr>"
             for t in team
         )
         team_table = (
-            "<div class='section-banner'>Команда / Coins</div>"
+            "<div class='section-banner'>5. Команда и распределение Coin</div>"
             "<table><thead><tr><th>Участник</th><th>Роль</th>"
-            "<th class='num'>Coins</th></tr></thead>"
+            "<th class='num'>Coin</th></tr></thead>"
             f"<tbody>{body}</tbody></table>"
         )
 
-    # Leadership totals
     lt = sc.get("leadershipTotals") or {}
     lt_table = ""
-    if is_leadership and lt:
+    if is_leadership:
         lt_table = (
-            "<div class='section-banner'>Итоги по лидерскому контракту</div>"
+            "<div class='section-banner'>5. Доход по лидерскому контракту</div>"
             + _kv_table([
-                ("Фикс. оклад / мес.", _fmt(sc.get("fixedSalaryMonthly"), " ₽")),
+                ("Оклад в месяц", _fmt(sc.get("fixedSalaryMonthly"), " ₽")),
+                ("Переменная часть (цель)",
+                 _fmt(sc.get("variableTotal"), " ₽") if float(sc.get("variableTotal") or 0) > 0
+                 else "без премии (только фикс)"),
                 ("Итого оклад", _fmt(lt.get("totalSalary"), " ₽")),
                 ("Итого премии", _fmt(lt.get("totalBonus"), " ₽")),
-                ("Переменная часть (цель)", _fmt(lt.get("variableTotal"), " ₽")),
-                ("Grand total", _fmt(lt.get("grand"), " ₽")),
-                ("Месяцев", _esc(lt.get("numMonths"))),
-                ("Средн. в месяц", _fmt(lt.get("avgMonthly"), " ₽")),
+                ("Итого за период", _fmt(lt.get("grand"), " ₽")),
+                ("Месяцев", _esc(lt.get("numMonths")) or "—"),
             ])
+        )
+
+    approval_html = ""
+    route = p.get("approval_route")
+    if route and route.get("steps"):
+        body = "".join(
+            f"<tr><td>{i}</td><td><b>{_esc(st.get('role_label'))}</b></td><td>{_esc(st.get('assignee') or '—')}</td>"
+            f"<td>{_STEP_STATUS.get(st.get('status'), _esc(st.get('status')))}</td>"
+            f"<td>{_fmt_ts(st.get('sent_at'))}</td><td>{_fmt_ts(st.get('decided_at'))}</td>"
+            f"<td>{_esc(st.get('comment') or '')}</td></tr>"
+            for i, st in enumerate(route["steps"], start=1)
+        )
+        approval_html = (
+            "<div class='section-banner'>6. Согласование</div>"
+            "<table><thead><tr><th>№</th><th>Этап</th><th>Согласующий</th><th>Решение</th>"
+            "<th>Отправлено</th><th>Дата решения</th><th>Комментарий</th></tr></thead>"
+            f"<tbody>{body}</tbody></table>"
+        )
+
+    history_html = ""
+    history = [e for e in (p.get("history") or []) if e.get("kind") != "created"]
+    if history:
+        body = ""
+        for e in history[:60]:
+            text = _esc(e.get("title"))
+            if e.get("kind") == "change":
+                text += f"<br><span style='color:#888'>{_esc(e.get('old') or '—')} → {_esc(e.get('new') or '—')}</span>"
+            if e.get("comment"):
+                text += f"<br><i>«{_esc(e.get('comment'))}»</i>"
+            body += f"<tr><td style='white-space:nowrap'>{_fmt_ts(e.get('ts'))}</td><td>{_esc(e.get('by') or '')}</td><td>{text}</td></tr>"
+        history_html = (
+            "<div class='section-banner'>7. История изменений и согласований</div>"
+            "<table><thead><tr><th>Когда</th><th>Кто</th><th>Событие</th></tr></thead>"
+            f"<tbody>{body}</tbody></table>"
         )
 
     return f"""
 <div class="project-report">
-  <div class="report-doc-title">{_esc(sc.get("name") or p.get("name"))}</div>
-  <div class="report-doc-sub">Подробный отчёт по смарт-контракту · {_status_label(p.get("status"))}</div>
+  <div class="report-doc-title">{_esc(p.get("name") or sc.get("name"))}</div>
+  <div class="report-doc-sub">{sc_type_label} · {_status_label(p.get("status"))}</div>
 
   <div class="section-banner">1. Паспорт контракта</div>
   {passport}
 
   <div class="section-banner">2. Краткое описание</div>
-  <div class="prose">{_html_or_text(sc.get("shortDescription"))}</div>
+  <div class="prose">{_html_or_text(sc.get("shortDescription") or p.get("description"))}</div>
 
   <div class="section-banner">3. Бизнес-эффект</div>
   <div class="prose">{_html_or_text(sc.get("businessEffect"))}</div>
@@ -615,8 +695,22 @@ def _render_smart_contract_detail(p: dict) -> str:
   {ms_table}
   {lt_table}
   {team_table}
+  {approval_html}
+  {history_html}
 </div>
 """
+
+
+def _fmt_ts(value) -> str:
+    if not value:
+        return ""
+    v = str(value)
+    try:
+        import datetime as _dt
+        d = _dt.datetime.fromisoformat(v.replace("Z", "+00:00"))
+        return d.strftime("%d.%m.%Y %H:%M")
+    except ValueError:
+        return _esc(v[:16])
 
 
 def _detailed_projects_section(projects: list[dict], ai_commentaries: dict) -> str:

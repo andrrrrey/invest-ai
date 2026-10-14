@@ -27,9 +27,11 @@ def employee_directory(
     """Lightweight employee directory (справочник сотрудников) for any
     authenticated user. Used to pick a curator / participants when creating
     a smart contract."""
+    from ...config import settings
     users = (
         db.query(User)
         .filter(User.is_active == True)  # noqa: E712
+        .filter(User.email != settings.HERMES_BOT_EMAIL)  # служебный аккаунт бота
         .order_by(User.full_name)
         .all()
     )

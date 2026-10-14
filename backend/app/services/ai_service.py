@@ -642,3 +642,137 @@ def extract_requested_amount(text: str, budget_summary: str = "") -> str:
         f"{budget_section}"
     )
     return _chat(prompt, max_tokens=80)
+
+
+# ── Смарт- и лидерские контракты: AI-помощник мастера и карточки ─────────
+
+def _json_or_raise(raw: str) -> dict:
+    data = json.loads(_strip_fences(raw))
+    if not isinstance(data, dict):
+        raise ValueError("Ожидался JSON-объект")
+    return data
+
+
+def _contract_kind(sc_type: str) -> str:
+    return "лидерского контракта (оклад + премии в рублях)" if sc_type == "leadership" \
+        else "смарт-контракта (вознаграждение команды в Coin по достижении этапов)"
+
+
+def generate_contract_description(
+    name: str,
+    business_unit: str,
+    sc_type: str = "smart",
+    context: str = "",
+    milestones: Optional[list] = None,
+) -> dict:
+    """Краткое описание и бизнес-эффект контракта. -> {shortDescription, businessEffect}"""
+    ms = "\n".join(
+        f"  • {m.get('name') or '—'}: {m.get('criteria') or ''}" for m in (milestones or []) if m.get("name")
+    ) or "  (этапы ещё не заполнены)"
+    prompt = (
+        f"Подготовь текст для {_contract_kind(sc_type)}.\n"
+        f"— Название: {name or 'не указано'}\n"
+        f"— Бизнес-юнит: {business_unit or 'не указан'}\n"
+        f"— Что уже написал автор: {context or '—'}\n"
+        f"— Этапы:\n{ms}\n\n"
+        "Верни только JSON без Markdown:\n"
+        '{"shortDescription": "2-4 предложения: суть инициативы и что изменится",'
+        ' "businessEffect": "2-4 предложения: измеримый ожидаемый эффект (экономия, рост, сроки), без выдуманных цифр, если их нет в исходных данных"}'
+    )
+    raw = _chat(prompt, max_tokens=700, extra_terms={"project": [name], "org": [business_unit]},
+                action="ai.contract_description")
+    data = _json_or_raise(raw)
+    return {
+        "shortDescription": str(data.get("shortDescription") or "").strip(),
+        "businessEffect": str(data.get("businessEffect") or "").strip(),
+    }
+
+
+def check_smart(milestone: dict, sc_type: str = "smart") -> dict:
+    """SMART-проверка критерия этапа. -> {S, M, A, R, T: bool, valid: bool, feedback: str}"""
+    prompt = (
+        f"Проверь критерий успеха этапа {_contract_kind(sc_type)} по SMART.\n"
+        f"— Этап: {milestone.get('name') or '—'}\n"
+        f"— Критерий успеха: {milestone.get('criteria') or '—'}\n"
+        f"— Было (baseline): {milestone.get('baseline') or '—'}\n"
+        f"— Цель (target): {milestone.get('target') or '—'}\n"
+        f"— Дедлайн: {milestone.get('deadline') or '—'}; период измерения: {milestone.get('period') or '—'}\n"
+        f"— Источник данных: {milestone.get('dataSource') or '—'}\n\n"
+        "S — конкретность, M — измеримость (число/метрика), A — достижимость, "
+        "R — связь с бизнес-целью, T — ограниченность во времени.\n"
+        "Верни только JSON без Markdown:\n"
+        '{"S": true, "M": true, "A": true, "R": true, "T": true,'
+        ' "feedback": "1-3 коротких совета, как улучшить формулировку (или «Критерий соответствует SMART»)"}'
+    )
+    raw = _chat(prompt, max_tokens=400, extra_terms={"project": [milestone.get("name") or ""]},
+                action="ai.contract_smart")
+    data = _json_or_raise(raw)
+    out = {k: bool(data.get(k)) for k in ("S", "M", "A", "R", "T")}
+    out["valid"] = all(out.values())
+    out["feedback"] = str(data.get("feedback") or "").strip()
+    return out
+
+
+def contract_summary(contract: dict) -> str:
+    """Резюме контракта для согласующих (3-5 предложений)."""
+    ms = "\n".join(
+        f"  • {m.get('name')}: {m.get('rewardRub') or 0} ₽, до {m.get('deadline') or '—'}; критерий — {m.get('criteria') or '—'}"
+        for m in contract.get("milestones") or []
+    ) or "  —"
+    if contract.get("scType") == "leadership":
+        money = (
+            f"Оклад {contract.get('fixedSalaryMonthly') or 0} ₽/мес, переменная часть "
+            f"{contract.get('variableTotal') or 0} ₽ за период (0 — без премии)."
+        )
+    else:
+        money = (
+            f"Курс Coin {contract.get('navRate') or '—'} ₽; участников: {len(contract.get('team') or [])}."
+        )
+    prompt = (
+        f"Сделай резюме {_contract_kind(contract.get('scType') or 'smart')} для согласующих "
+        "(C&B, заказчик, казначей, финансовый директор): 3-5 предложений — суть, деньги, "
+        "ключевые этапы и риски формулировок критериев. Без Markdown.\n"
+        f"— Название: {contract.get('name') or '—'}\n"
+        f"— Бизнес-юнит: {contract.get('businessUnit') or '—'}\n"
+        f"— Описание: {contract.get('shortDescription') or '—'}\n"
+        f"— Бизнес-эффект: {contract.get('businessEffect') or '—'}\n"
+        f"— Дедлайн: {contract.get('deadline') or '—'}\n"
+        f"— {money}\n"
+        f"— Этапы:\n{ms}\n"
+    )
+    return _chat(prompt, max_tokens=600, extra_terms={"project": [contract.get("name") or ""]},
+                 action="ai.contract_summary").strip()
+
+
+def arbitrate_milestone(contract_name: str, milestone: dict, dispute: str) -> dict:
+    """AI-арбитраж спора по этапу. -> {decision, payout_percent, reasoning}"""
+    prompt = (
+        "Ты — нейтральный арбитр спора по выполнению этапа контракта с вознаграждением.\n"
+        f"— Контракт: {contract_name or '—'}\n"
+        f"— Этап: {milestone.get('name') or '—'}\n"
+        f"— Критерий успеха: {milestone.get('criteria') or '—'}\n"
+        f"— Было: {milestone.get('baseline') or '—'}; цель: {milestone.get('target') or '—'}\n"
+        f"— Источник данных: {milestone.get('dataSource') or '—'}\n"
+        f"— Суть спора и доводы сторон: {dispute or '—'}\n\n"
+        "Оцени, выполнен ли критерий, по формулировке и доводам. Если данных недостаточно — "
+        "так и скажи и порекомендуй, какие данные запросить. Решение носит рекомендательный "
+        "характер, окончательное решение — за куратором/CFO.\n"
+        "Верни только JSON без Markdown:\n"
+        '{"decision": "pay|partial|reject|need_data", "payout_percent": 0,'
+        ' "reasoning": "3-6 предложений с обоснованием"}'
+    )
+    raw = _chat(prompt, max_tokens=700, extra_terms={"project": [contract_name or ""]},
+                action="ai.contract_arbitration")
+    data = _json_or_raise(raw)
+    decision = str(data.get("decision") or "need_data")
+    if decision not in ("pay", "partial", "reject", "need_data"):
+        decision = "need_data"
+    try:
+        pct = max(0, min(100, int(float(data.get("payout_percent") or 0))))
+    except (TypeError, ValueError):
+        pct = 0
+    if decision == "pay":
+        pct = 100
+    elif decision in ("reject", "need_data"):
+        pct = 0
+    return {"decision": decision, "payout_percent": pct, "reasoning": str(data.get("reasoning") or "").strip()}

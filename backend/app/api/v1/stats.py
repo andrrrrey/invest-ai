@@ -12,6 +12,7 @@ router = APIRouter(prefix="/stats", tags=["stats"])
 @router.get("/")
 def get_stats(
     project_type: str | None = None,
+    sc_type: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -21,4 +22,6 @@ def get_stats(
     When project_type is provided, stats are scoped to that type
     (used by the smart-contracts dashboard).
     """
-    return portfolio_service.compute_stats(db, project_type=project_type, user=current_user)
+    return portfolio_service.compute_stats(
+        db, project_type=project_type, user=current_user, sc_type=sc_type
+    )
