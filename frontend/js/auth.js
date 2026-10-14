@@ -52,6 +52,26 @@ function getUserAvatar() { return localStorage.getItem('invest_avatar') || ''; }
 
 function isLoggedIn() { return !!getToken(); }
 
+/** Роли согласования текущего пользователя (cb, treasurer, cfo, lawyer, ceo). */
+function getApprovalRoles() {
+    try { return JSON.parse(localStorage.getItem('invest_approval_roles') || '[]'); }
+    catch (e) { return []; }
+}
+function hasApprovalRole(role) { return getApprovalRoles().includes(role); }
+
+/** Обновить роли согласования из API (кэш в localStorage для меню). */
+async function refreshApprovalRoles() {
+    if (!isLoggedIn()) return [];
+    try {
+        const res = await authFetch('/api/v1/approval-roles/me');
+        if (!res.ok) return getApprovalRoles();
+        const data = await res.json();
+        localStorage.setItem('invest_approval_roles', JSON.stringify(data.roles || []));
+        document.dispatchEvent(new CustomEvent('approval-roles-updated'));
+        return data.roles || [];
+    } catch (e) { return getApprovalRoles(); }
+}
+
 /** Save login result from /api/v1/auth/token response. */
 function saveAuth(data) {
     localStorage.setItem('invest_token',   data.access_token);
@@ -74,6 +94,7 @@ function logout() {
     localStorage.removeItem('invest_role');
     localStorage.removeItem('invest_name');
     localStorage.removeItem('invest_avatar');
+    localStorage.removeItem('invest_approval_roles');
     window.location.href = '/login';
 }
 
@@ -192,6 +213,7 @@ function patchSidebar() {
     // лидерские контракты. Статичная ссылка /smart-contracts есть на каждой
     // странице; здесь добавляем заголовок группы и ссылку на лидерские.
     patchContractsNav();
+    refreshApprovalRoles();
 
     // Inject collapse toggle button as sibling of sidebar (outside sidebar's overflow)
     const sidebar = document.getElementById('sidebar');

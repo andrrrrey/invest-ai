@@ -452,3 +452,28 @@ def set_embedding_model(model: str) -> None:
 
 def get_all() -> dict:
     return _load()
+
+
+# ── Роли согласования контрактов и приказов ──────────────────────────────
+# Назначение конкретных сотрудников (user_id) на роли маршрутов согласования:
+# cb — C&B, treasurer — казначей системы Coin, cfo — финансовый директор,
+# lawyer — юрист, ceo — CEO. Основная роль пользователя (ceo/cfo/manager/owner)
+# при этом не меняется.
+
+def get_approval_roles() -> dict:
+    raw = _load().get("approval_roles") or {}
+    out = {}
+    for key, val in raw.items():
+        try:
+            out[key] = int(val) if val not in (None, "") else None
+        except (TypeError, ValueError):
+            out[key] = None
+    return out
+
+
+def set_approval_roles(roles: dict) -> None:
+    data = _load()
+    current = data.get("approval_roles") or {}
+    current.update(roles)
+    data["approval_roles"] = current
+    _save(data)
