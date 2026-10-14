@@ -345,6 +345,7 @@
                                             <div><div class="lbl">Источник данных</div><div x-text="ms.dataSource"></div></div>
                                             <div x-show="ms.stopLoss"><div class="lbl">Стоп-лосс</div><div x-text="ms.stopLoss"></div></div>
                                         </div>
+                                        <div class="lbl" style="margin-top:10px" x-show="ms.verifiedBy" x-text="'Выполнение подтвердил: ' + ms.verifiedBy"></div>
                                         <div class="ms-actions" x-show="canVerify && contract.status === 'approved' && ['pending','in_progress','verify'].includes(ms.status)">
                                             <button class="mini ok" @click.stop="verifyMilestone(idx, true)"><i class="fas fa-check"></i> Подтвердить выполнение</button>
                                             <button class="mini bad" @click.stop="verifyMilestone(idx, false)"><i class="fas fa-triangle-exclamation"></i> Открыть спор</button>
@@ -473,14 +474,22 @@
                     <div class="dispute-block">
                         <p style="font-size:13px;font-weight:700;color:#CC2A22;margin-bottom:8px"><i class="fas fa-exclamation-circle"></i> Активный спор по этапу</p>
                         <p style="font-size:12px;color:#7A1010;line-height:1.5;margin-bottom:12px" x-text="contract.disputeDescription"></p>
-                        <button class="mini bad" @click="startArbitation()" :disabled="arbitrating">
-                            <i class="fas" :class="arbitrating ? 'fa-spinner fa-spin' : 'fa-balance-scale'"></i> Запустить AI-арбитраж
-                        </button>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+                            <button class="mini bad" @click="startArbitation()" :disabled="arbitrating">
+                                <i class="fas" :class="arbitrating ? 'fa-spinner fa-spin' : 'fa-balance-scale'"></i> Запустить AI-арбитраж
+                            </button>
+                            <template x-if="canVerify">
+                                <button class="mini ok" @click="verifyMilestone(contract.disputedIndex, true)"><i class="fas fa-check"></i> Подтвердить выполнение</button>
+                            </template>
+                            <template x-if="canVerify">
+                                <button class="mini" style="background:#EEF0FF;color:var(--accent)" @click="reopenMilestone(contract.disputedIndex)"><i class="fas fa-rotate-left"></i> Вернуть в работу</button>
+                            </template>
+                        </div>
                     </div>
                 </template>
                 <template x-if="arbitrationResult">
                     <div class="card-block" style="background:#F5F4FF;border:1.5px solid #C7C9FF">
-                        <div class="block-title" style="color:var(--accent)"><i class="fas fa-balance-scale"></i> Решение AI-арбитража</div>
+                        <div class="block-title" style="color:var(--accent)"><i class="fas fa-balance-scale"></i> AI-арбитраж</div>
                         <p style="font-size:13px;color:#333;line-height:1.6;white-space:pre-line" x-text="arbitrationResult"></p>
                     </div>
                 </template>
@@ -749,6 +758,9 @@ function scView() {
                     stopLoss: m.stopLoss || '',
                     smartValid: !!m.smartValid,
                     status: m.status || 'pending',
+                    disputeNote: m.disputeNote || '',
+                    arbitration: m.arbitration || null,
+                    verifiedBy: m.verifiedBy || '',
                     open: !!prevOpen[i],
                 }));
                 const team = (scd.team || []).map(t => ({
@@ -793,8 +805,11 @@ function scView() {
                     userId: p.user_id,
                     createdById: p.created_by_id,
                 };
-                const disputeNote = disputedIndex >= 0 ? ((scd.milestones || [])[disputedIndex] || {}).disputeNote : '';
-                if (disputeNote) this.contract.disputeDescription = disputeNote;
+                const disputed = disputedIndex >= 0 ? milestones[disputedIndex] : null;
+                if (disputed && disputed.disputeNote) {
+                    this.contract.disputeDescription = `Спор по этапу «${disputed.name}»: ${disputed.disputeNote}`;
+                }
+                this.arbitrationResult = disputed && disputed.arbitration ? this.arbitrationText(disputed.arbitration) : '';
                 this.notFound = false;
             } catch (e) {
                 if (e.message !== 'Unauthorized') this.notFound = true;
@@ -890,24 +905,62 @@ function scView() {
             return { pending: 'Ожидает', in_progress: 'Выполняется', verify: 'На верификации', paid: 'Выполнен', achieved: 'Выполнен', disputed: 'Спор', failed: 'Не выполнен' }[s] || s;
         },
 
-        // Подтверждение выполнения / спор по этапу (реализация сохранения — п.10 КП)
-        verifyMilestone(idx, approved) {
-            if (approved) {
-                this.contract.milestones[idx].status = 'paid';
-            } else {
-                this.contract.milestones[idx].status = 'disputed';
-                this.contract.hasDispute = true;
-                this.contract.disputedIndex = idx;
-                this.contract.disputeDescription = `Спор по этапу «${this.contract.milestones[idx].name}»: выполнение критериев не подтверждено.`;
+        // Подтверждение выполнения / спор по этапу — сохраняется в контракте
+        async verifyMilestone(idx, approved) {
+            let note = null;
+            if (!approved) {
+                note = prompt('Опишите суть спора: что не выполнено и какие данные есть у сторон');
+                if (note === null) return;
+            } else if (!confirm('Подтвердить выполнение этапа «' + this.contract.milestones[idx].name + '»?')) {
+                return;
             }
+            try {
+                const res = await authFetch(`/api/v1/projects/${this.projectId}/milestones/${idx}/status`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ status: approved ? 'paid' : 'disputed', note }),
+                });
+                if (!res.ok) {
+                    const e = await res.json().catch(() => ({}));
+                    alert(e.detail || 'Не удалось сохранить');
+                    return;
+                }
+                await this.loadContract(this.projectId, { silent: true });
+                window.dispatchEvent(new CustomEvent('route-updated'));
+            } catch (e) { if (e.message !== 'Unauthorized') alert('Ошибка: ' + e.message); }
+        },
+
+        async reopenMilestone(idx) {
+            try {
+                const res = await authFetch(`/api/v1/projects/${this.projectId}/milestones/${idx}/status`, {
+                    method: 'PATCH', body: JSON.stringify({ status: 'in_progress' }),
+                });
+                if (res.ok) await this.loadContract(this.projectId, { silent: true });
+            } catch (e) {}
         },
 
         async startArbitation() {
+            const idx = this.contract.disputedIndex;
+            if (idx == null || idx < 0) return;
             this.arbitrating = true;
-            await new Promise(r => setTimeout(r, 1200));
-            const ms = this.contract.milestones[this.contract.disputedIndex];
-            this.arbitrationResult = `AI-арбитраж по этапу «${ms?.name || '—'}» будет доступен после подключения AI.`;
-            this.arbitrating = false;
+            this.arbitrationResult = '';
+            try {
+                const res = await authFetch(`/api/v1/projects/${this.projectId}/milestones/${idx}/arbitration`, {
+                    method: 'POST', body: JSON.stringify({}),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) { this.arbitrationResult = 'AI-арбитраж недоступен: ' + (data.detail || 'ошибка'); return; }
+                await this.loadContract(this.projectId, { silent: true });
+            } catch (e) {
+                if (e.message !== 'Unauthorized') this.arbitrationResult = 'AI-арбитраж недоступен: ' + e.message;
+            } finally {
+                this.arbitrating = false;
+            }
+        },
+
+        arbitrationText(a) {
+            if (!a) return '';
+            const verdict = { pay: 'выплатить полностью', partial: 'выплатить частично', reject: 'не выплачивать', need_data: 'нужны дополнительные данные' }[a.decision] || a.decision;
+            return `Рекомендация: ${verdict}` + (a.decision === 'partial' ? ` (${a.payout_percent}%)` : '') + `.\n\n${a.reasoning}\n\nРешение рекомендательное — окончательное решение принимает куратор / CFO.`;
         },
     };
 }

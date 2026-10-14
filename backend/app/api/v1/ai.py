@@ -137,3 +137,55 @@ def _build_budget_summary(budget_rows: list, num_years: int) -> str:
     summary += f"\nИТОГО за период: {grand_total:,.0f} ₽"
     summary += f"\nСреднемесячно: {monthly_avg:,.0f} ₽/мес"
     return summary
+
+
+# ── AI-помощник смарт- и лидерских контрактов ──────────────────────────────
+
+class ContractDescriptionRequest(BaseModel):
+    name: str = ""
+    business_unit: str = ""
+    sc_type: str = "smart"
+    context: str = ""
+    milestones: list = []
+
+
+class SmartCheckRequest(BaseModel):
+    milestone: dict
+    sc_type: str = "smart"
+
+
+class ContractSummaryRequest(BaseModel):
+    contract: dict
+
+
+def _ai_error(exc: Exception) -> HTTPException:
+    return HTTPException(status_code=502, detail=f"AI-ассистент не ответил: {type(exc).__name__}. Попробуйте ещё раз.")
+
+
+@router.post("/contract/description")
+def contract_description(req: ContractDescriptionRequest, _=Depends(get_current_user)) -> dict:
+    _check_api_key()
+    try:
+        return ai_service.generate_contract_description(
+            req.name, req.business_unit, req.sc_type, req.context, req.milestones
+        )
+    except Exception as exc:
+        raise _ai_error(exc)
+
+
+@router.post("/contract/smart-check")
+def contract_smart_check(req: SmartCheckRequest, _=Depends(get_current_user)) -> dict:
+    _check_api_key()
+    try:
+        return ai_service.check_smart(req.milestone, req.sc_type)
+    except Exception as exc:
+        raise _ai_error(exc)
+
+
+@router.post("/contract/summary")
+def contract_summary(req: ContractSummaryRequest, _=Depends(get_current_user)) -> dict:
+    _check_api_key()
+    try:
+        return {"summary": ai_service.contract_summary(req.contract)}
+    except Exception as exc:
+        raise _ai_error(exc)

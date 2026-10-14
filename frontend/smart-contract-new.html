@@ -281,11 +281,12 @@
                     <textarea x-model="form.shortDescription" rows="6" style="width:100%;resize:vertical"
                         placeholder="Опишите инициативу, её суть и предполагаемые изменения..."></textarea>
                     <button class="btn-ai" style="position:absolute;bottom:10px;right:10px"
-                        @click="mockGptDescription()" :disabled="gptLoading">
+                        @click="generateDescription()" :disabled="gptLoading">
                         <i class="fas fa-wand-magic-sparkles"></i>
                         <span x-text="gptLoading ? 'Генерируем...' : 'Сформулировать с AI-ассистентом'"></span>
                     </button>
                 </div>
+                <span class="hint" style="color:var(--danger)" x-show="gptError" x-text="gptError"></span>
             </div>
 
             <div class="field">
@@ -933,8 +934,9 @@
                     </button>
                 </div>
                 <template x-if="aiSummary">
-                    <p style="font-size:13px;line-height:1.6;color:#333" x-text="aiSummary"></p>
+                    <p style="font-size:13px;line-height:1.6;color:#333;white-space:pre-line" x-text="aiSummary"></p>
                 </template>
+                <p class="hint" style="color:#B05E00;margin-top:6px" x-show="aiSummaryError" x-text="aiSummaryError"></p>
                 <template x-if="!aiSummary">
                     <p style="font-size:12px;color:var(--muted);font-style:italic">
                         Нажмите «Сформировать резюме» — AI-ассистент подготовит описание контракта для финансового блока.
@@ -1031,6 +1033,8 @@ function scWizard() {
         _docFiles: [],
         gptLoading: false,
         aiSummaryLoading: false,
+        aiSummaryError: '',
+        gptError: '',
         aiSummary: '',
         submitted: false,
 
@@ -1529,43 +1533,67 @@ function scWizard() {
             ms.smartFeedback = '';
         },
 
+        // SMART-проверка критерия: AI-ассистент; если AI выключен или не ответил —
+        // локальная эвристическая проверка (с пометкой).
         async validateSmart(idx) {
             const ms = this.milestones[idx];
             if (!ms.criteria) return;
             ms.validating = true;
             ms.smartFeedback = '';
-            await new Promise(r => setTimeout(r, 1400));
-            const text = ms.criteria.toLowerCase();
-            // Mock SMART validation logic
-            const hasNum = /[0-9]+\s*(%|шт|тик|ticket|ч\b|час|мин|min|sec|сек|руб|₽|coin)/.test(text);
-            const hasPeriod = /(дней|день|неделя|месяц|days?|weeks?|months?|за\s+\d+|в течение|continuously|\d+\s+д\b)/.test(text);
-            const hasAction = /(развёрн|deploy|обработ|запущ|работ|автомат|достиг|достичь|выполнен|обеспечен)/.test(text);
-            const hasBaseline = ms.baseline && ms.baseline.length > 3;
-            const hasRelevance = /(экономи|savings?|lead time|revenue|выручк|fot|фот|эффективн|улучш|сокращ|снижен)/.test(text);
-
-            ms.smart.S = hasAction || text.length > 40;
-            ms.smart.M = hasNum;
-            ms.smart.A = hasBaseline || text.length > 60;
-            ms.smart.R = hasRelevance || (ms.target && ms.target.length > 3);
-            ms.smart.T = hasPeriod;
-
-            const passed = Object.values(ms.smart).filter(Boolean).length;
-            ms.smartValid = passed === 5;
-
-            if (ms.smartValid) {
-                ms.smartFeedback = '✅ Критерий соответствует всем требованиям SMART. AI-ассистент подтверждает: milestone готов к согласованию.';
-            } else {
-                const failed = Object.entries(ms.smart).filter(([,v]) => !v).map(([k]) => k);
-                const hints = {
-                    S: 'S — добавьте конкретное действие или результат',
-                    M: 'M — укажите числовой порог (%, количество, время)',
-                    A: 'A — укажите baseline и реалистичную цель',
-                    R: 'R — свяжите критерий с бизнес-результатом компании',
-                    T: 'T — укажите дедлайн или период измерения',
-                };
-                ms.smartFeedback = '⚠️ Требуется доработка: ' + failed.map(l => hints[l]).join('; ') + '.';
+            try {
+                const res = await authFetch('/api/v1/ai/contract/smart-check', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        sc_type: this.form.scType,
+                        milestone: {
+                            name: ms.name, criteria: ms.criteria, baseline: ms.baseline, target: ms.target,
+                            deadline: ms.deadline, period: ms.period, dataSource: ms.dataSource,
+                        },
+                    }),
+                });
+                if (res.ok) {
+                    const r = await res.json();
+                    ms.smart = { S: r.S, M: r.M, A: r.A, R: r.R, T: r.T };
+                    ms.smartValid = !!r.valid;
+                    ms.smartFeedback = (r.valid ? '✅ ' : '⚠️ ') + (r.feedback || (r.valid ? 'Критерий соответствует SMART.' : 'Требуется доработка.'));
+                    return;
+                }
+                const err = await res.json().catch(() => ({}));
+                this._localSmart(ms, err.detail);
+            } catch (e) {
+                if (e.message !== 'Unauthorized') this._localSmart(ms, 'AI-ассистент недоступен');
+            } finally {
+                ms.validating = false;
             }
-            ms.validating = false;
+        },
+
+        _localSmart(ms, reason) {
+            const text = ms.criteria.toLowerCase();
+            const hasNum = /[0-9]+\s*(%|шт|тик|ticket|ч\b|час|мин|min|sec|сек|руб|₽|coin)/.test(text) || /[0-9]/.test(text);
+            const hasPeriod = /(дней|день|недел|месяц|квартал|days?|weeks?|months?|за\s+\d+|в течение|к\s+\d|до\s+\d|\d+\s+д\b)/.test(text) || !!ms.deadline;
+            const hasAction = /(развёрн|развернуть|deploy|обработ|запущ|работ|автомат|достиг|достичь|выполн|обеспеч|сократ|снизить|увелич)/.test(text);
+            const hasBaseline = ms.baseline && ms.baseline.length > 1;
+            const hasRelevance = /(экономи|savings?|lead time|revenue|выручк|фот|эффективн|улучш|сокращ|снижен|рост)/.test(text);
+            ms.smart = {
+                S: hasAction || text.length > 40,
+                M: hasNum,
+                A: hasBaseline || text.length > 60,
+                R: hasRelevance || !!(ms.target && ms.target.length > 1),
+                T: hasPeriod,
+            };
+            ms.smartValid = Object.values(ms.smart).every(Boolean);
+            const hints = {
+                S: 'S — добавьте конкретное действие или результат',
+                M: 'M — укажите числовой порог (%, количество, время)',
+                A: 'A — укажите baseline и реалистичную цель',
+                R: 'R — свяжите критерий с бизнес-результатом компании',
+                T: 'T — укажите дедлайн или период измерения',
+            };
+            const failed = Object.entries(ms.smart).filter(([, v]) => !v).map(([k]) => hints[k]);
+            const prefix = reason ? `(${reason} — выполнена базовая проверка) ` : '';
+            ms.smartFeedback = ms.smartValid
+                ? '✅ ' + prefix + 'Критерий соответствует требованиям SMART.'
+                : '⚠️ ' + prefix + 'Требуется доработка: ' + failed.join('; ') + '.';
         },
 
         allSmartValid() {
@@ -1588,31 +1616,64 @@ function scWizard() {
             return this.milestones.reduce((s, m) => s + (m.coins || 0), 0) - this.totalCoins();
         },
 
-        async mockGptDescription() {
+        async generateDescription() {
             this.gptLoading = true;
-            await new Promise(r => setTimeout(r, 1600));
-            if (!this.form.shortDescription) {
-                this.form.shortDescription = `${this.form.name || 'Контракт'} направлен на автоматизацию ключевых операционных процессов с помощью AI-агентов. Инициатива предполагает развёртывание решения в продуктивной среде и поэтапную передачу рутинных операций под управление агента.`;
+            this.gptError = '';
+            try {
+                const res = await authFetch('/api/v1/ai/contract/description', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        name: this.form.name, business_unit: this.form.businessUnit, sc_type: this.form.scType,
+                        context: [this.form.shortDescription, this.form.businessEffect].filter(Boolean).join('\n'),
+                        milestones: this.milestones.map(m => ({ name: m.name, criteria: m.criteria })),
+                    }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) { this.gptError = data.detail || 'AI-ассистент недоступен'; return; }
+                // Пустые поля заполняем, заполненные — только с подтверждения
+                const replace = (!this.form.shortDescription && !this.form.businessEffect)
+                    || confirm('Заменить текущие описание и бизнес-эффект вариантом AI-ассистента?');
+                if (!replace) return;
+                if (data.shortDescription) this.form.shortDescription = data.shortDescription;
+                if (data.businessEffect) this.form.businessEffect = data.businessEffect;
+            } catch (e) {
+                if (e.message !== 'Unauthorized') this.gptError = 'AI-ассистент недоступен';
+            } finally {
+                this.gptLoading = false;
             }
-            if (!this.form.businessEffect) {
-                this.form.businessEffect = `Сокращение ручного труда команды на ≥40%, снижение lead time обработки задач, высвобождение инженерного времени для продуктовых задач, повышение качества и предсказуемости процессов.`;
-            }
-            this.gptLoading = false;
         },
 
         async generateAiSummary() {
             this.aiSummaryLoading = true;
-            await new Promise(r => setTimeout(r, 2000));
+            this.aiSummaryError = '';
+            try {
+                const p = this.buildPayload();
+                const res = await authFetch('/api/v1/ai/contract/summary', {
+                    method: 'POST',
+                    body: JSON.stringify({ contract: { ...p.smart_contract_data, name: p.name, businessUnit: p.business_unit } }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok && data.summary) { this.aiSummary = data.summary; return; }
+                this.aiSummaryError = (data.detail || 'AI-ассистент недоступен') + ' — сформировано автоматическое резюме.';
+            } catch (e) {
+                if (e.message === 'Unauthorized') return;
+                this.aiSummaryError = 'AI-ассистент недоступен — сформировано автоматическое резюме.';
+            } finally {
+                if (!this.aiSummary || this.aiSummaryError) this.aiSummary = this._templateSummary();
+                this.aiSummaryLoading = false;
+            }
+        },
+
+        // Резюме по шаблону — когда AI выключен или не ответил
+        _templateSummary() {
+            const owner = (this.directory.find(u => u.id === this.form.ownerUserId) || {}).full_name || this.userName;
             if (this.isLeadership) {
                 const t = this.leadershipTotals();
-                this.aiSummary = `Лидерский контракт «${this.form.name || 'Контракт'}» (${this.form.businessUnit || 'бизнес-юнит не указан'}) для ${this.userName}. Куратор: ${this.form.curator || 'не назначен'}. Дедлайн: ${this.form.deadline || 'не указан'}.\n\nСтруктура дохода (только рубли, без coins): оклад ${(this.form.fixedSalaryMonthly||0).toLocaleString('ru-RU')} ₽/мес, целевая переменная часть за период — ${(this.form.variableTotal||0).toLocaleString('ru-RU')} ₽. Распределено по ${this.milestones.length} milestone(s): ${t.totalBonus.toLocaleString('ru-RU')} ₽ премий. Итого за ${t.numMonths} мес.: ${t.grand.toLocaleString('ru-RU')} ₽ (оклад ${t.totalSalary.toLocaleString('ru-RU')} ₽ + премии ${t.totalBonus.toLocaleString('ru-RU')} ₽). Среднемесячный доход — ${t.avgMonthly.toLocaleString('ru-RU')} ₽.\n\nПремия по milestone выплачивается только при достижении в срок; при двух milestone в месяце и достижении одного — пропорциональная часть. Ожидаемый эффект: ${this.form.businessEffect ? this.form.businessEffect.substring(0, 140) + '...' : 'не указан'}.\n\nРекомендация AI-ассистента: контракт готов к согласованию финансовым блоком.`;
-                this.aiSummaryLoading = false;
-                return;
+                return `Лидерский контракт «${this.form.name || 'Контракт'}» (${this.form.businessUnit || 'бизнес-юнит не указан'}), ответственный — ${owner}. Куратор: ${this.form.curator || 'не назначен'}. Дедлайн: ${this.form.deadline || 'не указан'}.\n\nОклад ${(this.form.fixedSalaryMonthly || 0).toLocaleString('ru-RU')} ₽/мес` + (this.form.variableTotal > 0 ? `, переменная часть за период — ${this.form.variableTotal.toLocaleString('ru-RU')} ₽ (распределено по этапам: ${t.totalBonus.toLocaleString('ru-RU')} ₽).` : ', без премии (только фиксированная часть).') + ` Итого за ${t.numMonths} мес.: ${t.grand.toLocaleString('ru-RU')} ₽.`;
             }
             const totalCoins = this.milestones.reduce((s, m) => s + (m.coins || 0), 0);
             const totalRub = this.milestones.reduce((s, m) => s + (m.rewardRub || 0), 0);
-            this.aiSummary = `Контракт «${this.form.name || 'Смарт-контракт'}» (${this.form.businessUnit || 'бизнес-юнит не указан'}) инициирован ${this.userName}. Куратор: ${this.form.curator || 'не назначен'}. Дедлайн: ${this.form.deadline || 'не указан'}.\n\nФормат: ${this.form.contractType === 'phased' ? 'поэтапный' : 'единый'} смарт-контракт с ${this.milestones.length} milestone(s), общая сумма вознаграждения — ${totalRub.toLocaleString('ru-RU')} ₽ (≈ ${totalCoins.toLocaleString('ru-RU')} coin по курсу NAV ${this.navRate}). ${this.smartPending().length === 0 ? 'Все критерии успеха прошли SMART-валидацию.' : ('Не все критерии прошли SMART-проверку (' + this.smartPending().join(', ') + ') — отправляется по решению лидера.')}\n\nОжидаемый эффект: ${this.form.businessEffect ? this.form.businessEffect.substring(0, 140) + '...' : 'не указан'}. Источники верификации: ${this.milestones.map(m => m.dataSource).filter(Boolean).join(', ') || 'не указаны'}.\n\n${this.form.needsRecruitment ? 'Состав участников будет сформирован после согласования. ' : ''}Рекомендация AI-ассистента: контракт готов к согласованию финансовым блоком. Риски — умеренные.`;
-            this.aiSummaryLoading = false;
+            return `Смарт-контракт «${this.form.name || 'Контракт'}» (${this.form.businessUnit || 'бизнес-юнит не указан'}), ответственный — ${owner}. Куратор: ${this.form.curator || 'не назначен'}. Дедлайн: ${this.form.deadline || 'не указан'}.\n\n${this.milestones.length} этап(ов), вознаграждение ${totalRub.toLocaleString('ru-RU')} ₽ ≈ ${totalCoins.toLocaleString('ru-RU')} Coin по курсу ${this.navRate} ₽. ${this.smartPending().length === 0 ? 'Все критерии прошли SMART-проверку.' : 'Не все критерии прошли SMART-проверку: ' + this.smartPending().join(', ') + '.'}`;
         },
 
         async submitContract() {

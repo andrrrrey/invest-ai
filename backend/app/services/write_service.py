@@ -93,6 +93,8 @@ def update_milestone_status(
     *,
     actor_type: str = "user",
     actor_id: Optional[str] = None,
+    extra: Optional[dict] = None,
+    actor_name: Optional[str] = None,
 ) -> dict:
     """Персистентно изменить статус майлстоуна смарт-контракта.
 
@@ -115,9 +117,20 @@ def update_milestone_status(
     milestone = dict(milestones[index])
     old_status = milestone.get("status")
     milestone["status"] = new_status
+    if extra:
+        milestone.update({k: v for k, v in extra.items() if v is not None})
+    if new_status == "paid":
+        milestone["verifiedBy"] = actor_name
+        milestone["verifiedAt"] = __import__("datetime").datetime.utcnow().isoformat()
     milestones[index] = milestone
     scd["milestones"] = milestones
     project.smart_contract_data = scd  # переприсваиваем, чтобы ORM увидел мутацию JSON
+    if old_status != new_status:
+        from . import change_log
+        change_log.log(db, project_id, int(actor_id) if (actor_id or "").isdigit() and actor_type == "user" else None,
+                       f"milestones[{index}].status",
+                       f"Статус этапа «{milestone.get('name') or milestone.get('title') or index + 1}»",
+                       old_status, new_status)
     db.commit()
 
     audit_service.log_event(
