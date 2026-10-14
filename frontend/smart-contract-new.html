@@ -354,9 +354,9 @@
                             <input type="number" x-model.number="form.fixedSalaryMonthly" placeholder="500000" min="0">
                         </div>
                         <div class="field">
-                            <label>Желаемая переменная часть за весь период, ₽ <span style="color:var(--danger)">*</span></label>
-                            <input type="number" x-model.number="form.variableTotal" placeholder="2200000" min="0">
-                            <span class="hint">Целевой бонусный фонд за период</span>
+                            <label>Желаемая переменная часть (премия) за весь период, ₽ <span class="hint" style="font-weight:600;text-transform:none">— необязательно</span></label>
+                            <input type="number" x-model.number="form.variableTotal" placeholder="0 — только фиксированная часть" min="0">
+                            <span class="hint">Целевой бонусный фонд за период. Оставьте 0, если контракт только с фиксом.</span>
                         </div>
                     </div>
                 </div>
@@ -442,7 +442,7 @@
                             <input type="text" x-model="ms.period" placeholder="напр.: 14 дней / 30 дней">
                         </div>
                         <div class="field">
-                            <label x-text="isLeadership ? 'Премиальная часть (руб.)' : 'Сумма вознаграждения (руб.)'"></label>
+                            <label x-text="isLeadership ? 'Премиальная часть (руб., необязательно)' : 'Сумма вознаграждения (руб.)'"></label>
                             <input type="number" x-model.number="ms.rewardRub" @input="recalcCoins(idx)" placeholder="1500000" min="0">
                             <span class="hint" x-show="!isLeadership">≈ <b x-text="(ms.coins||0).toLocaleString('ru-RU')"></b> coin по курсу NAV <span x-text="navRate"></span></span>
                             <span class="hint" x-show="isLeadership">Премия выплачивается при достижении milestone в срок</span>
@@ -768,7 +768,7 @@
                         </div>
                         <div class="summary-row">
                             <span class="lbl">Целевая переменная часть</span>
-                            <span class="val" x-text="(form.variableTotal||0).toLocaleString('ru-RU') + ' ₽ за период'"></span>
+                            <span class="val" x-text="form.variableTotal > 0 ? form.variableTotal.toLocaleString('ru-RU') + ' ₽ за период' : 'нет — только фиксированная часть'"></span>
                         </div>
                     </div>
                 </template>
@@ -1284,7 +1284,7 @@ function scWizard() {
         milestonesValid() {
             // SMART больше не блокирует: это рекомендация (см. smartRecommendation()).
             return this.milestones.length > 0 && this.milestones.every(m =>
-                m.name && m.deadline && (m.rewardRub > 0) && m.criteria && m.dataSource
+                m.name && m.deadline && (this.isLeadership || m.rewardRub > 0) && m.criteria && m.dataSource
             );
         },
 
@@ -1294,7 +1294,7 @@ function scWizard() {
                 const miss = [];
                 if (!m.name) miss.push('название');
                 if (!m.deadline) miss.push('дедлайн');
-                if (!(m.rewardRub > 0)) miss.push('сумму вознаграждения');
+                if (!this.isLeadership && !(m.rewardRub > 0)) miss.push('сумму вознаграждения');
                 if (!m.criteria) miss.push('критерий успеха');
                 if (!m.dataSource) miss.push('источник данных');
                 if (miss.length) probs.push(`Milestone ${i + 1}: ${miss.join(', ')}`);
@@ -1395,7 +1395,8 @@ function scWizard() {
             if (s === 1) return true; // Шаг «Тип контракта» — всегда выбран (дефолт smart)
             if (s === 2) {
                 const base = !!(this.form.name && this.form.businessUnit && this.form.shortDescription && this.form.businessEffect && this.form.deadline);
-                if (this.isLeadership) return base && (this.form.fixedSalaryMonthly > 0) && (this.form.variableTotal > 0);
+                // Премия в лидерском контракте необязательна: бывает «только фикс».
+                if (this.isLeadership) return base && (this.form.fixedSalaryMonthly > 0);
                 return base;
             }
             if (s === 3) return this.milestonesValid();
@@ -1566,8 +1567,8 @@ function scWizard() {
                 return;
             }
             if (this.isLeadership) {
-                if (!(this.form.fixedSalaryMonthly > 0) || !(this.form.variableTotal > 0)) {
-                    this.submitError = 'Укажите фиксированную и переменную части дохода на шаге «Суть»';
+                if (!(this.form.fixedSalaryMonthly > 0)) {
+                    this.submitError = 'Укажите фиксированную часть дохода (оклад) на шаге «Суть»';
                     this.goTo(2); return;
                 }
             } else if (!this.form.needsRecruitment && (this.team.filter(t => t.name).length === 0 || this.freeCoins() < 0)) {

@@ -403,7 +403,7 @@
                         <div class="block-title"><i class="fas fa-ruble-sign" style="color:var(--accent)"></i> Доход по месяцам</div>
                         <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;font-size:13px">
                             <span style="color:var(--muted)">Оклад: <b style="color:#1C1C1E" x-text="(contract.fixedSalaryMonthly||0).toLocaleString('ru-RU') + ' ₽/мес'"></b></span>
-                            <span style="color:var(--muted)">Целевая переменная: <b style="color:#1C1C1E" x-text="(contract.variableTotal||0).toLocaleString('ru-RU') + ' ₽'"></b></span>
+                            <span style="color:var(--muted)">Целевая переменная: <b style="color:#1C1C1E" x-text="contract.variableTotal > 0 ? contract.variableTotal.toLocaleString('ru-RU') + ' ₽' : 'без премии (только фикс)'"></b></span>
                         </div>
                         <div style="overflow-x:auto">
                             <table class="team-table">

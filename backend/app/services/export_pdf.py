@@ -591,7 +591,9 @@ def _render_smart_contract_detail(p: dict) -> str:
                 ("Фикс. оклад / мес.", _fmt(sc.get("fixedSalaryMonthly"), " ₽")),
                 ("Итого оклад", _fmt(lt.get("totalSalary"), " ₽")),
                 ("Итого премии", _fmt(lt.get("totalBonus"), " ₽")),
-                ("Переменная часть (цель)", _fmt(lt.get("variableTotal"), " ₽")),
+                ("Переменная часть (цель)",
+                 _fmt(sc.get("variableTotal"), " ₽") if float(sc.get("variableTotal") or 0) > 0
+                 else "без премии (только фикс)"),
                 ("Grand total", _fmt(lt.get("grand"), " ₽")),
                 ("Месяцев", _esc(lt.get("numMonths"))),
                 ("Средн. в месяц", _fmt(lt.get("avgMonthly"), " ₽")),
