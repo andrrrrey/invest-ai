@@ -69,17 +69,6 @@
         /* Progress bar */
         .progress-bar-wrap { background: #F2F2F7; border-radius: 99px; height: 8px; overflow: hidden; margin-top: 6px; }
         .progress-bar-fill { height: 100%; border-radius: 99px; background: var(--accent); transition: width .4s; }
-        /* Timeline */
-        .timeline { display: flex; flex-direction: column; gap: 0; }
-        .timeline-item { display: flex; gap: 14px; position: relative; }
-        .timeline-item:not(:last-child)::after { content:''; position: absolute; left: 15px; top: 34px; bottom: 0; width: 2px; background: #E5E5ED; z-index: 0; }
-        .timeline-dot { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; z-index: 1; }
-        .dot-done { background: #DDF0E1; color: #1A7A40; }
-        .dot-active { background: #F0EFFF; color: var(--accent); border: 2px solid var(--accent); }
-        .dot-pending { background: #F2F2F7; color: var(--muted); }
-        .timeline-content { padding-bottom: 20px; flex: 1; }
-        .timeline-content h4 { font-size: 13px; font-weight: 700; color: #1C1C1E; margin-bottom: 2px; }
-        .timeline-content p { font-size: 12px; color: var(--muted); line-height: 1.5; }
         /* SMART badges */
         .smart-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
         .smart-badge { padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; background: #DDF0E1; color: #1A7A40; }
@@ -116,6 +105,79 @@
         .sidebar.collapsed .nav-link { justify-content: center; padding: 14px 10px; gap: 0; font-size: 0; }
         .sidebar.collapsed .nav-link i { font-size: 18px; }
         @media (max-width: 992px) { .sidebar-toggle-btn { display: none; } }
+        [x-cloak] { display: none !important; }
+        .sc-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+        .sc-header h1 { font-size: 24px; font-weight: 800; margin: 4px 0 10px; line-height: 1.25; }
+        .crumbs { display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); }
+        .crumbs a { color: var(--muted); text-decoration: none; }
+        .crumbs a:hover { color: var(--accent); }
+        .pills { display: flex; gap: 8px; flex-wrap: wrap; }
+        .pill-lead { background: #FBECCB; color: #8A6D00; }
+        .pill-muted { background: #F2F2F7; color: var(--muted); }
+        .header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .hbtn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 12px; background: white; border: 1.5px solid #E5E5E5; font-size: 13px; font-weight: 600; color: #1C1C1E; text-decoration: none; cursor: pointer; font-family: inherit; white-space: nowrap; }
+        .hbtn:hover { border-color: var(--accent); color: var(--accent); }
+        .hbtn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+        .hbtn.primary:hover { color: white; opacity: .9; }
+        .hbtn:disabled { opacity: .6; cursor: not-allowed; }
+        .grid-layout { display: grid; grid-template-columns: minmax(0, 1fr) 370px; gap: 22px; align-items: start; }
+        .col-main, .col-side { display: flex; flex-direction: column; min-width: 0; }
+        .side-card .info-row .val { max-width: 60%; }
+        .side-actions { margin-top: 14px; }
+        .stack { display: flex; flex-direction: column; gap: 8px; }
+        .act { padding: 11px; border-radius: 12px; border: 1.5px solid #E5E5E5; background: white; font-weight: 700; cursor: pointer; font-size: 13px; font-family: inherit; }
+        .act.primary { background: var(--accent); border-color: var(--accent); color: white; }
+        .act.danger { background: #FF3B30; border-color: #FF3B30; color: white; }
+        .act.danger-soft { background: #FFE5E3; border-color: #FFCCC8; color: var(--danger); }
+        .status-msg { font-size: 12px; font-weight: 600; text-align: center; margin-top: 8px; }
+        .status-msg.ok { color: #1A7A40; } .status-msg.err { color: #CC2A22; }
+        .link-btn { background: none; border: none; color: var(--accent); font-weight: 700; font-size: 12px; cursor: pointer; font-family: inherit; text-transform: none; letter-spacing: 0; }
+        /* Этапы — компактные карточки */
+        .ms-list { display: flex; flex-direction: column; gap: 10px; }
+        .ms-card { border: 1.5px solid #EDEDF2; border-radius: 16px; background: #FCFCFD; transition: border-color .2s; }
+        .ms-card.open { border-color: #C7C6FF; background: white; }
+        .ms-head { display: flex; align-items: center; gap: 14px; padding: 14px 16px; cursor: pointer; }
+        .ms-title { flex: 1; min-width: 0; }
+        .ms-name { font-weight: 700; font-size: 14px; color: #1C1C1E; }
+        .ms-sub { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 3px; flex-wrap: wrap; }
+        .ms-amount { text-align: right; font-weight: 800; font-size: 14px; color: var(--accent); white-space: nowrap; }
+        .ms-coins { font-size: 11px; color: var(--muted); font-weight: 600; }
+        .ms-chev { color: #C7C7CC; transition: transform .2s; }
+        .ms-card.open .ms-chev { transform: rotate(180deg); }
+        .ms-body { padding: 0 16px 16px 54px; }
+        .ms-criteria { background: #F7F7FB; border-radius: 12px; padding: 12px 14px; font-size: 13px; line-height: 1.5; color: #333; }
+        .ms-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 12px; font-size: 13px; color: #1C1C1E; }
+        .lbl { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+        .ms-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+        .mini { padding: 7px 12px; border-radius: 10px; border: none; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
+        .mini.ok { background: #DDF0E1; color: #1A7A40; }
+        .mini.bad { background: #FFF0EF; color: #CC2A22; }
+        .mini:disabled { opacity: .6; }
+        /* Команда */
+        .team-grid { display: flex; flex-direction: column; gap: 10px; }
+        .member { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1.5px solid #EDEDF2; border-radius: 14px; }
+        .member .av { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: white; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .member .mname { font-weight: 700; font-size: 13px; }
+        .member .mrole { font-size: 12px; color: var(--muted); }
+        .member .mcoins { font-weight: 800; color: var(--accent); font-size: 14px; white-space: nowrap; }
+        .member .mshare { font-size: 11px; color: var(--muted); white-space: nowrap; }
+        .team-table tfoot td { padding: 12px; border-top: 2px solid #E5E5ED; }
+        .note { margin-top: 14px; background: #F8F7F3; border-radius: 12px; padding: 12px 14px; font-size: 13px; }
+        .text-block { margin-bottom: 18px; }
+        .text-block p { font-size: 14px; line-height: 1.65; color: #1C1C1E; white-space: pre-line; }
+        /* Блок согласования в правой колонке — вертикальный */
+        .col-side .route-steps { grid-template-columns: 1fr; gap: 8px; }
+        .col-side .route-step { padding: 10px 12px; border-left-width: 4px; }
+        .col-side .route-step .rs-hint { display: none; }
+        .col-side .route-step .rs-who { margin-top: 4px; }
+        .col-side .route-step .rs-badge { margin-top: 6px; }
+        .dispute-block { margin-bottom: 20px; }
+        @media (max-width: 1200px) { .grid-layout { grid-template-columns: 1fr; } }
+        @media (max-width: 700px) {
+            .ms-head { flex-wrap: wrap; }
+            .ms-body { padding-left: 16px; }
+            .kpi-row { grid-template-columns: 1fr 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -151,153 +213,324 @@
     <!-- Main content -->
     <main class="main-content">
 
-        <!-- Header -->
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:14px">
-            <div>
-                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px">
-                    <a :href="isLeadership ? '/leader-contracts' : '/smart-contracts'" style="font-size:13px;color:var(--muted);text-decoration:none">
-                        <i class="fas fa-arrow-left"></i> Контракты
-                    </a>
-                    <span style="color:#D0D0D7">/</span>
-                    <span style="font-size:13px;color:var(--muted)" x-text="isLeadership ? 'Лидерские контракты' : 'Смарт-контракты (Coin)'"></span>
+        <template x-if="loading">
+            <div class="card-block" style="text-align:center;color:var(--muted)"><i class="fas fa-spinner fa-spin"></i> Загрузка контракта…</div>
+        </template>
+        <template x-if="!loading && notFound">
+            <div class="card-block" style="text-align:center">
+                <i class="fas fa-file-circle-question" style="font-size:36px;color:#C7C7CC"></i>
+                <h2 style="font-size:18px;margin:12px 0 6px">Контракт не найден</h2>
+                <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Возможно, он удалён или у вас нет доступа.</p>
+                <a href="/smart-contracts" class="hbtn">К реестру контрактов</a>
+            </div>
+        </template>
+
+        <div x-show="!loading && !notFound" x-cloak>
+        <!-- ═══ Шапка ═══ -->
+        <header class="sc-header">
+            <div style="min-width:0">
+                <div class="crumbs">
+                    <a :href="isLeadership ? '/leader-contracts' : '/smart-contracts'"><i class="fas fa-arrow-left"></i> Контракты</a>
+                    <span>/</span>
+                    <span x-text="isLeadership ? 'Лидерские контракты' : 'Смарт-контракты (Coin)'"></span>
                 </div>
-                <h1 style="font-size:22px;font-weight:800" x-text="contract.name"></h1>
-                <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+                <h1 x-text="contract.name"></h1>
+                <div class="pills">
                     <span class="status-pill pill-coin" x-show="!isLeadership"><i class="fas fa-coins"></i> Смарт-контракт (Coin)</span>
-                    <span class="status-pill" x-show="isLeadership" style="background:#FBECCB;color:#8A6D00"><i class="fas fa-crown"></i> Лидерский контракт</span>
+                    <span class="status-pill pill-lead" x-show="isLeadership"><i class="fas fa-crown"></i> Лидерский контракт</span>
                     <span class="status-pill" :class="statusClass(contract.status)" x-text="statusLabel(contract.status)"></span>
-                    <span class="status-pill" style="background:#F2F2F7;color:var(--muted)" x-text="contract.contractType === 'phased' ? 'Поэтапный' : 'Единый'"></span>
+                    <span class="status-pill pill-muted" x-text="contract.contractType === 'phased' ? 'Поэтапный' : 'Единый'"></span>
+                    <span class="status-pill pill-muted" x-show="contract.businessUnit && contract.businessUnit !== '—'"><i class="fas fa-building"></i> <span x-text="contract.businessUnit"></span></span>
                 </div>
             </div>
-            <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-end">
-                <div style="display:flex;gap:10px">
-                    <a x-show="projectId && canEditDraft && ['draft','rework_needed'].includes(contract.status)"
-                       :href="'/smart-contract-new?id=' + projectId"
-                       style="display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:12px;background:var(--accent);border:1.5px solid var(--accent);font-size:13px;font-weight:700;color:white;text-decoration:none">
-                        <i class="fas fa-pen"></i> Редактировать
-                    </a>
-                    <a :href="'/smart-contract-new?type=' + (isLeadership ? 'leadership' : 'smart')" style="display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:12px;background:white;border:1.5px solid #E5E5E5;font-size:13px;font-weight:600;color:#1C1C1E;text-decoration:none">
-                        <i class="fas fa-plus"></i> Новый контракт
-                    </a>
+            <div class="header-actions" id="header-actions">
+                <a class="hbtn primary" x-show="canEditContract" :href="'/smart-contract-new?id=' + projectId"><i class="fas fa-pen"></i> Редактировать</a>
+                <a class="hbtn" :href="'/smart-contract-new?type=' + (isLeadership ? 'leadership' : 'smart')"><i class="fas fa-plus"></i> Новый контракт</a>
+            </div>
+        </header>
+
+        <!-- ═══ KPI ═══ -->
+        <section class="kpi-row">
+            <template x-if="!isLeadership">
+                <div class="kpi-card card-coin">
+                    <div class="kpi-label"><i class="fas fa-ruble-sign"></i> Вознаграждение</div>
+                    <div class="kpi-value" style="color:var(--accent)" x-text="fmtRub(totalRub())"></div>
+                    <div class="kpi-sub" x-text="contract.milestones.length + ' этап(ов)'"></div>
                 </div>
-
-                <!-- Действия со статусом -->
-                <div x-show="projectId && (canApprove || canEditDraft || contract.status === 'pending_approval')"
-                     style="display:flex;flex-direction:column;gap:8px;min-width:260px;background:white;border:1.5px solid #E5E5ED;border-radius:14px;padding:14px">
-                    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px">Действия</div>
-
-                    <!-- draft -->
-                    <template x-if="contract.status === 'draft'">
-                        <div style="display:flex;flex-direction:column;gap:8px">
-                            <button @click="changeStatus('pending_approval')"
-                                style="padding:11px;border-radius:12px;border:none;background:var(--accent);color:white;font-weight:700;cursor:pointer;font-size:13px">
-                                Отправить на согласование
-                            </button>
-                            <button @click="deleteContract()"
-                                style="padding:11px;border-radius:12px;border:1.5px solid #FFCCC8;background:#FFE5E3;color:var(--danger);font-weight:700;cursor:pointer;font-size:13px">
-                                <i class="fas fa-trash" style="margin-right:6px"></i>Удалить черновик
-                            </button>
-                        </div>
-                    </template>
-
-                    <!-- pending_approval: решение принимают согласующие по маршруту (блок «Согласование») -->
-                    <template x-if="contract.status === 'pending_approval'">
-                        <div style="display:flex;flex-direction:column;gap:8px">
-                            <a href="#approval" style="padding:11px;border-radius:12px;background:#F0EFFF;color:var(--accent);font-weight:700;font-size:13px;text-align:center;text-decoration:none">
-                                <i class="fas fa-route" style="margin-right:6px"></i>Идёт согласование по маршруту
-                            </a>
-                            <button x-show="canEditDraft" @click="changeStatus('draft')"
-                                style="padding:11px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-weight:600;cursor:pointer;font-size:13px">
-                                Отозвать в черновик
-                            </button>
-                            <button x-show="isCfoUser" @click="rejectWithReason()"
-                                style="padding:11px;border-radius:12px;border:none;background:#FF3B30;color:white;font-weight:700;cursor:pointer;font-size:13px">
-                                Отклонить (решение CFO)
-                            </button>
-                        </div>
-                    </template>
-
-                    <!-- approved / in_progress -->
-                    <template x-if="(contract.status === 'approved' || contract.status === 'in_progress') && isCfoUser">
-                        <div style="display:flex;flex-direction:column;gap:8px">
-                            <button @click="changeStatus('draft')"
-                                style="padding:11px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-weight:600;cursor:pointer;font-size:13px">
-                                Вернуть в черновик
-                            </button>
-                            <button @click="changeStatus('rejected')"
-                                style="padding:11px;border-radius:12px;border:none;background:#FF3B30;color:white;font-weight:700;cursor:pointer;font-size:13px">
-                                Отклонить
-                            </button>
-                        </div>
-                    </template>
-
-                    <!-- rework_needed -->
-                    <template x-if="contract.status === 'rework_needed' && (canApprove || canEditDraft)">
-                        <div style="display:flex;flex-direction:column;gap:8px">
-                            <button @click="changeStatus('pending_approval')"
-                                style="padding:11px;border-radius:12px;border:none;background:#34C759;color:white;font-weight:700;cursor:pointer;font-size:13px">
-                                Отправить на согласование
-                            </button>
-                            <button @click="changeStatus('draft')"
-                                style="padding:11px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-weight:600;cursor:pointer;font-size:13px">
-                                Вернуть в черновик
-                            </button>
-                        </div>
-                    </template>
-
-                    <!-- rejected -->
-                    <template x-if="contract.status === 'rejected' && canApprove">
-                        <button @click="changeStatus('draft')"
-                            style="padding:11px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-weight:600;cursor:pointer;font-size:13px">
-                            Вернуть в черновик
-                        </button>
-                    </template>
-
-                    <template x-if="statusMsg">
-                        <p :style="statusMsgType === 'ok' ? 'color:#1A7A40' : 'color:#CC2A22'"
-                            style="font-size:12px;font-weight:600;text-align:center;margin:0" x-text="statusMsg"></p>
-                    </template>
+            </template>
+            <template x-if="!isLeadership">
+                <div class="kpi-card card-blue">
+                    <div class="kpi-label"><i class="fas fa-coins"></i> Coin</div>
+                    <div class="kpi-value" style="color:#0055CC" x-text="totalCoins().toLocaleString('ru-RU')"></div>
+                    <div class="kpi-sub" x-text="'по курсу ' + fmtRate(contract.navRate) + ' ₽' + (contract.navRateDate ? ' на ' + contract.navRateDate : '') + (contract.navRateManual ? ' · зафиксирован казначеем' : '')"></div>
                 </div>
-            </div>
-        </div>
-
-        <!-- KPI row -->
-        <div class="kpi-row">
-            <div class="kpi-card card-coin">
-                <div class="kpi-label"><i class="fas" :class="isLeadership ? 'fa-ruble-sign' : 'fa-coins'"></i> <span x-text="isLeadership ? 'Доход за период' : 'Всего coins'"></span></div>
-                <div class="kpi-value" style="color:var(--accent)" x-text="isLeadership ? ((contract.leadershipTotals?.grand)||0).toLocaleString('ru-RU') + ' ₽' : totalCoins().toLocaleString('ru-RU')"></div>
-                <div class="kpi-sub" x-text="isLeadership ? 'оклад + премии' : 'зарезервировано'"></div>
-            </div>
-            <div class="kpi-card card-green">
-                <div class="kpi-label"><i class="fas fa-check-circle"></i> <span x-text="isLeadership ? 'Премии' : 'Выплачено'"></span></div>
-                <div class="kpi-value" style="color:#1A7A40" x-text="isLeadership ? ((contract.leadershipTotals?.totalBonus)||0).toLocaleString('ru-RU') + ' ₽' : paidCoins().toLocaleString('ru-RU')"></div>
-                <div class="kpi-sub" x-text="isLeadership ? 'по milestones' : (paidMilestones() + ' из ' + contract.milestones.length + ' milestone')"></div>
-            </div>
+            </template>
+            <template x-if="isLeadership">
+                <div class="kpi-card card-coin">
+                    <div class="kpi-label"><i class="fas fa-ruble-sign"></i> Доход за период</div>
+                    <div class="kpi-value" style="color:var(--accent)" x-text="fmtRub(contract.leadershipTotals?.grand || 0)"></div>
+                    <div class="kpi-sub" x-text="(contract.leadershipTotals?.numMonths || 0) + ' мес. · оклад + премии'"></div>
+                </div>
+            </template>
+            <template x-if="isLeadership">
+                <div class="kpi-card card-blue">
+                    <div class="kpi-label"><i class="fas fa-wallet"></i> Оклад / премия</div>
+                    <div class="kpi-value" style="color:#0055CC;font-size:18px" x-text="fmtRub(contract.fixedSalaryMonthly) + '/мес'"></div>
+                    <div class="kpi-sub" x-text="contract.variableTotal > 0 ? 'премия ' + fmtRub(contract.variableTotal) + ' за период' : 'без премии (только фикс)'"></div>
+                </div>
+            </template>
             <div class="kpi-card card-warn">
                 <div class="kpi-label"><i class="fas fa-hourglass-half"></i> Дедлайн</div>
-                <div class="kpi-value" style="font-size:15px;color:#B05E00" x-text="contract.deadline"></div>
-                <div class="kpi-sub" x-text="daysLeft() >= 0 ? 'Осталось ' + daysLeft() + ' дн.' : 'Просрочено'"></div>
+                <div class="kpi-value" style="font-size:18px;color:#B05E00" x-text="contract.deadline"></div>
+                <div class="kpi-sub" x-text="contract.deadline === '—' ? '' : (daysLeft() >= 0 ? 'Осталось ' + daysLeft() + ' дн.' : 'Просрочено на ' + (-daysLeft()) + ' дн.')"></div>
             </div>
-            <div class="kpi-card card-blue">
-                <div class="kpi-label"><i class="fas fa-users"></i> Участники</div>
-                <div class="kpi-value" style="color:#0055CC" x-text="contract.team.length"></div>
-                <div class="kpi-sub">человек в команде</div>
+            <div class="kpi-card card-green">
+                <div class="kpi-label"><i class="fas fa-flag-checkered"></i> Прогресс</div>
+                <div class="kpi-value" style="color:#1A7A40" x-text="paidMilestones() + ' / ' + contract.milestones.length"></div>
+                <div class="progress-bar-wrap"><div class="progress-bar-fill" :style="'width:' + progressPct() + '%'"></div></div>
+                <div class="kpi-sub" x-text="progressPct() + '% этапов выполнено'"></div>
             </div>
-        </div>
+        </section>
 
-        <!-- Progress -->
-        <div class="card-block" style="margin-bottom:20px">
-            <div class="block-title"><i class="fas fa-chart-line" style="color:var(--accent)"></i> Прогресс контракта</div>
-            <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:6px">
-                <span x-text="paidMilestones() + ' / ' + contract.milestones.length + ' milestone выполнено'"></span>
-                <span style="color:var(--accent)" x-text="Math.round(paidMilestones()/contract.milestones.length*100) + '%'"></span>
-            </div>
-            <div class="progress-bar-wrap">
-                <div class="progress-bar-fill" :style="'width:' + Math.round(paidMilestones()/contract.milestones.length*100) + '%'"></div>
-            </div>
-        </div>
+        <div class="grid-layout">
+            <!-- ═══ Левая колонка ═══ -->
+            <div class="col-main">
+                <div class="tab-nav">
+                    <button class="tab-btn" :class="{active: tab==='milestones'}" @click="tab='milestones'"><i class="fas fa-flag-checkered"></i> Этапы</button>
+                    <button class="tab-btn" :class="{active: tab==='team'}" @click="tab='team'">
+                        <i class="fas" :class="isLeadership ? 'fa-ruble-sign' : 'fa-users'"></i> <span x-text="isLeadership ? 'Доход' : 'Команда'"></span>
+                    </button>
+                    <button class="tab-btn" :class="{active: tab==='info'}" @click="tab='info'"><i class="fas fa-align-left"></i> Описание</button>
+                    <button class="tab-btn" :class="{active: tab==='history'}" @click="tab='history'"><i class="fas fa-clock-rotate-left"></i> История</button>
+                </div>
 
-        <!-- Tabs -->
+                <!-- Этапы — компактные карточки, подробности раскрываются -->
+                <template x-if="tab === 'milestones'">
+                    <div class="card-block">
+                        <div class="block-title" style="justify-content:space-between">
+                            <span><i class="fas fa-flag-checkered" style="color:var(--accent)"></i> Этапы (milestones)</span>
+                            <button class="link-btn" @click="toggleAll()" x-text="allOpen ? 'Свернуть все' : 'Развернуть все'"></button>
+                        </div>
+                        <template x-if="contract.milestones.length === 0"><p style="color:var(--muted);font-size:13px">Этапы не заданы.</p></template>
+                        <div class="ms-list">
+                            <template x-for="(ms, idx) in contract.milestones" :key="idx">
+                                <div class="ms-card" :class="{ open: ms.open }">
+                                    <div class="ms-head" @click="ms.open = !ms.open">
+                                        <span class="ms-num" x-text="idx + 1"></span>
+                                        <div class="ms-title">
+                                            <div class="ms-name" x-text="ms.name"></div>
+                                            <div class="ms-sub">
+                                                <span><i class="far fa-calendar"></i> <span x-text="ms.deadline"></span></span>
+                                                <span x-show="ms.period && ms.period !== '—'"><i class="far fa-clock"></i> <span x-text="ms.period"></span></span>
+                                            </div>
+                                        </div>
+                                        <div class="ms-amount">
+                                            <div x-text="fmtRub(ms.rewardRub)"></div>
+                                            <div class="ms-coins" x-show="!isLeadership" x-text="ms.coins.toLocaleString('ru-RU') + ' Coin'"></div>
+                                        </div>
+                                        <span class="status-pill" :class="msStatusClass(ms.status)" x-text="msStatusLabel(ms.status)"></span>
+                                        <i class="fas fa-chevron-down ms-chev"></i>
+                                    </div>
+                                    <div class="ms-body" x-show="ms.open">
+                                        <div class="ms-criteria">
+                                            <div class="lbl">Критерий успеха</div>
+                                            <div x-text="ms.criteria"></div>
+                                            <div class="smart-row" x-show="ms.smartValid">
+                                                <template x-for="l in ['S','M','A','R','T']" :key="l"><span class="smart-badge" x-text="l"></span></template>
+                                            </div>
+                                        </div>
+                                        <div class="ms-grid">
+                                            <div><div class="lbl">Было (baseline)</div><div x-text="ms.baseline"></div></div>
+                                            <div><div class="lbl">Цель (target)</div><div x-text="ms.target"></div></div>
+                                            <div><div class="lbl">Источник данных</div><div x-text="ms.dataSource"></div></div>
+                                            <div x-show="ms.stopLoss"><div class="lbl">Стоп-лосс</div><div x-text="ms.stopLoss"></div></div>
+                                        </div>
+                                        <div class="ms-actions" x-show="canVerify && contract.status === 'approved' && ['pending','in_progress','verify'].includes(ms.status)">
+                                            <button class="mini ok" @click.stop="verifyMilestone(idx, true)"><i class="fas fa-check"></i> Подтвердить выполнение</button>
+                                            <button class="mini bad" @click.stop="verifyMilestone(idx, false)"><i class="fas fa-triangle-exclamation"></i> Открыть спор</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Команда / Доход -->
+                <template x-if="tab === 'team'">
+                    <div class="card-block">
+                        <template x-if="isLeadership">
+                            <div>
+                                <div class="block-title"><i class="fas fa-ruble-sign" style="color:var(--accent)"></i> Доход по месяцам</div>
+                                <div style="overflow-x:auto">
+                                    <table class="team-table">
+                                        <thead><tr><th>Месяц</th><th>Этапы</th><th style="text-align:right">Премия</th><th style="text-align:right">Оклад</th><th style="text-align:right">Итого</th></tr></thead>
+                                        <tbody>
+                                            <template x-for="(row, ri) in contract.monthlyBreakdown" :key="ri">
+                                                <tr>
+                                                    <td style="font-weight:600" x-text="row.label"></td>
+                                                    <td style="color:var(--muted);font-size:12px" x-text="(row.milestones && row.milestones.length) ? row.milestones.join(', ') : '—'"></td>
+                                                    <td style="text-align:right" x-text="fmtRub(row.bonus)"></td>
+                                                    <td style="text-align:right" x-text="fmtRub(row.salary)"></td>
+                                                    <td style="text-align:right;font-weight:700;color:var(--accent)" x-text="fmtRub(row.total)"></td>
+                                                </tr>
+                                            </template>
+                                            <template x-if="!contract.monthlyBreakdown.length">
+                                                <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:14px">Нет данных по месяцам</td></tr>
+                                            </template>
+                                        </tbody>
+                                        <tfoot x-show="contract.leadershipTotals">
+                                            <tr>
+                                                <td colspan="2" style="font-weight:700" x-text="'Итого за ' + (contract.leadershipTotals?.numMonths || 0) + ' мес.'"></td>
+                                                <td style="text-align:right;font-weight:800;color:var(--accent)" x-text="fmtRub(contract.leadershipTotals?.totalBonus)"></td>
+                                                <td style="text-align:right;font-weight:800;color:var(--accent)" x-text="fmtRub(contract.leadershipTotals?.totalSalary)"></td>
+                                                <td style="text-align:right;font-weight:800;color:var(--accent)" x-text="fmtRub(contract.leadershipTotals?.grand)"></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="!isLeadership">
+                            <div>
+                                <div class="block-title"><i class="fas fa-users" style="color:var(--accent)"></i> Команда и распределение Coin</div>
+                                <template x-if="contract.needsRecruitment && !contract.team.length">
+                                    <p style="color:var(--muted);font-size:13px">Состав команды будет сформирован после согласования.</p>
+                                </template>
+                                <div class="team-grid">
+                                    <template x-for="member in contract.team" :key="member.name">
+                                        <div class="member">
+                                            <div class="av" x-text="member.name.charAt(0)"></div>
+                                            <div style="flex:1;min-width:0">
+                                                <div class="mname" x-text="member.name"></div>
+                                                <div class="mrole" x-text="member.role"></div>
+                                                <div class="progress-bar-wrap" style="margin-top:6px"><div class="progress-bar-fill" :style="'width:' + (member.coins ? Math.min(100, Math.round((member.paid || 0) / member.coins * 100)) : 0) + '%'"></div></div>
+                                            </div>
+                                            <div style="text-align:right">
+                                                <div class="mcoins" x-text="member.coins.toLocaleString('ru-RU') + ' Coin'"></div>
+                                                <div class="mshare" x-text="(totalCoins() ? Math.round(member.coins / totalCoins() * 100) : 0) + '% · выплачено ' + (member.paid || 0).toLocaleString('ru-RU')"></div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                                <div class="note" x-show="contract.distributionNote && contract.distributionNote !== '—'">
+                                    <div class="lbl">Принцип распределения</div>
+                                    <div x-text="contract.distributionNote"></div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- Описание -->
+                <template x-if="tab === 'info'">
+                    <div class="card-block">
+                        <div class="block-title"><i class="fas fa-align-left" style="color:var(--accent)"></i> Суть контракта</div>
+                        <div class="text-block">
+                            <div class="lbl">Краткое описание</div>
+                            <p x-text="contract.shortDescription || '—'"></p>
+                        </div>
+                        <div class="text-block">
+                            <div class="lbl">Бизнес-эффект</div>
+                            <p x-text="contract.businessEffect || '—'"></p>
+                        </div>
+                        <div class="text-block" x-show="contract.aiSummary">
+                            <div class="lbl"><i class="fas fa-wand-magic-sparkles" style="color:var(--accent)"></i> AI-резюме</div>
+                            <p x-text="contract.aiSummary"></p>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- История -->
+                <template x-if="tab === 'history'">
+            <div class="card-block" x-data="historyFeed()" x-init="init()">
+                <div class="block-title"><i class="fas fa-clock-rotate-left" style="color:var(--accent)"></i> История изменений и согласований</div>
+                <template x-if="loading"><p style="color:var(--muted);font-size:13px">Загрузка…</p></template>
+                <template x-if="!loading && events.length === 0"><p style="color:var(--muted);font-size:13px">Событий пока нет.</p></template>
+                <div class="history-feed">
+                    <template x-for="(e, i) in events" :key="i">
+                        <div class="history-ev">
+                            <div class="h-ico" :class="tone(e)"><i class="fas" :class="icon(e)"></i></div>
+                            <div style="flex:1;min-width:0">
+                                <div class="h-title" x-text="e.title"></div>
+                                <div class="h-meta" x-text="fmt(e.ts) + (e.by ? ' · ' + e.by : '')"></div>
+                                <div class="h-diff" x-show="e.kind === 'change'">
+                                    <del x-show="e.old" x-text="e.old"></del>
+                                    <span x-show="e.old && e.new"> → </span>
+                                    <ins x-show="e.new" x-text="e.new"></ins>
+                                    <span x-show="!e.new" style="color:var(--muted)">(очищено)</span>
+                                </div>
+                                <div class="h-diff" x-show="e.comment" x-text="'«' + e.comment + '»'"></div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+                </template>
+
+                <!-- Спор по этапу и AI-арбитраж -->
+                <template x-if="contract.hasDispute">
+                    <div class="dispute-block">
+                        <p style="font-size:13px;font-weight:700;color:#CC2A22;margin-bottom:8px"><i class="fas fa-exclamation-circle"></i> Активный спор по этапу</p>
+                        <p style="font-size:12px;color:#7A1010;line-height:1.5;margin-bottom:12px" x-text="contract.disputeDescription"></p>
+                        <button class="mini bad" @click="startArbitation()" :disabled="arbitrating">
+                            <i class="fas" :class="arbitrating ? 'fa-spinner fa-spin' : 'fa-balance-scale'"></i> Запустить AI-арбитраж
+                        </button>
+                    </div>
+                </template>
+                <template x-if="arbitrationResult">
+                    <div class="card-block" style="background:#F5F4FF;border:1.5px solid #C7C9FF">
+                        <div class="block-title" style="color:var(--accent)"><i class="fas fa-balance-scale"></i> Решение AI-арбитража</div>
+                        <p style="font-size:13px;color:#333;line-height:1.6;white-space:pre-line" x-text="arbitrationResult"></p>
+                    </div>
+                </template>
+            </div>
+
+            <!-- ═══ Правая колонка ═══ -->
+            <aside class="col-side">
+                <div class="card-block side-card">
+                    <div class="block-title"><i class="fas fa-sliders" style="color:var(--accent)"></i> Управление</div>
+                    <div class="info-row"><span class="lbl">Статус</span><span class="val"><span class="status-pill" :class="statusClass(contract.status)" x-text="statusLabel(contract.status)"></span></span></div>
+                    <div class="info-row" x-show="contract.rejectionReason"><span class="lbl">Причина</span><span class="val" style="color:var(--danger)" x-text="contract.rejectionReason"></span></div>
+                    <div class="info-row"><span class="lbl">Ответственный</span><span class="val" x-text="contract.owner"></span></div>
+                    <div class="info-row"><span class="lbl">Заказчик</span><span class="val" x-text="contract.customerName"></span></div>
+                    <div class="info-row"><span class="lbl">Куратор</span><span class="val" x-text="contract.curator"></span></div>
+                    <div class="info-row" x-show="!isLeadership"><span class="lbl">Курс Coin</span><span class="val" x-text="fmtRate(contract.navRate) + ' ₽' + (contract.navRateDate ? ' (на ' + contract.navRateDate + ')' : '')"></span></div>
+                    <div class="info-row"><span class="lbl">Создан</span><span class="val" x-text="contract.createdAt"></span></div>
+
+                    <div class="side-actions">
+                        <!-- draft -->
+                        <template x-if="contract.status === 'draft' && canEditDraft">
+                            <div class="stack">
+                                <button class="act primary" @click="changeStatus('pending_approval')"><i class="fas fa-paper-plane"></i> Отправить на согласование</button>
+                                <button class="act danger-soft" @click="deleteContract()"><i class="fas fa-trash"></i> Удалить черновик</button>
+                            </div>
+                        </template>
+                        <!-- pending: решения принимают согласующие в блоке «Согласование» -->
+                        <template x-if="contract.status === 'pending_approval'">
+                            <div class="stack">
+                                <button class="act" x-show="canEditDraft" @click="changeStatus('draft')"><i class="fas fa-rotate-left"></i> Отозвать в черновик</button>
+                                <button class="act danger" x-show="isCfoUser" @click="rejectWithReason()">Отклонить (решение CFO)</button>
+                            </div>
+                        </template>
+                        <template x-if="contract.status === 'rework_needed' && canEditDraft">
+                            <div class="stack">
+                                <button class="act primary" @click="changeStatus('pending_approval')"><i class="fas fa-paper-plane"></i> Отправить повторно</button>
+                            </div>
+                        </template>
+                        <template x-if="(contract.status === 'approved' || contract.status === 'in_progress') && isCfoUser">
+                            <div class="stack">
+                                <button class="act" @click="changeStatus('draft')">Вернуть в черновик</button>
+                                <button class="act danger" @click="rejectWithReason()">Отклонить</button>
+                            </div>
+                        </template>
+                        <template x-if="contract.status === 'rejected' && canApprove">
+                            <div class="stack"><button class="act" @click="changeStatus('draft')">Вернуть в черновик</button></div>
+                        </template>
+                        <p class="status-msg" x-show="statusMsg" :class="statusMsgType" x-text="statusMsg"></p>
+                    </div>
+                </div>
+
         <!-- ═══ Согласование (маршрут по этапам) ═══ -->
         <div class="card-block" id="approval" x-data="routeBlock('contract')" x-init="init()">
             <div class="block-title" style="justify-content:space-between">
@@ -347,290 +580,10 @@
             </template>
         </div>
 
-        <div class="tab-nav">
-            <button class="tab-btn" :class="{active: tab==='milestones'}" @click="tab='milestones'">
-                <i class="fas fa-flag-checkered"></i> Milestones
-            </button>
-            <button class="tab-btn" :class="{active: tab==='team'}" @click="tab='team'">
-                <i class="fas" :class="isLeadership ? 'fa-ruble-sign' : 'fa-users'"></i> <span x-text="isLeadership ? 'Доход' : 'Команда'"></span>
-            </button>
-            <button class="tab-btn" :class="{active: tab==='info'}" @click="tab='info'">
-                <i class="fas fa-info-circle"></i> Детали
-            </button>
-            <button class="tab-btn" :class="{active: tab==='history'}" @click="tab='history'">
-                <i class="fas fa-clock-rotate-left"></i> История
-            </button>
-        </div>
-
-        <!-- Tab: Milestones -->
-        <template x-if="tab === 'milestones'">
-            <div class="card-block">
-                <div class="block-title"><i class="fas fa-flag-checkered" style="color:var(--accent)"></i> Milestones</div>
-                <div style="overflow-x:auto">
-                    <table class="ms-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Название</th>
-                                <th>Дедлайн</th>
-                                <th>Период</th>
-                                <th x-text="isLeadership ? 'Премия' : 'Coins'"></th>
-                                <th>Критерий успеха</th>
-                                <th>Источник данных</th>
-                                <th>Статус</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="(ms, idx) in contract.milestones" :key="idx">
-                                <tr>
-                                    <td><span class="ms-num" x-text="idx+1"></span></td>
-                                    <td>
-                                        <div style="font-weight:700;color:#1C1C1E" x-text="ms.name"></div>
-                                        <div style="font-size:11px;color:var(--muted);margin-top:2px" x-text="'Baseline: ' + ms.baseline"></div>
-                                        <div style="font-size:11px;color:var(--accent);margin-top:2px" x-text="'Target: ' + ms.target"></div>
-                                    </td>
-                                    <td style="white-space:nowrap" x-text="ms.deadline"></td>
-                                    <td style="white-space:nowrap;color:var(--muted)" x-text="ms.period"></td>
-                                    <td style="font-weight:800;color:var(--accent);white-space:nowrap" x-text="isLeadership ? (ms.rewardRub||0).toLocaleString('ru-RU') + ' ₽' : ms.coins.toLocaleString('ru-RU') + ' ₵'"></td>
-                                    <td style="max-width:220px">
-                                        <div style="font-size:12px;line-height:1.4;color:#333" x-text="ms.criteria"></div>
-                                        <div class="smart-row">
-                                            <template x-for="l in ['S','M','A','R','T']" :key="l">
-                                                <span class="smart-badge" x-text="l"></span>
-                                            </template>
-                                        </div>
-                                    </td>
-                                    <td style="font-size:12px;color:var(--muted)" x-text="ms.dataSource"></td>
-                                    <td>
-                                        <span class="status-pill" :class="msStatusClass(ms.status)" x-text="msStatusLabel(ms.status)"></span>
-                                        <template x-if="ms.status === 'verify'">
-                                            <div style="margin-top:6px;display:flex;gap:6px">
-                                                <button @click="verifyMilestone(idx, true)"
-                                                    style="padding:4px 10px;border-radius:8px;background:#DDF0E1;border:none;color:#1A7A40;font-size:11px;font-weight:700;cursor:pointer">
-                                                    <i class="fas fa-check"></i> Подтвердить
-                                                </button>
-                                                <button @click="verifyMilestone(idx, false)"
-                                                    style="padding:4px 10px;border-radius:8px;background:#FFF0EF;border:none;color:#CC2A22;font-size:11px;font-weight:700;cursor:pointer">
-                                                    <i class="fas fa-times"></i> Спор
-                                                </button>
-                                            </div>
-                                        </template>
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Stop-loss notice -->
-                <div style="margin-top:16px;background:#FFF4E5;border-radius:12px;padding:12px 14px">
-                    <p style="font-size:12px;font-weight:700;color:#B05E00;margin-bottom:4px">
-                        <i class="fas fa-exclamation-triangle"></i> Стоп-лосс контракта
-                    </p>
-                    <p style="font-size:12px;color:#7A4000" x-text="contract.stopLoss"></p>
-                </div>
-
-                <!-- Small sample rule -->
-                <div style="margin-top:10px;background:#F8F7F3;border-radius:12px;padding:12px 14px">
-                    <p style="font-size:12px;font-weight:600;color:var(--muted)">
-                        <i class="fas fa-info-circle"></i> Правило малой выборки: <span style="color:#1C1C1E" x-text="contract.smallSampleRule"></span>
-                    </p>
-                </div>
-            </div>
-        </template>
-
-        <!-- Tab: Team -->
-        <template x-if="tab === 'team'">
-            <div class="card-block">
-                <!-- Лидерский контракт: помесячный доход -->
-                <template x-if="isLeadership">
-                    <div>
-                        <div class="block-title"><i class="fas fa-ruble-sign" style="color:var(--accent)"></i> Доход по месяцам</div>
-                        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;font-size:13px">
-                            <span style="color:var(--muted)">Оклад: <b style="color:#1C1C1E" x-text="(contract.fixedSalaryMonthly||0).toLocaleString('ru-RU') + ' ₽/мес'"></b></span>
-                            <span style="color:var(--muted)">Целевая переменная: <b style="color:#1C1C1E" x-text="contract.variableTotal > 0 ? contract.variableTotal.toLocaleString('ru-RU') + ' ₽' : 'без премии (только фикс)'"></b></span>
-                        </div>
-                        <div style="overflow-x:auto">
-                            <table class="team-table">
-                                <thead>
-                                    <tr>
-                                        <th>Месяц</th>
-                                        <th>Milestones</th>
-                                        <th style="text-align:right">Премия</th>
-                                        <th style="text-align:right">Оклад</th>
-                                        <th style="text-align:right">Итого</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <template x-for="(row, ri) in contract.monthlyBreakdown" :key="ri">
-                                        <tr>
-                                            <td style="font-weight:600" x-text="row.label"></td>
-                                            <td style="color:var(--muted);font-size:12px" x-text="(row.milestones && row.milestones.length) ? row.milestones.join(', ') : '—'"></td>
-                                            <td style="text-align:right" x-text="(row.bonus||0).toLocaleString('ru-RU') + ' ₽'"></td>
-                                            <td style="text-align:right" x-text="(row.salary||0).toLocaleString('ru-RU') + ' ₽'"></td>
-                                            <td style="text-align:right;font-weight:700;color:var(--accent)" x-text="(row.total||0).toLocaleString('ru-RU') + ' ₽'"></td>
-                                        </tr>
-                                    </template>
-                                    <template x-if="!contract.monthlyBreakdown || contract.monthlyBreakdown.length === 0">
-                                        <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:14px">Нет данных по месяцам</td></tr>
-                                    </template>
-                                </tbody>
-                                <tfoot style="border-top:2px solid #E5E5ED" x-show="contract.leadershipTotals">
-                                    <tr>
-                                        <td colspan="2" style="padding:12px;font-weight:700;font-size:13px" x-text="'Итого за ' + ((contract.leadershipTotals?.numMonths)||0) + ' мес.'"></td>
-                                        <td style="text-align:right;padding:12px;font-weight:800;color:var(--accent)" x-text="((contract.leadershipTotals?.totalBonus)||0).toLocaleString('ru-RU') + ' ₽'"></td>
-                                        <td style="text-align:right;padding:12px;font-weight:800;color:var(--accent)" x-text="((contract.leadershipTotals?.totalSalary)||0).toLocaleString('ru-RU') + ' ₽'"></td>
-                                        <td style="text-align:right;padding:12px;font-weight:800;color:var(--accent)" x-text="((contract.leadershipTotals?.grand)||0).toLocaleString('ru-RU') + ' ₽'"></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    </div>
-                </template>
-
-                <div class="block-title" x-show="!isLeadership"><i class="fas fa-users" style="color:var(--accent)"></i> Команда и распределение coins</div>
-                <div style="overflow-x:auto" x-show="!isLeadership">
-                    <table class="team-table">
-                        <thead>
-                            <tr>
-                                <th>Участник</th>
-                                <th>Роль</th>
-                                <th style="text-align:right">Coins</th>
-                                <th style="text-align:right">%</th>
-                                <th style="text-align:right">Выплачено</th>
-                                <th>Статус</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="member in contract.team" :key="member.name">
-                                <tr>
-                                    <td>
-                                        <div style="display:flex;align-items:center;gap:10px">
-                                            <div style="width:34px;height:34px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;flex-shrink:0"
-                                                x-text="member.name.charAt(0)"></div>
-                                            <span style="font-weight:600" x-text="member.name"></span>
-                                        </div>
-                                    </td>
-                                    <td style="color:var(--muted)" x-text="member.role"></td>
-                                    <td style="text-align:right;font-weight:700;color:var(--accent)" x-text="member.coins.toLocaleString('ru-RU')"></td>
-                                    <td style="text-align:right;color:var(--muted)" x-text="Math.round(member.coins/totalCoins()*100)+'%'"></td>
-                                    <td style="text-align:right;color:#1A7A40;font-weight:700" x-text="(member.paid||0).toLocaleString('ru-RU')"></td>
-                                    <td>
-                                        <span class="status-pill"
-                                            :class="member.paid >= member.coins ? 'pill-done' : member.paid > 0 ? 'pill-progress' : 'pill-pending'"
-                                            x-text="member.paid >= member.coins ? 'Выплачено' : member.paid > 0 ? 'Частично' : 'Ожидает'">
-                                        </span>
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                        <tfoot style="border-top:2px solid #E5E5ED">
-                            <tr>
-                                <td colspan="2" style="padding:12px;font-weight:700;font-size:13px">Итого</td>
-                                <td style="text-align:right;padding:12px;font-weight:800;color:var(--accent)" x-text="totalCoins().toLocaleString('ru-RU')"></td>
-                                <td style="text-align:right;padding:12px;color:var(--muted)">100%</td>
-                                <td style="text-align:right;padding:12px;font-weight:700;color:#1A7A40" x-text="contract.team.reduce((s,m)=>s+(m.paid||0),0).toLocaleString('ru-RU')"></td>
-                                <td></td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-                <div style="margin-top:16px;background:#F8F7F3;border-radius:12px;padding:14px" x-show="!isLeadership">
-                    <p style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">ПРИНЦИП РАСПРЕДЕЛЕНИЯ</p>
-                    <p style="font-size:13px;color:#333" x-text="contract.distributionNote"></p>
-                </div>
-            </div>
-        </template>
-
-        <!-- Tab: Details -->
-        <template x-if="tab === 'info'">
-            <div class="card-block">
-                <div class="block-title"><i class="fas fa-info-circle" style="color:var(--accent)"></i> Детали контракта</div>
-                <div class="info-row"><span class="lbl">Название</span><span class="val" x-text="contract.name"></span></div>
-                <div class="info-row"><span class="lbl">Тип</span><span class="val">
-                    <span class="status-pill pill-coin" x-show="!isLeadership" style="padding:3px 10px;font-size:11px"><i class="fas fa-coins"></i> Смарт-контракт (Coin)</span>
-                    <span class="status-pill" x-show="isLeadership" style="padding:3px 10px;font-size:11px;background:#FBECCB;color:#8A6D00"><i class="fas fa-crown"></i> Лидерский контракт</span>
-                </span></div>
-                <div class="info-row"><span class="lbl">Формат</span><span class="val" x-text="contract.contractType === 'phased' ? 'Поэтапный' : 'Единый'"></span></div>
-                <div class="info-row"><span class="lbl">Бизнес-юнит</span><span class="val" x-text="contract.businessUnit"></span></div>
-                <div class="info-row"><span class="lbl">Инициатор</span><span class="val" x-text="contract.initiator"></span></div>
-                <div class="info-row"><span class="lbl">Куратор</span><span class="val" x-text="contract.curator"></span></div>
-                <div class="info-row"><span class="lbl">Дедлайн</span><span class="val" x-text="contract.deadline"></span></div>
-                <div class="info-row"><span class="lbl">Источник финансирования</span><span class="val" x-text="contract.fundingSource"></span></div>
-                <div class="info-row"><span class="lbl">Статус</span><span class="val">
-                    <span class="status-pill" :class="statusClass(contract.status)" x-text="statusLabel(contract.status)"></span>
-                </span></div>
-                <div class="info-row" style="align-items:flex-start"><span class="lbl">Описание</span>
-                    <span class="val" style="font-weight:500;line-height:1.5" x-text="contract.description"></span>
-                </div>
-
-                <!-- AI Arbitration info -->
-                <div style="margin-top:16px;background:#F0EFFF;border-radius:12px;padding:14px">
-                    <p style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:6px">
-                        <i class="fas fa-balance-scale"></i> Разрешение споров (AI-арбитраж)
-                    </p>
-                    <p style="font-size:12px;color:#555;line-height:1.5">
-                        При возникновении спора по milestone запускается AI-арбитраж на базе Claude Opus (temperature=0, 3 запроса, решение большинством голосов).
-                        Решение является окончательным для сумм до 750 000 coin.
-                    </p>
-                </div>
-            </div>
-        </template>
-
-        <!-- Tab: History -->
-        <template x-if="tab === 'history'">
-            <div class="card-block" x-data="historyFeed()" x-init="init()">
-                <div class="block-title"><i class="fas fa-clock-rotate-left" style="color:var(--accent)"></i> История изменений и согласований</div>
-                <template x-if="loading"><p style="color:var(--muted);font-size:13px">Загрузка…</p></template>
-                <template x-if="!loading && events.length === 0"><p style="color:var(--muted);font-size:13px">Событий пока нет.</p></template>
-                <div class="history-feed">
-                    <template x-for="(e, i) in events" :key="i">
-                        <div class="history-ev">
-                            <div class="h-ico" :class="tone(e)"><i class="fas" :class="icon(e)"></i></div>
-                            <div style="flex:1;min-width:0">
-                                <div class="h-title" x-text="e.title"></div>
-                                <div class="h-meta" x-text="fmt(e.ts) + (e.by ? ' · ' + e.by : '')"></div>
-                                <div class="h-diff" x-show="e.kind === 'change'">
-                                    <del x-show="e.old" x-text="e.old"></del>
-                                    <span x-show="e.old && e.new"> → </span>
-                                    <ins x-show="e.new" x-text="e.new"></ins>
-                                    <span x-show="!e.new" style="color:var(--muted)">(очищено)</span>
-                                </div>
-                                <div class="h-diff" x-show="e.comment" x-text="'«' + e.comment + '»'"></div>
-                            </div>
-                        </div>
-                    </template>
-                </div>
-            </div>
-        </template>
-
-        <!-- Dispute resolution (if any) -->
-        <template x-if="contract.hasDispute">
-            <div class="dispute-block">
-                <p style="font-size:13px;font-weight:700;color:#CC2A22;margin-bottom:8px">
-                    <i class="fas fa-exclamation-circle"></i> Активный спор по milestone
-                </p>
-                <p style="font-size:12px;color:#7A1010;line-height:1.5;margin-bottom:12px" x-text="contract.disputeDescription"></p>
-                <button style="padding:8px 16px;background:#CC2A22;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer"
-                    @click="startArbitation()">
-                    <i class="fas fa-balance-scale"></i> Запустить AI-арбитраж
-                </button>
-            </div>
-        </template>
-
-        <!-- AI Arbitration result -->
-        <template x-if="arbitrationResult">
-            <div style="background:#F0EFFF;border:1.5px solid #C7C9FF;border-radius:14px;padding:16px 18px;margin-top:16px">
-                <p style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:8px">
-                    <i class="fas fa-balance-scale"></i> Решение AI-арбитража (Claude Opus)
-                </p>
-                <p style="font-size:13px;color:#333;line-height:1.6" x-text="arbitrationResult"></p>
-                <p style="font-size:11px;color:var(--muted);margin-top:8px">Temperature=0 · 3 независимых запроса · Решение большинством голосов</p>
-            </div>
-        </template>
+                <div id="side-extra"></div>
 
         <!-- ═══ ДОКУМЕНТЫ ══════════════════════════════════════════ -->
-        <div class="card-block" style="margin-top:16px" x-data="scAttachmentsApp()" x-init="loadAttachments()">
+        <div class="card-block" x-data="scAttachmentsApp()" x-init="loadAttachments()">
             <div class="block-title"><i class="fas fa-paperclip" style="color:var(--accent)"></i> Документы</div>
 
             <!-- Реальные загруженные файлы -->
@@ -676,8 +629,11 @@
             </div>
         </div>
 
+            </aside>
+        </div>
+
         <!-- ═══ КОММЕНТАРИИ ══════════════════════════════════════════ -->
-        <div class="card-block" style="margin-top:16px" x-data="scCommentsApp()" x-init="loadComments()">
+        <div class="card-block" style="margin-top:4px" x-data="scCommentsApp()" x-init="loadComments()">
             <div class="block-title"><i class="fas fa-comments" style="color:var(--accent)"></i> Комментарии</div>
             <div style="margin-bottom:14px">
                 <template x-for="c in comments" :key="c.id">
@@ -703,6 +659,7 @@
             <p style="font-size:11px;color:#8E8E93;margin-top:4px">Ctrl+Enter для отправки</p>
         </div>
 
+        </div>
     </main>
 </div>
 
@@ -711,117 +668,35 @@ function scView() {
     return {
         tab: 'milestones',
         arbitrationResult: '',
+        arbitrating: false,
         projectId: null,
         statusMsg: '',
         statusMsgType: 'ok',
-
-        get isLeadership() {
-            return this.contract.scType === 'leadership';
-        },
-
-        get canApprove() {
-            const r = getUserRole();
-            return r === 'cfo' || r === 'manager';
-        },
-
-        get isCfoUser() { return getUserRole() === 'cfo'; },
-
-        rejectWithReason() {
-            const reason = prompt('Причина отклонения контракта:');
-            if (reason === null) return;
-            this.changeStatus('rejected', reason);
-        },
-
-        get canEditDraft() {
-            const r = getUserRole();
-            return r === 'cfo' || r === 'manager' || r === 'owner';
-        },
+        loading: true,
+        notFound: false,
+        allOpen: false,
+        raw: null,
 
         contract: {
-            scType: 'smart',
-            monthlyBreakdown: [],
-            leadershipTotals: null,
-            fixedSalaryMonthly: 0,
-            variableTotal: 0,
-            name: 'AI-автоматизация DevOps',
-            businessUnit: 'Инженерия',
-            initiator: 'Андрей Покровский',
-            curator: 'CEO',
-            deadline: '31.07.2026',
-            contractType: 'phased',
-            status: 'in_progress',
-            fundingSource: 'ФОТ переменная часть (лимит Q3)',
-            description: 'Развёртывание AI-агента для обработки операционных DevOps-тикетов. Команда формируется по принципу открытого участия. Форма реализации не ограничена.',
-            stopLoss: 'Если после 3 месяцев работы success rate не достиг 50% по L1-категориям — финансирование приостанавливается.',
-            smallSampleRule: 'Если за период поступило <20 тикетов — период автопродлевается до 30 дней, затем оценка по фактической выборке.',
-            distributionNote: 'Распределение по фактическому вкладу: архитектурные решения — 30%, реализация агента — 40%, интеграция и тестирование — 20%, документация и onboarding — 10%.',
-            hasDispute: false,
-            disputeDescription: '',
-            milestones: [
-                {
-                    name: 'A1 — First Blood',
-                    deadline: '31.05.2026',
-                    period: '14 дней',
-                    coins: 150000,
-                    baseline: 'Ручная обработка 100% L1-тикетов',
-                    target: '≥10 реальных тикетов обработано агентом',
-                    criteria: 'Инструмент развёрнут в prod, успешно обработал ≥10 реальных L1-тикетов за 14 дней непрерывной работы',
-                    dataSource: 'Jira + логи агента',
-                    status: 'paid',
-                },
-                {
-                    name: 'A2 — Halfway',
-                    deadline: '30.06.2026',
-                    period: '30 дней',
-                    coins: 300000,
-                    baseline: 'Покрытие 0% L1-категорий',
-                    target: 'Покрытие ≥50% L1-категорий',
-                    criteria: 'Покрытие ≥50% L1-категорий; ≥30 тикетов со статусом Success за 30 дней непрерывной работы',
-                    dataSource: 'Дашборд обработки',
-                    status: 'verify',
-                },
-                {
-                    name: 'A3 — Target Coverage',
-                    deadline: '31.07.2026',
-                    period: '30 дней',
-                    coins: 450000,
-                    baseline: 'Success rate 0%',
-                    target: 'Success rate ≥90%, время ответа ≤15 мин',
-                    criteria: 'Покрытие ≥80% L1-категорий; success rate ≥90%; время ответа ≤15 мин; false positive rate <10%',
-                    dataSource: 'Jira, логи, дашборд',
-                    status: 'pending',
-                },
-                {
-                    name: 'B1 — Workflow Launched',
-                    deadline: '30.06.2026',
-                    period: '14 дней',
-                    coins: 450000,
-                    baseline: 'L2-тикеты обрабатываются только вручную',
-                    target: '≥5 реальных L2-тикетов с Success-статусом',
-                    criteria: 'Workflow «агент готовит → человек подтверждает → агент выполняет» функционирует; ≥5 реальных L2-тикетов с Success-статусом',
-                    dataSource: 'Jira + логи',
-                    status: 'pending',
-                },
-            ],
-            team: [
-                { name: 'Алексей Смирнов',  role: 'Архитектор AI-агента',      coins: 270000, paid: 45000 },
-                { name: 'Мария Иванова',    role: 'ML-инженер',                coins: 360000, paid: 60000 },
-                { name: 'Дмитрий Козлов',   role: 'Интеграция и тестирование', coins: 180000, paid: 30000 },
-                { name: 'Светлана Попова',  role: 'Документация и onboarding', coins: 90000,  paid: 15000 },
-            ],
-            timeline: [
-                { step: 1, title: 'Создание заявки',          done: true,  active: false, date: '05.05.2026', description: 'Инициатор заполнил все шаги мастера. AI-ассистент валидировал SMART-критерии всех milestones.' },
-                { step: 2, title: 'Запрос на согласование',   done: true,  active: false, date: '06.05.2026', description: 'Финансовый блок получил заявку с AI-резюме. Проверка реалистичности coin-бюджета.' },
-                { step: 3, title: 'Выбор источника финансирования', done: true, active: false, date: '08.05.2026', description: 'CFO определил источник: ФОТ переменная часть, лимит Q3 2026.' },
-                { step: 4, title: 'Резервирование coins',      done: true,  active: false, date: '09.05.2026', description: 'Система автоматически зарезервировала 1 350 000 coin на счёте контракта. Карточка казначея создана в C1.' },
-                { step: 5, title: 'Выполнение',                done: false, active: true,  date: '', description: 'Команда работает над достижением milestones. Руководитель ведёт реестр участников.' },
-                { step: 6, title: 'Верификация milestones',    done: false, active: false, date: '', description: 'Руководитель предъявляет данные из источников (Jira, логи, дашборд). Куратор / CEO подтверждает.' },
-                { step: 7, title: 'Выплата coins',             done: false, active: false, date: '', description: 'Казначей переводит карточку в статус «Выполнено», инициирует выплату в течение 10 рабочих дней.' },
-            ],
+            scType: 'smart', name: '', status: 'draft', contractType: 'phased', businessUnit: '—',
+            owner: '—', customerName: '—', curator: '—', deadline: '—', createdAt: '—',
+            navRate: null, navRateDate: '', navRateManual: false,
+            shortDescription: '', businessEffect: '', aiSummary: '', distributionNote: '',
+            needsRecruitment: false, rejectionReason: '',
+            fixedSalaryMonthly: 0, variableTotal: 0, monthlyBreakdown: [], leadershipTotals: null,
+            hasDispute: false, disputeDescription: '', disputedIndex: null,
+            milestones: [], team: [], userId: null, createdById: null,
         },
 
-        loading: false,
-        notFound: false,
+        get isLeadership() { return this.contract.scType === 'leadership'; },
+        get canApprove() { const r = getUserRole(); return r === 'cfo' || r === 'manager'; },
+        get isCfoUser() { return getUserRole() === 'cfo'; },
+        get canEditDraft() { const r = getUserRole(); return r === 'cfo' || r === 'manager' || r === 'owner'; },
+        get canEditContract() {
+            return this.projectId && this.canEditDraft && ['draft', 'rework_needed'].includes(this.contract.status);
+        },
+        // Выполнение этапа подтверждают куратор / CFO / менеджер
+        get canVerify() { return this.canApprove; },
 
         init() {
             patchSidebar();
@@ -831,13 +706,19 @@ function scView() {
                 if (el) el.style.display = '';
             }
             const id = new URLSearchParams(window.location.search).get('id');
-            if (id) this.loadContract(id);
-            window.addEventListener('route-updated', () => { if (this.projectId) this.loadContract(this.projectId); });
+            if (!id) { this.loading = false; this.notFound = true; return; }
+            this.loadContract(id);
+            window.addEventListener('route-updated', () => { if (this.projectId) this.loadContract(this.projectId, { silent: true }); });
+            if (window.location.hash === '#approval' || window.location.hash === '#order') {
+                setTimeout(() => {
+                    const el = document.getElementById(window.location.hash.slice(1));
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 600);
+            }
         },
 
         _fmtDate(iso) {
             if (!iso) return '';
-            // ISO yyyy-mm-dd -> dd.mm.yyyy; pass through if already dotted
             if (/^\d{4}-\d{2}-\d{2}/.test(iso)) {
                 const [y, m, d] = iso.slice(0, 10).split('-');
                 return `${d}.${m}.${y}`;
@@ -845,56 +726,76 @@ function scView() {
             return iso;
         },
 
-        async loadContract(id) {
-            this.loading = true;
+        async loadContract(id, { silent = false } = {}) {
+            if (!silent) this.loading = true;
             this.projectId = id;
             try {
                 const res = await authFetch('/api/v1/projects/' + id);
                 if (!res.ok) { this.notFound = true; return; }
                 const p = await res.json();
+                this.raw = p;
                 const scd = p.smart_contract_data || {};
-                const milestones = (scd.milestones || []).map(m => ({
-                    name: m.name || '—',
-                    deadline: this._fmtDate(m.deadline),
+                const prevOpen = (this.contract.milestones || []).map(m => m.open);
+                const milestones = (scd.milestones || []).map((m, i) => ({
+                    name: m.name || m.title || '—',
+                    deadline: this._fmtDate(m.deadline || m.targetDate) || '—',
                     period: m.period || '—',
-                    rewardRub: m.rewardRub || 0,
-                    coins: m.coins || 0,
+                    rewardRub: Number(m.rewardRub) || 0,
+                    coins: Number(m.coins) || 0,
                     baseline: m.baseline || '—',
                     target: m.target || '—',
                     criteria: m.criteria || '—',
                     dataSource: m.dataSource || '—',
+                    stopLoss: m.stopLoss || '',
+                    smartValid: !!m.smartValid,
                     status: m.status || 'pending',
+                    open: !!prevOpen[i],
                 }));
                 const team = (scd.team || []).map(t => ({
                     name: t.name || '—', role: t.role || '—',
-                    coins: t.coins || 0, paid: t.paid || 0,
+                    coins: Number(t.coins) || 0, paid: Number(t.paid) || 0,
                 }));
-                setContractNav(scd.scType === 'leadership' ? 'leadership' : 'smart');
+                const scType = scd.scType === 'leadership' ? 'leadership' : 'smart';
+                setContractNav(scType);
+                document.title = (p.name || 'Контракт') + ' | Инвестиционный процессор';
+                const disputedIndex = milestones.findIndex(m => m.status === 'disputed');
                 this.contract = {
-                    scType: scd.scType || 'smart',
-                    monthlyBreakdown: scd.monthlyBreakdown || [],
-                    leadershipTotals: scd.leadershipTotals || null,
-                    fixedSalaryMonthly: scd.fixedSalaryMonthly || 0,
-                    variableTotal: scd.variableTotal || 0,
+                    scType,
                     name: p.name || '(без названия)',
+                    status: p.status || 'draft',
+                    contractType: scd.contractType || 'phased',
                     businessUnit: p.business_unit || '—',
-                    initiator: p.owner || '—',
+                    owner: p.owner || '—',
+                    customerName: scd.customerName || '—',
                     curator: scd.curator || '—',
                     deadline: this._fmtDate(scd.deadline) || '—',
-                    contractType: scd.contractType || 'phased',
-                    status: p.status || 'draft',
-                    fundingSource: scd.fundingSource || '—',
-                    description: [scd.shortDescription, scd.businessEffect].filter(Boolean).join('\n\n') || '—',
-                    stopLoss: ((scd.milestones || []).find(m => m.stopLoss) || {}).stopLoss || 'Не задан',
-                    smallSampleRule: scd.smallSampleRule || 'Не задано',
+                    createdAt: p.created_at ? new Date(p.created_at).toLocaleDateString('ru-RU') : '—',
+                    navRate: scd.navRate,
+                    navRateDate: this._fmtDate(scd.navRateDate),
+                    navRateManual: !!scd.navRateManual,
+                    shortDescription: scd.shortDescription || p.description || '',
+                    businessEffect: scd.businessEffect || '',
+                    aiSummary: scd.aiSummary || '',
                     distributionNote: scd.distributionNote || '—',
                     needsRecruitment: !!scd.needsRecruitment,
-                    hasDispute: false,
-                    disputeDescription: '',
+                    rejectionReason: p.rejection_reason || '',
+                    fixedSalaryMonthly: Number(scd.fixedSalaryMonthly) || 0,
+                    variableTotal: Number(scd.variableTotal) || 0,
+                    monthlyBreakdown: scd.monthlyBreakdown || [],
+                    leadershipTotals: scd.leadershipTotals || null,
+                    hasDispute: disputedIndex >= 0,
+                    disputedIndex,
+                    disputeDescription: disputedIndex >= 0
+                        ? (milestones[disputedIndex].disputeNote || `Спор по этапу «${milestones[disputedIndex].name}»: выполнение критериев не подтверждено.`)
+                        : '',
                     milestones,
                     team,
-                    timeline: this._buildTimeline(p),
+                    userId: p.user_id,
+                    createdById: p.created_by_id,
                 };
+                const disputeNote = disputedIndex >= 0 ? ((scd.milestones || [])[disputedIndex] || {}).disputeNote : '';
+                if (disputeNote) this.contract.disputeDescription = disputeNote;
+                this.notFound = false;
             } catch (e) {
                 if (e.message !== 'Unauthorized') this.notFound = true;
             } finally {
@@ -913,7 +814,7 @@ function scView() {
                 if (res.ok) {
                     const p = await res.json();
                     this.contract.status = p.status;
-                    this.contract.timeline = this._buildTimeline(p);
+                    this.contract.rejectionReason = p.rejection_reason || '';
                     this.statusMsgType = 'ok';
                     this.statusMsg = 'Статус изменён: ' + this.statusLabel(p.status);
                     // Маршрут согласования и история обновляются вслед за статусом
@@ -930,14 +831,20 @@ function scView() {
             }
         },
 
+        rejectWithReason() {
+            const reason = prompt('Причина отклонения контракта:');
+            if (reason === null) return;
+            this.changeStatus('rejected', reason);
+        },
+
         async deleteContract() {
             if (!this.projectId) return;
-            if (!confirm('Удалить черновик смарт-контракта? Действие необратимо.')) return;
+            if (!confirm('Удалить черновик контракта? Действие необратимо.')) return;
             this.statusMsg = '';
             try {
                 const res = await authFetch('/api/v1/projects/' + this.projectId, { method: 'DELETE' });
                 if (res.ok || res.status === 204) {
-                    window.location.href = '/smart-contracts';
+                    window.location.href = this.isLeadership ? '/leader-contracts' : '/smart-contracts';
                 } else {
                     const err = await res.json().catch(() => ({}));
                     this.statusMsgType = 'err';
@@ -949,33 +856,22 @@ function scView() {
             }
         },
 
-        _buildTimeline(p) {
-            const created = p.created_at ? new Date(p.created_at).toLocaleDateString('ru-RU') : '';
-            const labels = { draft: 'Черновик', pending_approval: 'На согласовании', approved: 'Согласован', rejected: 'Отклонён', rework_needed: 'На доработку' };
-            const tl = [
-                { step: 1, title: 'Создание заявки', done: true, active: false, date: created, description: 'Инициатор заполнил мастер создания смарт-контракта.' },
-                { step: 2, title: 'Согласование', done: ['approved', 'rejected'].includes(p.status), active: p.status === 'pending_approval', date: '', description: 'Финансовый блок рассматривает заявку.' },
-                { step: 3, title: 'Текущий статус: ' + (labels[p.status] || p.status), done: p.status === 'approved', active: p.status === 'approved', date: '', description: 'Дальнейшие выплаты — по факту верификации milestones.' },
-            ];
-            return tl;
+        toggleAll() {
+            this.allOpen = !this.allOpen;
+            this.contract.milestones.forEach(m => m.open = this.allOpen);
         },
 
-        totalCoins() {
-            return this.contract.milestones.reduce((s, m) => s + m.coins, 0);
+        fmtRub(n) { return (Number(n) || 0).toLocaleString('ru-RU') + ' ₽'; },
+        fmtRate(v) { return v ? Number(v).toLocaleString('ru-RU', { maximumFractionDigits: 4 }) : '—'; },
+        totalRub() { return this.contract.milestones.reduce((s, m) => s + (m.rewardRub || 0), 0); },
+        totalCoins() { return this.contract.milestones.reduce((s, m) => s + (m.coins || 0), 0); },
+        paidMilestones() { return this.contract.milestones.filter(m => m.status === 'paid' || m.status === 'achieved').length; },
+        progressPct() {
+            const n = this.contract.milestones.length;
+            return n ? Math.round(this.paidMilestones() / n * 100) : 0;
         },
-
-        paidCoins() {
-            return this.contract.milestones
-                .filter(m => m.status === 'paid')
-                .reduce((s, m) => s + m.coins, 0);
-        },
-
-        paidMilestones() {
-            return this.contract.milestones.filter(m => m.status === 'paid').length;
-        },
-
         daysLeft() {
-            const parts = this.contract.deadline.split('.');
+            const parts = (this.contract.deadline || '').split('.');
             if (parts.length !== 3) return 0;
             const deadline = new Date(parts[2], parts[1] - 1, parts[0]);
             return Math.round((deadline - new Date()) / 86400000);
@@ -984,40 +880,34 @@ function scView() {
         statusClass(s) {
             return { draft: 'pill-pending', approved: 'pill-done', in_progress: 'pill-progress', pending_approval: 'pill-pending', rejected: 'pill-verify', rework_needed: 'pill-rework' }[s] || 'pill-pending';
         },
-
         statusLabel(s) {
-            return { draft: 'Черновик', approved: 'Утверждён', in_progress: 'В работе', pending_approval: 'На согласовании', rejected: 'Отклонён', rework_needed: 'На доработку' }[s] || s;
+            return { draft: 'Черновик', approved: 'Согласован', in_progress: 'В работе', pending_approval: 'На согласовании', rejected: 'Отклонён', rework_needed: 'На доработке' }[s] || s;
         },
-
         msStatusClass(s) {
-            return { pending: 'pill-pending', in_progress: 'pill-progress', verify: 'pill-verify', paid: 'pill-paid', disputed: '' }[s] || 'pill-pending';
+            return { pending: 'pill-pending', in_progress: 'pill-progress', verify: 'pill-verify', paid: 'pill-paid', achieved: 'pill-paid', disputed: 'pill-verify', failed: 'pill-verify' }[s] || 'pill-pending';
         },
-
         msStatusLabel(s) {
-            return { pending: 'Ожидает', in_progress: 'Выполняется', verify: 'На верификации', paid: 'Выплачено', disputed: 'Спор' }[s] || s;
+            return { pending: 'Ожидает', in_progress: 'Выполняется', verify: 'На верификации', paid: 'Выполнен', achieved: 'Выполнен', disputed: 'Спор', failed: 'Не выполнен' }[s] || s;
         },
 
+        // Подтверждение выполнения / спор по этапу (реализация сохранения — п.10 КП)
         verifyMilestone(idx, approved) {
             if (approved) {
                 this.contract.milestones[idx].status = 'paid';
-                // Update team paid amounts proportionally
-                const coins = this.contract.milestones[idx].coins;
-                const total = this.totalCoins();
-                this.contract.team.forEach(m => {
-                    m.paid = (m.paid || 0) + Math.round(coins * m.coins / total);
-                });
             } else {
                 this.contract.milestones[idx].status = 'disputed';
                 this.contract.hasDispute = true;
-                this.contract.disputeDescription = `Спор по milestone «${this.contract.milestones[idx].name}»: куратор не подтвердил выполнение критериев успеха. Инициатор утверждает, что критерии выполнены. Требуется AI-арбитраж.`;
+                this.contract.disputedIndex = idx;
+                this.contract.disputeDescription = `Спор по этапу «${this.contract.milestones[idx].name}»: выполнение критериев не подтверждено.`;
             }
         },
 
         async startArbitation() {
-            await new Promise(r => setTimeout(r, 2200));
-            const ms = this.contract.milestones.find(m => m.status === 'disputed');
-            this.arbitrationResult = `Решение AI-арбитража по milestone «${ms?.name || '—'}»:\n\nПо итогам 3 независимых запросов к Claude Opus (temperature=0), решение большинством голосов (3/3): milestone частично выполнен. Критерий M (измеримость) выполнен — зафиксировано ${ms?.criteria?.match(/\d+/)?.[0] || '—'} обработанных тикетов. Критерий T (период) — данные предоставлены за сокращённый период в связи с правилом малой выборки.\n\nРешение: выплатить 75% от суммы milestone (${ms ? Math.round(ms.coins * 0.75).toLocaleString('ru-RU') : '—'} coin). Оставшиеся 25% переносятся на следующий период при подтверждении полного соответствия.`;
-            this.contract.hasDispute = false;
+            this.arbitrating = true;
+            await new Promise(r => setTimeout(r, 1200));
+            const ms = this.contract.milestones[this.contract.disputedIndex];
+            this.arbitrationResult = `AI-арбитраж по этапу «${ms?.name || '—'}» будет доступен после подключения AI.`;
+            this.arbitrating = false;
         },
     };
 }
