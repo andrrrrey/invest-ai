@@ -30,6 +30,7 @@ from .api.v1 import milestones as milestones_router
 from .api.v1 import audit as audit_router
 from .api.v1 import knowledge as knowledge_router
 from .api.v1 import approval_roles as approval_roles_router
+from .api.v1 import coin_rates as coin_rates_router
 
 app = FastAPI(
     title="Инвестиционный процессор",
@@ -96,6 +97,7 @@ app.include_router(mattermost_router.router, prefix="/api/v1")
 app.include_router(milestones_router.router, prefix="/api/v1")
 app.include_router(audit_router.router, prefix="/api/v1")
 app.include_router(approval_roles_router.router, prefix="/api/v1")
+app.include_router(coin_rates_router.router, prefix="/api/v1")
 app.include_router(knowledge_router.router, prefix="/api/v1")
 
 

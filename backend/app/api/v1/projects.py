@@ -169,6 +169,12 @@ def create_project(
         project_data["user_id"] = target.id
         project_data["owner"] = target.full_name
 
+    if is_contract:
+        from ...services.coin_rate_service import apply_creation_rate
+        project_data["smart_contract_data"] = apply_creation_rate(
+            db, project_data.get("smart_contract_data")
+        )
+
     project = Project(**project_data)
     db.add(project)
     db.flush()
@@ -251,6 +257,12 @@ def update_project(
         # Статус контракта меняется только через PATCH /status и маршрут
         # согласования — иначе PUT позволял бы обойти согласующих.
         update_data.pop("status", None)
+
+    if is_contract and "smart_contract_data" in update_data:
+        from ...services.coin_rate_service import apply_creation_rate
+        update_data["smart_contract_data"] = apply_creation_rate(
+            db, update_data["smart_contract_data"], project.created_at
+        )
 
     for field, value in update_data.items():
         setattr(project, field, value)

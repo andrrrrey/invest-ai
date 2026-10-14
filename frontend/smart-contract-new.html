@@ -226,7 +226,7 @@
                 <article class="choice-card" :class="{active: form.scType==='smart'}" @click="form.scType='smart'">
                     <div class="card-icon" style="color:var(--accent)"><i class="fas fa-coins"></i></div>
                     <h3>Смарт-контракт</h3>
-                    <p style="font-size:12px;color:var(--muted);line-height:1.5;margin-top:6px">Вознаграждение по milestones с конвертацией в coins по курсу NAV.</p>
+                    <p style="font-size:12px;color:var(--muted);line-height:1.5;margin-top:6px">Вознаграждение по milestones с конвертацией в coins по курсу Coin на дату создания контракта.</p>
                     <span class="card-badge" style="background:#F0EFFF;color:var(--accent)">Выплата в coins</span>
                 </article>
                 <article class="choice-card" :class="{active: form.scType==='leadership'}" @click="form.scType='leadership'">
@@ -444,7 +444,7 @@
                         <div class="field">
                             <label x-text="isLeadership ? 'Премиальная часть (руб., необязательно)' : 'Сумма вознаграждения (руб.)'"></label>
                             <input type="number" x-model.number="ms.rewardRub" @input="recalcCoins(idx)" placeholder="1500000" min="0">
-                            <span class="hint" x-show="!isLeadership">≈ <b x-text="(ms.coins||0).toLocaleString('ru-RU')"></b> coin по курсу NAV <span x-text="navRate"></span></span>
+                            <span class="hint" x-show="!isLeadership">≈ <b x-text="(ms.coins||0).toLocaleString('ru-RU')"></b> coin по курсу <span x-text="navRate"></span> ₽ (на <span x-text="navRateDate.split('-').reverse().join('.')"></span>)</span>
                             <span class="hint" x-show="isLeadership">Премия выплачивается при достижении milestone в срок</span>
                         </div>
                     </div>
@@ -1027,6 +1027,7 @@ function scWizard() {
         team: [],
         directory: [],
         navRate: 10.1,
+        navRateDate: '',
         aiModel: 'AI-ассистент',
         submitError: '',
         navError: '',
@@ -1154,8 +1155,8 @@ function scWizard() {
                 if (!this.team.length && !this.isLeadership) this.addMember();
                 this.step = Math.min(Math.max(Number(scd.wizardStep) || 2, 2), 5);
                 setContractNav(this.form.scType);
-                // Курс черновика сохраняется как есть; модель AI — для баннера
-                this.loadNavRate(!scd.navRate);
+                // Курс — на дату создания контракта (если казначей не зафиксировал свой)
+                this.loadNavRate(!scd.navRateManual, (p.created_at || '').slice(0, 10) || null);
             } catch (e) {
                 if (e.message !== 'Unauthorized') this.draftError = 'Не удалось загрузить контракт';
             }
@@ -1260,15 +1261,24 @@ function scWizard() {
             } catch (e) {}
         },
 
-        async loadNavRate(applyRate = true) {
+        // Курс Coin на дату создания контракта (для нового — сегодня).
+        async loadNavRate(applyRate = true, onDate = null) {
+            const date = onDate || new Date().toISOString().slice(0, 10);
+            this.navRateDate = date;
             try {
-                const res = await authFetch('/api/v1/stats/');
-                if (res.ok) {
-                    const s = await res.json();
-                    if (applyRate && s.nav_rate) {
-                        this.navRate = s.nav_rate;
+                const [rateRes, statsRes] = await Promise.all([
+                    authFetch('/api/v1/coin-rates/effective?date=' + date),
+                    authFetch('/api/v1/stats/'),
+                ]);
+                if (applyRate && rateRes.ok) {
+                    const r = await rateRes.json();
+                    if (r.rate) {
+                        this.navRate = r.rate;
                         this.milestones.forEach((m, i) => this.recalcCoins(i));
                     }
+                }
+                if (statsRes.ok) {
+                    const s = await statsRes.json();
                     if (s.ai_model) this.aiModel = s.ai_model;
                 }
             } catch (e) {}

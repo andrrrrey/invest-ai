@@ -65,7 +65,8 @@ def compute_stats(
 
     sc_reward_rub = 0.0
     sc_reward_coins = 0.0
-    nav_rate = settings_store.get_nav_rate()
+    from .coin_rate_service import current_rate
+    nav_rate = current_rate(db)
 
     for p in projects:
         if (p.project_type or "") == "smart_contract":

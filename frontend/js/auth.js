@@ -274,6 +274,21 @@ function patchContractsNav() {
     const path = window.location.pathname.replace(/\.html$/, '');
     if (path === '/leader-contracts') setContractNav('leadership');
     else if (path === '/smart-contracts') setContractNav('smart');
+    else if (path === '/coin-rates') smartLink.classList.remove('active');
+
+    // «Курс Coin» — для CFO и казначея системы Coin (роль из настроек).
+    const addRatesLink = () => {
+        if (document.getElementById('nav-coin-rates')) return;
+        if (getUserRole() !== 'cfo' && !hasApprovalRole('treasurer')) return;
+        const rates = document.createElement('a');
+        rates.href = '/coin-rates';
+        rates.className = 'nav-link' + (path === '/coin-rates' ? ' active' : '');
+        rates.id = 'nav-coin-rates';
+        rates.innerHTML = '<i class="fas fa-chart-line"></i> Курс Coin';
+        leader.insertAdjacentElement('afterend', rates);
+    };
+    addRatesLink();
+    document.addEventListener('approval-roles-updated', addRatesLink);
 }
 
 function setContractNav(scType) {
