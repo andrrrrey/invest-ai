@@ -11,7 +11,7 @@ from .projects import get_accessible_project
 
 router = APIRouter(prefix="/projects", tags=["orders"])
 
-ORDER_PROJECT_TYPES = ("smart_contract",)
+ORDER_PROJECT_TYPES = ("smart_contract", "investment", "operational")
 
 
 def _project(db: Session, project_id: int, user: User):

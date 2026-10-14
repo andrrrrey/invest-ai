@@ -358,6 +358,7 @@ def _save_attachment(db: Session, project: Project, user: User, content: bytes, 
 
 
 def _order_filename(project: Project) -> str:
+    # Имя файла одинаково для контрактов и проектов.
     safe = "".join(ch for ch in (project.name or "") if ch.isalnum() or ch in " -_").strip()[:60]
     return f"Проект приказа — {safe or project.id} ({dt.date.today():%d.%m.%Y}).docx"
 
