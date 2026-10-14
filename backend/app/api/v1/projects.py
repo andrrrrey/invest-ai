@@ -93,9 +93,16 @@ def get_accessible_project(project_id: int, db: Session, current_user: User) -> 
 def list_projects(
     status: str | None = None,
     project_type: str | None = None,
+    sc_type: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Список проектов.
+
+    ``sc_type`` (``smart`` | ``leadership``) — вид контракта; применяется
+    только вместе с ``project_type=smart_contract`` и разделяет реестры
+    смарт-контрактов и лидерских контрактов.
+    """
     q = db.query(Project)
     # Owners see only their own projects, except approved projects are visible system-wide
     if current_user.role == "owner" and status != "approved":
@@ -114,7 +121,11 @@ def list_projects(
                 Project.project_type != "smart_contract",
             )
         )
-    return q.order_by(Project.created_at.desc()).all()
+    projects = q.order_by(Project.created_at.desc()).all()
+    if project_type == "smart_contract" and sc_type:
+        from ...services.contract_utils import filter_by_sc_type
+        projects = filter_by_sc_type(projects, sc_type)
+    return projects
 
 
 @router.post("/", response_model=ProjectRead, status_code=201)

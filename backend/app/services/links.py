@@ -31,6 +31,21 @@ def project_type_label(project_type: Optional[str]) -> str:
     return _LABEL_BY_TYPE.get(project_type or "", _LABEL_BY_TYPE["investment"])
 
 
+def label_for(project) -> str:
+    """Название типа конкретного проекта; для контрактов различает смарт-
+    и лидерский контракт (``smart_contract_data.scType``)."""
+    if (getattr(project, "project_type", None) or "") == "smart_contract":
+        from .contract_utils import contract_label
+        return contract_label(project)
+    return project_type_label(getattr(project, "project_type", None))
+
+
+def project_path(project_type: Optional[str], project_id) -> str:
+    """Относительный путь карточки проекта (для ссылок в уведомлениях)."""
+    path = _PATH_BY_TYPE.get(project_type or "", "/project")
+    return f"{path}?id={project_id}"
+
+
 def app_base_url() -> Optional[str]:
     base = settings_store.get_app_base_url()
     return base.rstrip("/") if base else None

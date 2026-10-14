@@ -98,21 +98,25 @@ def _notify(
     comment: Optional[str] = None,
 ) -> None:
     owner = db.get(User, project.user_id) if project.user_id else None
+    link = links.project_path(project.project_type, project.id)
 
     # In-app
     try:
         if new_status == "pending_approval":
-            notify_approvers(db, project.id, project_name, actor.full_name)
+            notify_approvers(db, project.id, project_name, actor.full_name, link=link)
             db.commit()
         elif new_status == "rejected":
             # Заявителю, CFO и CEO — с причиной отклонения.
             for u in _rejection_recipients(db, owner):
                 notify_owner(
-                    db, u.id, project.id, project_name, new_status, comment=comment
+                    db, u.id, project.id, project_name, new_status,
+                    comment=comment, link=link,
                 )
             db.commit()
         elif new_status in ("approved", "draft", "rework_needed") and project.user_id:
-            notify_owner(db, project.user_id, project.id, project_name, new_status)
+            notify_owner(
+                db, project.user_id, project.id, project_name, new_status, link=link
+            )
             db.commit()
     except Exception:
         logger.exception("In-app notification failed for project %s", project.id)
@@ -182,7 +186,7 @@ def _notify_owner_decision_mm(
     if not owner_email:
         return
     label = _OWNER_STATUS_LABELS.get(new_status, new_status)
-    type_label = links.project_type_label(project.project_type)
+    type_label = links.label_for(project)
     text = f"Проект «{project_name}» ({type_label}) — {label}."
     if new_status == "rejected" and comment:
         text += f"\nПричина: {comment}"
@@ -222,7 +226,7 @@ def _on_pending_approval(db: Session, project: Project, project_name: str, appli
         owner = db.get(User, project.user_id) if project.user_id else None
         owner_email = mattermost_service.mattermost_email(owner)
         if owner_email:
-            type_label = links.project_type_label(project.project_type)
+            type_label = links.label_for(project)
             mattermost_service.post_to_email(
                 owner_email,
                 f"Проект «{project_name}» ({type_label}) отправлен на согласование. "
@@ -328,7 +332,7 @@ def process_action(db: Session, context: dict, mm_user_id: Optional[str]) -> dic
         return {"ephemeral_text": exc.detail}
 
     label = _DONE_LABELS.get(new_status, new_status)
-    type_label = links.project_type_label(project.project_type)
+    type_label = links.label_for(project)
     return {
         "update": {"message": f"Заявка «{project.name}» ({type_label}) {label} ({actor.full_name})."},
         "ephemeral_text": "Готово.",

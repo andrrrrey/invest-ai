@@ -70,7 +70,7 @@ def run_deadline_reminders(window_days: int = 3) -> int:
             if not owner_email:
                 continue
             lines = "\n".join(f"• {title} — до {d.isoformat()}" for title, d in due)
-            type_label = links.project_type_label(p.project_type)
+            type_label = links.label_for(p)
             ok = mattermost_service.post_to_email(
                 owner_email,
                 f"Напоминание по проекту «{p.name or '(без названия)'}» ({type_label}): "

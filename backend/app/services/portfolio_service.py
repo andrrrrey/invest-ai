@@ -37,6 +37,7 @@ def compute_stats(
     db: Session,
     project_type: Optional[str] = None,
     user=None,
+    sc_type: Optional[str] = None,
 ) -> dict:
     """Собрать агрегированные показатели портфеля.
 
@@ -50,8 +51,12 @@ def compute_stats(
     if project_type:
         q = q.filter(Project.project_type == project_type)
     projects = q.all()
+    if project_type == "smart_contract" and sc_type:
+        from .contract_utils import filter_by_sc_type
+        projects = filter_by_sc_type(projects, sc_type)
 
-    by_status = {"draft": 0, "pending_approval": 0, "approved": 0, "rejected": 0}
+    by_status = {"draft": 0, "pending_approval": 0, "approved": 0, "rejected": 0,
+                 "rework_needed": 0}
     by_type = {"investment": 0, "operational": 0}
     total_npv = 0.0
     irr_values = []

@@ -152,15 +152,15 @@
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:14px">
             <div>
                 <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px">
-                    <a href="/project-list" style="font-size:13px;color:var(--muted);text-decoration:none">
-                        <i class="fas fa-arrow-left"></i> Все проекты
+                    <a :href="isLeadership ? '/leader-contracts' : '/smart-contracts'" style="font-size:13px;color:var(--muted);text-decoration:none">
+                        <i class="fas fa-arrow-left"></i> Контракты
                     </a>
                     <span style="color:#D0D0D7">/</span>
-                    <span style="font-size:13px;color:var(--muted)">Смарт-контракты</span>
+                    <span style="font-size:13px;color:var(--muted)" x-text="isLeadership ? 'Лидерские контракты' : 'Смарт-контракты (Coin)'"></span>
                 </div>
                 <h1 style="font-size:22px;font-weight:800" x-text="contract.name"></h1>
                 <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-                    <span class="status-pill pill-coin" x-show="!isLeadership"><i class="fas fa-coins"></i> Смарт-контракт</span>
+                    <span class="status-pill pill-coin" x-show="!isLeadership"><i class="fas fa-coins"></i> Смарт-контракт (Coin)</span>
                     <span class="status-pill" x-show="isLeadership" style="background:#FBECCB;color:#8A6D00"><i class="fas fa-crown"></i> Лидерский контракт</span>
                     <span class="status-pill" :class="statusClass(contract.status)" x-text="statusLabel(contract.status)"></span>
                     <span class="status-pill" style="background:#F2F2F7;color:var(--muted)" x-text="contract.contractType === 'phased' ? 'Поэтапный' : 'Единый'"></span>
@@ -498,7 +498,8 @@
                 <div class="block-title"><i class="fas fa-info-circle" style="color:var(--accent)"></i> Детали контракта</div>
                 <div class="info-row"><span class="lbl">Название</span><span class="val" x-text="contract.name"></span></div>
                 <div class="info-row"><span class="lbl">Тип</span><span class="val">
-                    <span class="status-pill pill-coin" style="padding:3px 10px;font-size:11px"><i class="fas fa-coins"></i> Смарт-контракт</span>
+                    <span class="status-pill pill-coin" x-show="!isLeadership" style="padding:3px 10px;font-size:11px"><i class="fas fa-coins"></i> Смарт-контракт (Coin)</span>
+                    <span class="status-pill" x-show="isLeadership" style="padding:3px 10px;font-size:11px;background:#FBECCB;color:#8A6D00"><i class="fas fa-crown"></i> Лидерский контракт</span>
                 </span></div>
                 <div class="info-row"><span class="lbl">Формат</span><span class="val" x-text="contract.contractType === 'phased' ? 'Поэтапный' : 'Единый'"></span></div>
                 <div class="info-row"><span class="lbl">Бизнес-юнит</span><span class="val" x-text="contract.businessUnit"></span></div>
@@ -805,6 +806,7 @@ function scView() {
                     name: t.name || '—', role: t.role || '—',
                     coins: t.coins || 0, paid: t.paid || 0,
                 }));
+                setContractNav(scd.scType === 'leadership' ? 'leadership' : 'smart');
                 this.contract = {
                     scType: scd.scType || 'smart',
                     monthlyBreakdown: scd.monthlyBreakdown || [],

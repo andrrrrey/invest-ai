@@ -188,6 +188,11 @@ function patchSidebar() {
         insertNav('nav-audit', '/audit', 'fas fa-clipboard-list', 'Аудит');
     }
 
+    // Раздел «Контракты»: два отдельных реестра — смарт-контракты (Coin) и
+    // лидерские контракты. Статичная ссылка /smart-contracts есть на каждой
+    // странице; здесь добавляем заголовок группы и ссылку на лидерские.
+    patchContractsNav();
+
     // Inject collapse toggle button as sibling of sidebar (outside sidebar's overflow)
     const sidebar = document.getElementById('sidebar');
     const appWindow = sidebar && sidebar.parentElement;
@@ -208,6 +213,53 @@ function patchSidebar() {
             btn.title = 'Развернуть меню';
         }
     }
+}
+
+/**
+ * Превращает пункт «Смарт-контракты» в группу «Контракты» с двумя
+ * подразделами. Активный подраздел определяется по адресу страницы или
+ * явно через setContractNav('smart'|'leadership') (карточка, мастер).
+ */
+function patchContractsNav() {
+    const sidebar = document.getElementById('sidebar');
+    const navMenu = sidebar && sidebar.querySelector('.nav-menu');
+    if (!navMenu) return;
+    const smartLink = navMenu.querySelector('a[href="/smart-contracts"]');
+    if (!smartLink || document.getElementById('nav-leader-contracts')) return;
+
+    smartLink.id = 'nav-smart-contracts';
+    smartLink.innerHTML = '<i class="fas fa-coins"></i> Смарт-контракты';
+
+    const group = document.createElement('div');
+    group.className = 'nav-group-label';
+    group.textContent = 'Контракты';
+    group.style.cssText = 'font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.45);padding:12px 20px 4px';
+    if (!document.getElementById('nav-group-style')) {
+        const st = document.createElement('style');
+        st.id = 'nav-group-style';
+        st.textContent = '.sidebar.collapsed .nav-group-label{display:none}';
+        document.head.appendChild(st);
+    }
+    navMenu.insertBefore(group, smartLink);
+
+    const leader = document.createElement('a');
+    leader.href = '/leader-contracts';
+    leader.className = 'nav-link';
+    leader.id = 'nav-leader-contracts';
+    leader.innerHTML = '<i class="fas fa-user-tie"></i> Лидерские контракты';
+    smartLink.insertAdjacentElement('afterend', leader);
+
+    const path = window.location.pathname.replace(/\.html$/, '');
+    if (path === '/leader-contracts') setContractNav('leadership');
+    else if (path === '/smart-contracts') setContractNav('smart');
+}
+
+function setContractNav(scType) {
+    const smart = document.getElementById('nav-smart-contracts');
+    const leader = document.getElementById('nav-leader-contracts');
+    if (!smart || !leader) return;
+    smart.classList.toggle('active', scType !== 'leadership');
+    leader.classList.toggle('active', scType === 'leadership');
 }
 
 function toggleSidebarCollapse() {

@@ -161,7 +161,7 @@
         <header class="top-header">
             <div>
                 <h1 x-text="isLeadership ? 'Создание лидерского контракта' : 'Создание смарт-контракта'"></h1>
-                <p x-text="'Шаг ' + step + ' из 5 · ' + (isLeadership ? 'Расчёт дохода в рублях (оклад + премии)' : 'Контракт с выплатой вознаграждения в coin')"></p>
+                <p x-text="stepCaption(step) + ' · ' + (isLeadership ? 'Расчёт дохода в рублях (оклад + премии)' : 'Контракт с выплатой вознаграждения в coin')"></p>
             </div>
             <span class="status-pill pill-coin" x-show="!isLeadership"><i class="fas fa-coins"></i> Смарт-контракт</span>
             <span class="status-pill" x-show="isLeadership" style="background:#FBECCB;color:#8A6D00"><i class="fas fa-crown"></i> Лидерский контракт</span>
@@ -183,7 +183,7 @@
         <!-- Step navigation -->
         <nav class="steps-nav">
             <template x-for="(label, i) in stepLabels" :key="i">
-                <button class="step-btn"
+                <button class="step-btn" x-show="!(typeLocked && i === 0)"
                     :class="{ active: step === i+1, done: step > i+1 }"
                     @click="goTo(i+1)">
                     <template x-if="step > i+1"><i class="fas fa-check" style="margin-right:3px"></i></template>
@@ -201,7 +201,7 @@
         <!-- ══════════ STEP 1: Тип контракта ══════════ -->
         <section class="wizard-panel" x-show="step===1" x-transition>
             <div>
-                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 1 из 5</span>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase" x-text="stepCaption(1)">Шаг 1 из 5</span>
                 <h2 style="font-size:20px;font-weight:700;margin-top:4px">Тип контракта</h2>
                 <p class="hint" style="margin-top:3px">Выберите формат контракта — от этого зависит логика расчёта.</p>
             </div>
@@ -222,7 +222,7 @@
             </div>
 
             <div class="panel-footer">
-                <a href="/smart-contracts" class="btn btn-outline" style="text-decoration:none">
+                <a :href="registryUrl" class="btn btn-outline" style="text-decoration:none">
                     <i class="fas fa-chevron-left"></i> Отмена
                 </a>
                 <div class="footer-right">
@@ -236,7 +236,7 @@
         <!-- ══════════ STEP 2: Суть контракта ══════════ -->
         <section class="wizard-panel" x-show="step===2" x-transition>
             <div>
-                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 2 из 5</span>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase" x-text="stepCaption(2)">Шаг 2 из 5</span>
                 <h2 style="font-size:20px;font-weight:700;margin-top:4px">Суть контракта</h2>
             </div>
 
@@ -350,7 +350,7 @@
             </div>
 
             <div class="panel-footer">
-                <button class="btn btn-outline" @click="goTo(1)">
+                <button class="btn btn-outline" @click="typeLocked ? (window.location.href = registryUrl) : goTo(1)">
                     <i class="fas fa-chevron-left"></i> Назад
                 </button>
                 <div class="footer-right">
@@ -370,7 +370,7 @@
         <section class="wizard-panel" x-show="step===3" x-transition>
             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
                 <div>
-                    <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 3 из 5</span>
+                    <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase" x-text="stepCaption(3)">Шаг 3 из 5</span>
                     <h2 style="font-size:20px;font-weight:700;margin-top:4px">Milestones</h2>
                     <p class="hint" style="margin-top:3px" x-show="form.contractType !== 'single'">Каждый milestone должен пройти проверку по всем 5 критериям SMART.</p>
                     <p class="hint" style="margin-top:3px" x-show="form.contractType === 'single'">Тип контракта «Единый» — один этап. Критерий успеха должен пройти проверку SMART.</p>
@@ -522,7 +522,7 @@
         <!-- ══════════ STEP 4: Команда и coins ══════════ -->
         <section class="wizard-panel" x-show="step===4" x-transition>
             <div>
-                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 4 из 5</span>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase" x-text="stepCaption(4)">Шаг 4 из 5</span>
                 <h2 style="font-size:20px;font-weight:700;margin-top:4px" x-text="isLeadership ? 'Доход по месяцам' : 'Состав участников'"></h2>
                 <p class="hint" style="margin-top:3px" x-show="!isLeadership">Распределите вознаграждение между участниками. Сумма свободных coins не может быть отрицательной.</p>
                 <p class="hint" style="margin-top:3px" x-show="isLeadership">Помесячная разбивка дохода: оклад ежемесячно + премии milestones в месяце их дедлайна.</p>
@@ -697,7 +697,7 @@
         <!-- ══════════ STEP 5: Резюме ══════════ -->
         <section class="wizard-panel" x-show="step===5" x-transition>
             <div>
-                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase">Шаг 5 из 5</span>
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase" x-text="stepCaption(5)">Шаг 5 из 5</span>
                 <h2 style="font-size:20px;font-weight:700;margin-top:4px">Резюме контракта</h2>
                 <p class="hint" style="margin-top:3px">Проверьте все данные перед отправкой на согласование.</p>
             </div>
@@ -1019,10 +1019,21 @@ function scWizard() {
             return this.form.scType === 'leadership';
         },
 
+        typeLocked: false,
+
+        stepCaption(n) {
+            return this.typeLocked ? `Шаг ${n - 1} из 4` : `Шаг ${n} из 5`;
+        },
+
+        get registryUrl() {
+            return this.isLeadership ? '/leader-contracts' : '/smart-contracts';
+        },
+
         get stepLabels() {
-            return this.isLeadership
-                ? ['1. Тип контракта', '2. Суть', '3. Milestones', '4. Доход', '5. Резюме']
-                : ['1. Тип контракта', '2. Суть', '3. Milestones', '4. Команда и coins', '5. Резюме'];
+            const names = ['Тип контракта', 'Суть', 'Milestones',
+                this.isLeadership ? 'Доход' : 'Команда и coins', 'Резюме'];
+            // При заданном в реестре типе первый шаг скрыт — нумерация с «Сути».
+            return names.map((n, i) => `${this.typeLocked ? i : i + 1}. ${n}`);
         },
 
         init() {
@@ -1033,6 +1044,13 @@ function scWizard() {
                 this.form.scType = 'leadership';
                 this.form.needsRecruitment = false;
             }
+            // Тип выбран в реестре (отдельная кнопка «Создать») — шаг выбора
+            // типа не нужен, мастер открывается сразу со шага «Суть».
+            if (urlType === 'leadership' || urlType === 'smart') {
+                this.typeLocked = true;
+                this.step = 2;
+            }
+            setContractNav(this.form.scType);
             this.userName = getUserName() || 'Текущий пользователь';
             const role = getUserRole();
             if (role === 'cfo' || role === 'manager') {
