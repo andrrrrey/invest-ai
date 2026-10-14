@@ -1,6 +1,6 @@
 """Пункт 2 КП: черновики контрактов."""
 
-from _helpers import client, mk_user, auth, get_project
+from _helpers import client, mk_user, auth, get_project, setup_route_roles
 
 
 def _payload(**over):
@@ -32,8 +32,11 @@ def test_create_draft_and_update_keeps_status():
 
 
 def test_owner_can_edit_rework_but_not_pending_contract():
+    setup_route_roles()
     owner = mk_user("owner")
-    pid = client.post("/api/v1/projects/", headers=auth(owner), json=_payload()).json()["id"]
+    customer = mk_user("manager")
+    pid = client.post("/api/v1/projects/", headers=auth(owner), json=_payload(
+        smart_contract_data={"scType": "smart", "customerUserId": customer})).json()["id"]
     r = client.patch(f"/api/v1/projects/{pid}/status", headers=auth(owner), json={"status": "pending_approval"})
     assert r.status_code == 200, r.text
     r = client.put(f"/api/v1/projects/{pid}", headers=auth(owner), json=_payload(name="X"))

@@ -306,6 +306,19 @@
                           x-text="'Контракт заводится за сотрудника. Создатель: ' + userName + ' — доступ к контракту сохраняется.'"></span>
                 </div>
                 <div class="field">
+                    <label>Заказчик <span style="color:var(--danger)">*</span></label>
+                    <select x-model.number="form.customerUserId">
+                        <option :value="null">Выберите заказчика</option>
+                        <template x-for="u in directory" :key="u.id">
+                            <option :value="u.id" x-text="u.full_name" :selected="u.id === form.customerUserId"></option>
+                        </template>
+                    </select>
+                    <span class="hint">Согласует потребность — второй этап маршрута (после C&amp;B).</span>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="field">
                     <label>Куратор</label>
                     <select x-model="form.curator" :disabled="curatorCandidates().length === 0">
                         <option value="">Выберите куратора</option>
@@ -947,6 +960,25 @@
                 </div>
             </template>
 
+            <!-- Маршрут согласования -->
+            <div style="background:#F7F7FF;border:1.5px solid #E1E0FF;border-radius:14px;padding:14px 18px">
+                <div style="font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">
+                    <i class="fas fa-route"></i> Маршрут согласования
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+                    <template x-for="(st, i) in routePreview()" :key="st.role">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <div style="background:white;border:1.5px solid #E5E5ED;border-radius:10px;padding:8px 12px">
+                                <div style="font-size:11px;color:var(--muted);font-weight:700" x-text="(i + 1) + '. ' + st.label"></div>
+                                <div style="font-size:13px;font-weight:700" :style="st.name ? '' : 'color:var(--danger)'" x-text="st.name || 'не назначен'"></div>
+                            </div>
+                            <i class="fas fa-chevron-right" style="color:#C7C7CC" x-show="i < 3"></i>
+                        </div>
+                    </template>
+                </div>
+                <p class="hint" style="margin-top:8px">Баффет уведомит каждого согласующего по очереди. Контракт не переходит на следующий этап, пока текущий согласующий не подтвердит его или не вернёт на доработку.</p>
+            </div>
+
             <div class="panel-footer">
                 <button class="btn btn-outline" @click="goTo(4)">
                     <i class="fas fa-chevron-left"></i> Назад
@@ -1018,6 +1050,7 @@ function scWizard() {
             needsRecruitment: false,
             documents: [],
             ownerUserId: null,        // ответственный (по умолчанию — текущий пользователь)
+            customerUserId: null,     // заказчик — согласует потребность (этап 2 маршрута)
             // ── Лидерский контракт ──
             fixedSalaryMonthly: 0,    // желаемая фиксированная часть (оклад), ₽/мес
             variableTotal: 0,         // желаемая переменная часть за весь период, ₽
@@ -1044,6 +1077,7 @@ function scWizard() {
         },
 
         typeLocked: false,
+        approvalRoles: [],
         currentUserId: getUserId(),
         projectId: null,
         savingDraft: false,
@@ -1088,6 +1122,7 @@ function scWizard() {
                 if (el) el.style.display = '';
             }
             this.loadDirectory();
+            this.loadApprovalRoles();
             const editId = new URLSearchParams(window.location.search).get('id');
             if (editId) {
                 // Возврат к черновику / контракту на доработке
@@ -1120,6 +1155,7 @@ function scWizard() {
                 this.projectId = p.id;
                 Object.assign(this.form, {
                     ownerUserId: p.user_id || this.currentUserId,
+                    customerUserId: scd.customerUserId || null,
                     scType: scd.scType === 'leadership' ? 'leadership' : 'smart',
                     name: p.name || '',
                     businessUnit: p.business_unit || '',
@@ -1174,6 +1210,8 @@ function scWizard() {
                     shortDescription: this.form.shortDescription,
                     businessEffect: this.form.businessEffect,
                     curator: this.form.curator,
+                    customerUserId: this.form.customerUserId || null,
+                    customerName: (this.directory.find(u => u.id === this.form.customerUserId) || {}).full_name || '',
                     deadline: this.form.deadline,
                     startDate: this.form.startDate,
                     contractType: this.form.contractType,
@@ -1252,6 +1290,24 @@ function scWizard() {
             } finally {
                 this.savingDraft = false;
             }
+        },
+
+        async loadApprovalRoles() {
+            try {
+                const res = await authFetch('/api/v1/approval-roles');
+                if (res.ok) this.approvalRoles = await res.json();
+            } catch (e) {}
+        },
+
+        routePreview() {
+            const by = Object.fromEntries((this.approvalRoles || []).map(r => [r.role, r.full_name]));
+            const customer = (this.directory.find(u => u.id === this.form.customerUserId) || {}).full_name;
+            return [
+                { role: 'cb', label: 'C&B', name: by.cb },
+                { role: 'customer', label: 'Заказчик', name: customer },
+                { role: 'treasurer', label: 'Казначей Coin', name: by.treasurer },
+                { role: 'cfo', label: 'Финансовый директор', name: by.cfo },
+            ];
         },
 
         async loadDirectory() {
@@ -1565,6 +1621,10 @@ function scWizard() {
             // Финальная проверка обязательных полей по шагам
             if (!this.form.name || !this.form.businessUnit || !this.form.shortDescription || !this.form.businessEffect || !this.form.deadline) {
                 this.submitError = 'Заполните обязательные поля на шаге «Суть»';
+                this.goTo(2); return;
+            }
+            if (!this.form.customerUserId) {
+                this.submitError = 'Выберите заказчика на шаге «Суть» — он согласует потребность';
                 this.goTo(2); return;
             }
             if (!this.milestonesValid()) {

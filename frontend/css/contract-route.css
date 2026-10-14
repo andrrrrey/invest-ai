@@ -1,0 +1,39 @@
+/* Блок «Согласование» и лента «История» (contract-route.js) */
+.route-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.route-step { border: 1.5px solid #E5E5ED; border-radius: 14px; padding: 12px; background: #FCFCFE; position: relative; }
+.route-step .rs-num { font-size: 11px; font-weight: 700; color: #8E8E93; text-transform: uppercase; letter-spacing: .04em; }
+.route-step .rs-role { font-size: 13px; font-weight: 800; color: #1C1C1E; margin-top: 2px; }
+.route-step .rs-hint { font-size: 11px; color: #8E8E93; margin-top: 2px; line-height: 1.35; }
+.route-step .rs-who { font-size: 12px; font-weight: 600; margin-top: 8px; color: #1C1C1E; }
+.route-step .rs-badge { display: inline-flex; gap: 5px; align-items: center; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 8px; margin-top: 8px; }
+.route-step .rs-meta { font-size: 11px; color: #8E8E93; margin-top: 6px; line-height: 1.4; }
+.route-step .rs-comment { font-size: 12px; background: #F5F5F8; border-radius: 8px; padding: 6px 8px; margin-top: 6px; color: #333; }
+.route-step.is-active { border-color: #5E5CE6; background: #F5F4FF; box-shadow: 0 0 0 3px rgba(94,92,230,.12); }
+.route-step.is-ok { border-color: #BFE5CB; background: #F4FBF6; }
+.route-step.is-rework { border-color: #FFD2B0; background: #FFF8F2; }
+.rs-wait { background: #F0F0F3; color: #8E8E93; }
+.rs-active { background: #EEEDFF; color: #5E5CE6; }
+.rs-ok { background: #DDF0E1; color: #1A7A40; }
+.rs-rework { background: #FFEBD9; color: #D9730D; }
+.route-state { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: #F0F0F3; color: #555; }
+.route-decide { border: 1.5px dashed #C7C6FF; border-radius: 14px; padding: 14px; background: #FAFAFF; }
+.route-decide textarea, .route-decide input { width: 100%; border: 1.5px solid #E5E5ED; border-radius: 10px; padding: 9px 12px; font-family: inherit; font-size: 13px; }
+.route-decide .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.route-btn { border: none; border-radius: 10px; padding: 10px 16px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; }
+.route-btn.ok { background: #34C759; color: white; }
+.route-btn.rework { background: #FFEBD9; color: #B35A00; }
+.route-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+.history-feed { display: flex; flex-direction: column; }
+.history-ev { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #F2F2F7; }
+.history-ev:last-child { border-bottom: none; }
+.history-ev .h-ico { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+.h-ok { background: #DDF0E1; color: #1A7A40; }
+.h-rework { background: #FFEBD9; color: #D9730D; }
+.h-info { background: #EEEDFF; color: #5E5CE6; }
+.h-muted { background: #F0F0F3; color: #8E8E93; }
+.history-ev .h-title { font-size: 13px; font-weight: 700; color: #1C1C1E; }
+.history-ev .h-meta { font-size: 11px; color: #8E8E93; margin-top: 2px; }
+.history-ev .h-diff { font-size: 12px; margin-top: 4px; color: #333; line-height: 1.45; word-break: break-word; }
+.history-ev .h-diff del { color: #B42318; background: #FFF0EF; text-decoration: line-through; padding: 0 3px; border-radius: 4px; }
+.history-ev .h-diff ins { color: #1A7A40; background: #EAF7EE; text-decoration: none; padding: 0 3px; border-radius: 4px; }

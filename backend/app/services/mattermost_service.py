@@ -259,3 +259,49 @@ def send_approval_card(
         if post_to_email(email, "Новая заявка на согласование", attachments=[attachment]):
             sent += 1
     return sent
+
+
+def route_step_card(
+    step_id: int,
+    title: str,
+    text: str,
+    link: Optional[str] = None,
+) -> dict:
+    """Карточка этапа маршрута согласования с кнопками «Согласовать» и
+    «На доработку». Нажатие обрабатывает ``route_service`` (kind=route_step)."""
+    token = settings_store.get_mattermost_command_token() or ""
+    base = (settings_store.get_mattermost_integration_url() or "").rstrip("/")
+    action_url = f"{base}/api/v1/mattermost/actions"
+
+    def _action(action_id: str, name: str, style: str, decision: str) -> dict:
+        return {
+            "id": action_id,
+            "name": name,
+            "style": style,
+            "integration": {
+                "url": action_url,
+                "context": {
+                    "kind": "route_step",
+                    "step_id": step_id,
+                    "decision": decision,
+                    "token": token,
+                },
+            },
+        }
+
+    body = text
+    if link:
+        body += f"\n[Открыть карточку →]({link})"
+    card = {
+        "fallback": title,
+        "color": "#5E5CE6",
+        "title": title,
+        "text": body,
+        "actions": [
+            _action("approve", "Согласовать", "good", "approve"),
+            _action("rework", "На доработку", "default", "rework"),
+        ],
+    }
+    if link:
+        card["title_link"] = link
+    return card

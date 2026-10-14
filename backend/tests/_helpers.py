@@ -68,3 +68,17 @@ def get_project(pid: int) -> Project:
         return p
     finally:
         session.close()
+
+
+def setup_route_roles() -> dict:
+    """Назначить согласующих на все роли маршрутов; вернуть их id."""
+    from app import settings_store
+    ids = {
+        "cb": mk_user("manager", full_name="Кулеева Маргарита"),
+        "treasurer": mk_user("owner", full_name="Кувшинчикова Кристина"),
+        "cfo": mk_user("cfo", full_name="Хагуш Лонда"),
+        "lawyer": mk_user("owner", full_name="Юристов Юрий"),
+        "ceo": mk_user("ceo", full_name="Генеральный Директор"),
+    }
+    settings_store.set_approval_roles(ids)
+    return ids

@@ -182,6 +182,22 @@ def run_weekly_digest() -> int:
     return sent
 
 
+def run_route_reminders() -> int:
+    """Напомнить согласующим об этапах, ожидающих решения дольше 2 суток."""
+    from . import route_service
+    db = SessionLocal()
+    try:
+        sent = route_service.remind_overdue(db)
+    finally:
+        db.close()
+    if sent:
+        audit_service.log_event(
+            action="hermes.route_reminder", actor_type="hermes", result="ok",
+            meta={"reminders": sent},
+        )
+    return sent
+
+
 def start_scheduler() -> bool:
     """Запустить фоновый планировщик, если это включено и возможно."""
     global _scheduler
@@ -205,6 +221,8 @@ def start_scheduler() -> bool:
     if reminders_on:
         # Ежедневная проверка дедлайнов в 09:00.
         _scheduler.add_job(run_deadline_reminders, "cron", hour=9, minute=0, id="deadline_reminders")
+        # Напоминания согласующим о зависших этапах маршрута — 09:05.
+        _scheduler.add_job(run_route_reminders, "cron", hour=9, minute=5, id="route_reminders")
     if digest_on:
         # Еженедельный дайджест: понедельник, 09:00.
         _scheduler.add_job(run_weekly_digest, "cron", day_of_week="mon", hour=9, minute=0, id="weekly_digest")

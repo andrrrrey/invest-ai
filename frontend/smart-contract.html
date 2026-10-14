@@ -6,6 +6,8 @@
     <title>Смарт-контракт | Инвестиционный процессор</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="/js/auth.js"></script>
+    <script src="/js/contract-route.js"></script>
+    <link rel="stylesheet" href="/css/contract-route.css">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
     <style>
         @import url('/vendor/fonts/plus-jakarta-sans.css');
@@ -197,32 +199,25 @@
                         </div>
                     </template>
 
-                    <!-- pending_approval -->
-                    <template x-if="contract.status === 'pending_approval' && canApprove">
+                    <!-- pending_approval: решение принимают согласующие по маршруту (блок «Согласование») -->
+                    <template x-if="contract.status === 'pending_approval'">
                         <div style="display:flex;flex-direction:column;gap:8px">
-                            <div style="display:flex;gap:8px">
-                                <button @click="changeStatus('approved')"
-                                    style="flex:1;padding:11px;border-radius:12px;border:none;background:#34C759;color:white;font-weight:700;cursor:pointer;font-size:13px">
-                                    Утвердить
-                                </button>
-                                <button @click="changeStatus('rejected')"
-                                    style="flex:1;padding:11px;border-radius:12px;border:none;background:#FF3B30;color:white;font-weight:700;cursor:pointer;font-size:13px">
-                                    Отклонить
-                                </button>
-                            </div>
-                            <button @click="changeStatus('rework_needed')"
-                                style="padding:11px;border-radius:12px;border:none;background:#E8F2FE;color:#0055CC;font-weight:700;cursor:pointer;font-size:13px">
-                                <i class="fas fa-pen-to-square" style="margin-right:6px"></i>На доработку
-                            </button>
-                            <button @click="changeStatus('draft')"
+                            <a href="#approval" style="padding:11px;border-radius:12px;background:#F0EFFF;color:var(--accent);font-weight:700;font-size:13px;text-align:center;text-decoration:none">
+                                <i class="fas fa-route" style="margin-right:6px"></i>Идёт согласование по маршруту
+                            </a>
+                            <button x-show="canEditDraft" @click="changeStatus('draft')"
                                 style="padding:11px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-weight:600;cursor:pointer;font-size:13px">
-                                Вернуть в черновик
+                                Отозвать в черновик
+                            </button>
+                            <button x-show="isCfoUser" @click="rejectWithReason()"
+                                style="padding:11px;border-radius:12px;border:none;background:#FF3B30;color:white;font-weight:700;cursor:pointer;font-size:13px">
+                                Отклонить (решение CFO)
                             </button>
                         </div>
                     </template>
 
                     <!-- approved / in_progress -->
-                    <template x-if="(contract.status === 'approved' || contract.status === 'in_progress') && canApprove">
+                    <template x-if="(contract.status === 'approved' || contract.status === 'in_progress') && isCfoUser">
                         <div style="display:flex;flex-direction:column;gap:8px">
                             <button @click="changeStatus('draft')"
                                 style="padding:11px;border-radius:12px;border:1.5px solid #E5E5E5;background:white;font-weight:600;cursor:pointer;font-size:13px">
@@ -302,6 +297,55 @@
         </div>
 
         <!-- Tabs -->
+        <!-- ═══ Согласование (маршрут по этапам) ═══ -->
+        <div class="card-block" id="approval" x-data="routeBlock('contract')" x-init="init()">
+            <div class="block-title" style="justify-content:space-between">
+                <span><i class="fas fa-route" style="color:var(--accent)"></i> Согласование</span>
+                <span class="route-state" x-show="state" x-text="stateLabel()"></span>
+            </div>
+            <template x-if="loading"><p style="color:var(--muted);font-size:13px">Загрузка…</p></template>
+            <template x-if="state">
+                <div>
+                    <div class="route-steps">
+                        <template x-for="(st, i) in state.steps" :key="st.id || st.role">
+                            <div class="route-step" :class="{ 'is-active': st.status === 'active', 'is-ok': st.status === 'approved', 'is-rework': st.status === 'rework' }">
+                                <div class="rs-num" x-text="'Этап ' + (i + 1)"></div>
+                                <div class="rs-role" x-text="st.role_label"></div>
+                                <div class="rs-hint" x-text="st.hint"></div>
+                                <div class="rs-who"><i class="fas fa-user" style="color:#C7C7CC;margin-right:4px"></i><span x-text="st.assignee || 'не назначен'"></span></div>
+                                <span class="rs-badge" :class="meta(st).cls"><i class="fas" :class="meta(st).icon"></i> <span x-text="meta(st).label"></span></span>
+                                <div class="rs-meta" x-show="st.sent_at" x-text="'Отправлено: ' + fmt(st.sent_at)"></div>
+                                <div class="rs-meta" x-show="st.decided_at" x-text="'Решение: ' + fmt(st.decided_at) + (st.decided_by && st.decided_by !== st.assignee ? ' (' + st.decided_by + ')' : '')"></div>
+                                <div class="rs-comment" x-show="st.comment" x-text="st.comment"></div>
+                            </div>
+                        </template>
+                    </div>
+                    <template x-if="current">
+                        <p style="font-size:13px;margin-bottom:10px">
+                            Сейчас на согласовании у <b x-text="current.assignee"></b> (<span x-text="current.role_label"></span>) с <span x-text="fmt(current.sent_at)"></span>.
+                        </p>
+                    </template>
+                    <template x-if="canDecide">
+                        <div class="route-decide">
+                            <div style="font-size:13px;font-weight:700;margin-bottom:8px">Ваше решение</div>
+                            <template x-if="isTreasurerStep">
+                                <div style="margin-bottom:8px">
+                                    <label style="font-size:12px;font-weight:700;color:#555">Курс Coin для контракта (₽ за 1 Coin) — оставьте пустым, чтобы сохранить курс на дату создания</label>
+                                    <input type="number" step="0.01" min="0.01" x-model.number="navRate" placeholder="Например: 12.50">
+                                </div>
+                            </template>
+                            <textarea rows="2" x-model="comment" placeholder="Комментарий (обязателен при возврате на доработку)"></textarea>
+                            <div class="row">
+                                <button class="route-btn ok" @click="decide('approve')" :disabled="busy"><i class="fas fa-check"></i> Согласовать</button>
+                                <button class="route-btn rework" @click="decide('rework')" :disabled="busy"><i class="fas fa-rotate-left"></i> На доработку</button>
+                            </div>
+                            <p style="color:var(--danger);font-size:12px;font-weight:600;margin-top:8px" x-show="error" x-text="error"></p>
+                        </div>
+                    </template>
+                </div>
+            </template>
+        </div>
+
         <div class="tab-nav">
             <button class="tab-btn" :class="{active: tab==='milestones'}" @click="tab='milestones'">
                 <i class="fas fa-flag-checkered"></i> Milestones
@@ -312,8 +356,8 @@
             <button class="tab-btn" :class="{active: tab==='info'}" @click="tab='info'">
                 <i class="fas fa-info-circle"></i> Детали
             </button>
-            <button class="tab-btn" :class="{active: tab==='timeline'}" @click="tab='timeline'">
-                <i class="fas fa-stream"></i> Timeline
+            <button class="tab-btn" :class="{active: tab==='history'}" @click="tab='history'">
+                <i class="fas fa-clock-rotate-left"></i> История
             </button>
         </div>
 
@@ -532,22 +576,26 @@
             </div>
         </template>
 
-        <!-- Tab: Timeline -->
-        <template x-if="tab === 'timeline'">
-            <div class="card-block">
-                <div class="block-title"><i class="fas fa-stream" style="color:var(--accent)"></i> Timeline статусов</div>
-                <div class="timeline">
-                    <template x-for="event in contract.timeline" :key="event.step">
-                        <div class="timeline-item">
-                            <div class="timeline-dot" :class="event.done ? 'dot-done' : event.active ? 'dot-active' : 'dot-pending'">
-                                <template x-if="event.done"><i class="fas fa-check"></i></template>
-                                <template x-if="event.active && !event.done"><i class="fas fa-circle" style="font-size:8px"></i></template>
-                                <template x-if="!event.done && !event.active"><i class="fas fa-clock" style="font-size:11px"></i></template>
-                            </div>
-                            <div class="timeline-content">
-                                <h4 x-text="event.step + '. ' + event.title"></h4>
-                                <p x-text="event.description"></p>
-                                <p x-show="event.date" style="font-size:11px;color:var(--accent);margin-top:4px;font-weight:600" x-text="event.date"></p>
+        <!-- Tab: History -->
+        <template x-if="tab === 'history'">
+            <div class="card-block" x-data="historyFeed()" x-init="init()">
+                <div class="block-title"><i class="fas fa-clock-rotate-left" style="color:var(--accent)"></i> История изменений и согласований</div>
+                <template x-if="loading"><p style="color:var(--muted);font-size:13px">Загрузка…</p></template>
+                <template x-if="!loading && events.length === 0"><p style="color:var(--muted);font-size:13px">Событий пока нет.</p></template>
+                <div class="history-feed">
+                    <template x-for="(e, i) in events" :key="i">
+                        <div class="history-ev">
+                            <div class="h-ico" :class="tone(e)"><i class="fas" :class="icon(e)"></i></div>
+                            <div style="flex:1;min-width:0">
+                                <div class="h-title" x-text="e.title"></div>
+                                <div class="h-meta" x-text="fmt(e.ts) + (e.by ? ' · ' + e.by : '')"></div>
+                                <div class="h-diff" x-show="e.kind === 'change'">
+                                    <del x-show="e.old" x-text="e.old"></del>
+                                    <span x-show="e.old && e.new"> → </span>
+                                    <ins x-show="e.new" x-text="e.new"></ins>
+                                    <span x-show="!e.new" style="color:var(--muted)">(очищено)</span>
+                                </div>
+                                <div class="h-diff" x-show="e.comment" x-text="'«' + e.comment + '»'"></div>
                             </div>
                         </div>
                     </template>
@@ -675,6 +723,14 @@ function scView() {
             return r === 'cfo' || r === 'manager';
         },
 
+        get isCfoUser() { return getUserRole() === 'cfo'; },
+
+        rejectWithReason() {
+            const reason = prompt('Причина отклонения контракта:');
+            if (reason === null) return;
+            this.changeStatus('rejected', reason);
+        },
+
         get canEditDraft() {
             const r = getUserRole();
             return r === 'cfo' || r === 'manager' || r === 'owner';
@@ -775,6 +831,7 @@ function scView() {
             }
             const id = new URLSearchParams(window.location.search).get('id');
             if (id) this.loadContract(id);
+            window.addEventListener('route-updated', () => { if (this.projectId) this.loadContract(this.projectId); });
         },
 
         _fmtDate(iso) {
@@ -844,13 +901,13 @@ function scView() {
             }
         },
 
-        async changeStatus(newStatus) {
+        async changeStatus(newStatus, comment = null) {
             if (!this.projectId) return;
             this.statusMsg = '';
             try {
                 const res = await authFetch('/api/v1/projects/' + this.projectId + '/status', {
                     method: 'PATCH',
-                    body: JSON.stringify({ status: newStatus }),
+                    body: JSON.stringify({ status: newStatus, comment }),
                 });
                 if (res.ok) {
                     const p = await res.json();
@@ -858,6 +915,9 @@ function scView() {
                     this.contract.timeline = this._buildTimeline(p);
                     this.statusMsgType = 'ok';
                     this.statusMsg = 'Статус изменён: ' + this.statusLabel(p.status);
+                    // Маршрут согласования и история обновляются вслед за статусом
+                    window.dispatchEvent(new CustomEvent('route-reload'));
+                    window.dispatchEvent(new CustomEvent('route-updated'));
                 } else {
                     const err = await res.json().catch(() => ({}));
                     this.statusMsgType = 'err';

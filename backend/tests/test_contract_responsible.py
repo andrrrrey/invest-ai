@@ -1,6 +1,6 @@
 """Пункт 3 КП: выбор ответственного при создании контракта."""
 
-from _helpers import client, mk_user, auth, get_project
+from _helpers import client, mk_user, auth, get_project, setup_route_roles
 from app.database import SessionLocal
 from app.models.notification import Notification
 
@@ -13,9 +13,11 @@ def _create(author, **over):
 
 
 def test_owner_creates_contract_for_colleague_and_keeps_access():
+    setup_route_roles()
     author = mk_user("owner")
     leader = mk_user("owner")
-    r = _create(author, owner_user_id=leader)
+    r = _create(author, owner_user_id=leader,
+                smart_contract_data={"scType": "leadership", "customerUserId": mk_user("manager")})
     assert r.status_code == 201, r.text
     data = r.json()
     assert data["user_id"] == leader

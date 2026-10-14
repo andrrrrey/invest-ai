@@ -73,13 +73,30 @@ def _is_own(project: Project, user: User) -> bool:
     return project.user_id == user.id or project.created_by_id == user.id
 
 
-def _check_project_access(project: Project, current_user: User):
-    """Owner can only access their own projects."""
-    if current_user.role == "owner" and not _is_own(project, current_user):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Нет доступа к этому проекту",
-        )
+def _is_route_participant(db: Session, project: Project, user: User) -> bool:
+    """Согласующий (или заказчик) контракта/приказа видит его карточку."""
+    from ...models.approval_step import ApprovalStep
+    scd = project.smart_contract_data or {}
+    if str(scd.get("customerUserId") or "") == str(user.id):
+        return True
+    return (
+        db.query(ApprovalStep.id)
+        .filter(ApprovalStep.project_id == project.id, ApprovalStep.assignee_id == user.id)
+        .first()
+        is not None
+    )
+
+
+def _check_project_access(project: Project, current_user: User, db: Session | None = None):
+    """Owner can only access their own projects (and ones they approve)."""
+    if current_user.role != "owner" or _is_own(project, current_user):
+        return
+    if db is not None and _is_route_participant(db, project, current_user):
+        return
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Нет доступа к этому проекту",
+    )
 
 
 def get_accessible_project(project_id: int, db: Session, current_user: User) -> Project:
@@ -90,7 +107,7 @@ def get_accessible_project(project_id: int, db: Session, current_user: User) -> 
     project via a direct id (IDOR).
     """
     project = _get_project_or_404(project_id, db)
-    _check_project_access(project, current_user)
+    _check_project_access(project, current_user, db)
     return project
 
 
@@ -111,8 +128,14 @@ def list_projects(
     q = db.query(Project)
     # Owners see only their own projects, except approved projects are visible system-wide
     if current_user.role == "owner" and status != "approved":
+        from ...models.approval_step import ApprovalStep
+        approving = db.query(ApprovalStep.project_id).filter(ApprovalStep.assignee_id == current_user.id)
         q = q.filter(
-            or_(Project.user_id == current_user.id, Project.created_by_id == current_user.id)
+            or_(
+                Project.user_id == current_user.id,
+                Project.created_by_id == current_user.id,
+                Project.id.in_(approving),
+            )
         )
     if status:
         q = q.filter(Project.status == status)
@@ -204,7 +227,7 @@ def get_project(
     current_user: User = Depends(get_current_user),
 ):
     project = _get_project_or_404(project_id, db)
-    _check_project_access(project, current_user)
+    _check_project_access(project, current_user, db)
     return project
 
 
@@ -258,6 +281,11 @@ def update_project(
         # согласования — иначе PUT позволял бы обойти согласующих.
         update_data.pop("status", None)
 
+    before = None
+    if is_contract:
+        from ...services import change_log
+        before = change_log.snapshot(project)
+
     if is_contract and "smart_contract_data" in update_data:
         from ...services.coin_rate_service import apply_creation_rate
         update_data["smart_contract_data"] = apply_creation_rate(
@@ -268,6 +296,8 @@ def update_project(
         setattr(project, field, value)
 
     _recalc_and_save(project, db)
+    if before is not None:
+        change_log.record_diff(db, project, before, current_user.id)
     db.commit()
     db.refresh(project)
     if new_owner is not None:
@@ -323,6 +353,10 @@ def reassign_project(
     project = _get_project_or_404(project_id, db)
     target = _active_user_or_400(db, body.get("user_id"))
 
+    if (project.project_type or "") == "smart_contract" and project.owner != target.full_name:
+        from ...services import change_log
+        change_log.log(db, project.id, current_user.id, "owner", "Ответственный",
+                       project.owner, target.full_name)
     project.user_id = target.id
     project.owner = target.full_name
     db.commit()

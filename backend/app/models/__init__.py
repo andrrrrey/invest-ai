@@ -10,3 +10,5 @@ from .notification import Notification  # noqa: F401
 from .audit_log import AuditLog  # noqa: F401
 from .knowledge import KnowledgeEntry  # noqa: F401
 from .coin_rate import CoinRate  # noqa: F401
+from .approval_step import ApprovalStep  # noqa: F401
+from .project_change import ProjectChange  # noqa: F401
