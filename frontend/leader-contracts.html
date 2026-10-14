@@ -315,6 +315,7 @@
                             </div>
                         </div>
                     </div>
+                    <a x-show="!isOwner" class="btn btn-outline" :href="'/export?report=contracts&sc_type=' + scType" style="text-decoration:none"><i class="fas fa-file-excel"></i> Выгрузить реестр</a>
                     <button x-show="canCreate" class="btn btn-primary" @click="window.location.href=createUrl"><i class="fas fa-plus"></i> <span x-text="meta.createLabel"></span></button>
                 </div>
             </header>
