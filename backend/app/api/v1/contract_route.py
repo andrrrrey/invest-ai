@@ -71,6 +71,38 @@ def project_history(
 ):
     """Хронология: статусы, этапы согласования (отправка/решение), изменения полей."""
     project = get_accessible_project(project_id, db, current_user)
+    return history_events(db, project)
+
+
+@router.get("/{project_id}/pdf")
+def contract_pdf(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """PDF-документ по контракту: паспорт, этапы, команда/доход, согласование, история."""
+    from urllib.parse import quote
+    from fastapi.responses import StreamingResponse
+    from ...services.export_pdf import build_pdf
+    from .export import _project_to_dict
+
+    project = get_accessible_project(project_id, db, current_user)
+    data = _project_to_dict(project)
+    if (project.project_type or "") == "smart_contract":
+        data["approval_route"] = route_service.route_state(db, project, "contract", current_user)
+        data["history"] = history_events(db, project)
+    buf = build_pdf([data], {}, "full", False, "", {}, "", current_user.full_name)
+    kind = "Контракт" if (project.project_type or "") == "smart_contract" else "Проект"
+    safe_name = "".join(ch for ch in (project.name or "") if ch.isalnum() or ch in " -_")[:60].strip()
+    filename = f"{kind}_{project.id}" + (f"_{safe_name}" if safe_name else "") + ".pdf"
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=\"{kind.encode('ascii', 'ignore').decode() or 'contract'}_{project.id}.pdf\"; filename*=UTF-8''{quote(filename)}"},
+    )
+
+
+def history_events(db: Session, project) -> list:
     events = []
     if project.created_at:
         events.append({"ts": project.created_at.isoformat(), "kind": "created",

@@ -245,6 +245,9 @@
             </div>
             <div class="header-actions" id="header-actions">
                 <a class="hbtn primary" x-show="canEditContract" :href="'/smart-contract-new?id=' + projectId"><i class="fas fa-pen"></i> Редактировать</a>
+                <button class="hbtn" @click="downloadPdf()" :disabled="pdfLoading">
+                    <i class="fas" :class="pdfLoading ? 'fa-spinner fa-spin' : 'fa-file-pdf'" style="color:#E5484D"></i> Скачать PDF
+                </button>
                 <a class="hbtn" :href="'/smart-contract-new?type=' + (isLeadership ? 'leadership' : 'smart')"><i class="fas fa-plus"></i> Новый контракт</a>
             </div>
         </header>
@@ -678,6 +681,7 @@ function scView() {
         tab: 'milestones',
         arbitrationResult: '',
         arbitrating: false,
+        pdfLoading: false,
         projectId: null,
         statusMsg: '',
         statusMsgType: 'ok',
@@ -868,6 +872,30 @@ function scView() {
             } catch (e) {
                 this.statusMsgType = 'err';
                 this.statusMsg = 'Ошибка: ' + e.message;
+            }
+        },
+
+        async downloadPdf() {
+            this.pdfLoading = true;
+            try {
+                const res = await authFetch(`/api/v1/projects/${this.projectId}/pdf`);
+                if (!res.ok) {
+                    const e = await res.json().catch(() => ({}));
+                    alert(e.detail || 'Не удалось сформировать PDF');
+                    return;
+                }
+                const cd = res.headers.get('content-disposition') || '';
+                const m = cd.match(/filename\*=UTF-8''([^;]+)/);
+                const name = m ? decodeURIComponent(m[1]) : `Контракт_${this.projectId}.pdf`;
+                const url = URL.createObjectURL(await res.blob());
+                const a = document.createElement('a');
+                a.href = url; a.download = name;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch (e) {
+                if (e.message !== 'Unauthorized') alert('Ошибка: ' + e.message);
+            } finally {
+                this.pdfLoading = false;
             }
         },
 
