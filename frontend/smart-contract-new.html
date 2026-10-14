@@ -27,6 +27,7 @@
         .nav-link:hover, .nav-link.active { background: #2C2C2E; color: #fff; }
         .main-content { flex: 1; display: flex; flex-direction: column; padding: 28px 34px; overflow-y: auto; gap: 16px; }
         .top-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+        .draft-saved { font-size: 12px; color: #2D9B63; font-weight: 600; }
         .top-header h1 { font-size: 22px; font-weight: 700; }
         .top-header p { font-size: 13px; color: var(--muted); margin-top: 4px; }
         .ai-banner { background: linear-gradient(135deg,#EEF0FF 0%,#F5F4FF 100%); border: 1.5px solid #C7C9FF; border-radius: 16px; padding: 14px 18px; display: flex; gap: 14px; align-items: flex-start; color: var(--accent); }
@@ -160,12 +161,27 @@
         <!-- Header -->
         <header class="top-header">
             <div>
-                <h1 x-text="isLeadership ? 'Создание лидерского контракта' : 'Создание смарт-контракта'"></h1>
+                <h1 x-text="(projectId ? 'Редактирование ' : 'Создание ') + (isLeadership ? 'лидерского контракта' : 'смарт-контракта')"></h1>
                 <p x-text="stepCaption(step) + ' · ' + (isLeadership ? 'Расчёт дохода в рублях (оклад + премии)' : 'Контракт с выплатой вознаграждения в coin')"></p>
             </div>
-            <span class="status-pill pill-coin" x-show="!isLeadership"><i class="fas fa-coins"></i> Смарт-контракт</span>
-            <span class="status-pill" x-show="isLeadership" style="background:#FBECCB;color:#8A6D00"><i class="fas fa-crown"></i> Лидерский контракт</span>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+                <span class="status-pill pill-coin" x-show="!isLeadership"><i class="fas fa-coins"></i> Смарт-контракт</span>
+                <span class="status-pill" x-show="isLeadership" style="background:#FBECCB;color:#8A6D00"><i class="fas fa-crown"></i> Лидерский контракт</span>
+                <span class="draft-saved" x-show="draftSavedAt" x-text="'Черновик сохранён в ' + draftSavedAt"></span>
+                <button class="btn btn-outline" @click="saveDraft()" :disabled="savingDraft || submitted" title="Сохранить и вернуться позже">
+                    <i class="fas" :class="savingDraft ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i>
+                    <span x-text="savingDraft ? 'Сохранение…' : 'Сохранить черновик'"></span>
+                </button>
+                <button class="btn btn-outline" x-show="projectId" @click="saveDraft().then(ok => ok && (window.location.href = '/smart-contract?id=' + projectId))" :disabled="savingDraft || submitted">
+                    <i class="fas fa-right-from-bracket"></i> Сохранить и выйти
+                </button>
+            </div>
         </header>
+        <template x-if="draftError">
+            <div style="background:#FFF0EF;border:1.5px solid var(--danger);border-radius:12px;padding:10px 16px;margin-bottom:14px;color:var(--danger);font-size:13px;font-weight:600">
+                <i class="fas fa-exclamation-circle"></i> <span x-text="draftError"></span>
+            </div>
+        </template>
 
         <!-- AI banner -->
         <div class="ai-banner">
@@ -958,7 +974,7 @@
                            x-text="isLeadership
                                 ? 'Финансовый блок получил заявку с AI-резюме. Оклад выплачивается ежемесячно, премии — по факту верификации каждого milestone куратором / CEO.'
                                 : 'Финансовый блок получил заявку с AI-резюме. После согласования coins будут зарезервированы на счёте контракта. Выплата — только по факту верификации каждого milestone куратором / CEO.'"></p>
-                        <a href="/smart-contract" style="display:inline-block;margin-top:10px;font-size:12px;font-weight:600;color:var(--accent)">
+                        <a :href="'/smart-contract?id=' + projectId" style="display:inline-block;margin-top:10px;font-size:12px;font-weight:600;color:var(--accent)">
                             Перейти к просмотру контракта →
                         </a>
                     </div>
@@ -1020,6 +1036,10 @@ function scWizard() {
         },
 
         typeLocked: false,
+        projectId: null,
+        savingDraft: false,
+        draftSavedAt: '',
+        draftError: '',
 
         stepCaption(n) {
             return this.typeLocked ? `Шаг ${n - 1} из 4` : `Шаг ${n} из 5`;
@@ -1057,16 +1077,169 @@ function scWizard() {
                 const el = document.getElementById('nav-users');
                 if (el) el.style.display = '';
             }
-            this.addMilestone();
-            this.addMember();
             this.loadDirectory();
-            this.loadNavRate();
+            const editId = new URLSearchParams(window.location.search).get('id');
+            if (editId) {
+                // Возврат к черновику / контракту на доработке
+                this.typeLocked = true;
+                this.loadExisting(editId);
+            } else {
+                this.addMilestone();
+                this.addMember();
+                this.loadNavRate();
+            }
             // Тип «Единый» — ровно один этап
             this.$watch('form.contractType', (v) => {
                 if (v === 'single' && this.milestones.length > 1) {
                     this.milestones = this.milestones.slice(0, 1);
                 }
             });
+        },
+
+        async loadExisting(id) {
+            try {
+                const res = await authFetch('/api/v1/projects/' + id);
+                if (!res.ok) { this.draftError = 'Контракт не найден или нет доступа'; return; }
+                const p = await res.json();
+                if (!['draft', 'rework_needed'].includes(p.status || 'draft')) {
+                    // Редактировать можно только черновик или контракт на доработке
+                    window.location.href = '/smart-contract?id=' + p.id;
+                    return;
+                }
+                const scd = p.smart_contract_data || {};
+                this.projectId = p.id;
+                Object.assign(this.form, {
+                    scType: scd.scType === 'leadership' ? 'leadership' : 'smart',
+                    name: p.name || '',
+                    businessUnit: p.business_unit || '',
+                    shortDescription: scd.shortDescription || p.description || '',
+                    businessEffect: scd.businessEffect || '',
+                    curator: scd.curator || '',
+                    deadline: scd.deadline || '',
+                    startDate: scd.startDate || '',
+                    contractType: scd.contractType || 'phased',
+                    totalBudget: scd.totalBudget || 0,
+                    distributionNote: scd.distributionNote || '',
+                    needsRecruitment: !!scd.needsRecruitment,
+                    documents: scd.documents || [],
+                    fixedSalaryMonthly: scd.fixedSalaryMonthly || 0,
+                    variableTotal: scd.variableTotal || 0,
+                });
+                this.aiSummary = scd.aiSummary || '';
+                this.smartConfirmed = !!scd.smartOverride;
+                if (scd.navRate) this.navRate = scd.navRate;
+                this.milestones = (scd.milestones || []).map(m => ({
+                    id: Date.now() + Math.random(),
+                    name: m.name || '', deadline: m.deadline || '', period: m.period || '',
+                    rewardRub: Number(m.rewardRub) || 0, coins: Number(m.coins) || 0,
+                    baseline: m.baseline || '', target: m.target || '', criteria: m.criteria || '',
+                    dataSource: m.dataSource || '', stopLoss: m.stopLoss || '',
+                    smart: m.smart || { S: null, M: null, A: null, R: null, T: null },
+                    smartValid: !!m.smartValid, validating: false, smartFeedback: m.smartFeedback || '',
+                }));
+                this.team = (scd.team || []).map(t => ({
+                    id: Date.now() + Math.random(), name: t.name || '', role: t.role || '', coins: Number(t.coins) || 0,
+                }));
+                if (!this.milestones.length) this.addMilestone();
+                if (!this.team.length && !this.isLeadership) this.addMember();
+                this.step = Math.min(Math.max(Number(scd.wizardStep) || 2, 2), 5);
+                setContractNav(this.form.scType);
+                // Курс черновика сохраняется как есть; модель AI — для баннера
+                this.loadNavRate(!scd.navRate);
+            } catch (e) {
+                if (e.message !== 'Unauthorized') this.draftError = 'Не удалось загрузить контракт';
+            }
+        },
+
+        buildPayload() {
+            return {
+                project_type: 'smart_contract',
+                name: this.form.name || 'Черновик контракта',
+                business_unit: this.form.businessUnit,
+                description: this.form.shortDescription,
+                smart_contract_data: {
+                    scType: this.form.scType,
+                    shortDescription: this.form.shortDescription,
+                    businessEffect: this.form.businessEffect,
+                    curator: this.form.curator,
+                    deadline: this.form.deadline,
+                    startDate: this.form.startDate,
+                    contractType: this.form.contractType,
+                    needsRecruitment: this.isLeadership ? false : this.form.needsRecruitment,
+                    navRate: this.navRate,
+                    totalBudget: this.form.totalBudget,
+                    distributionNote: this.form.distributionNote,
+                    documents: this.form.documents,
+                    aiSummary: this.aiSummary,
+                    // SMART не пройден полностью, но лидер подтвердил отправку на согласование
+                    smartOverride: this.smartPending().length > 0 && this.smartConfirmed,
+                    // Лидерский контракт: фикс/переменная части и помесячная разбивка (только рубли)
+                    fixedSalaryMonthly: this.form.fixedSalaryMonthly,
+                    variableTotal: this.form.variableTotal,
+                    monthlyBreakdown: this.isLeadership ? this.leadershipMonths() : [],
+                    leadershipTotals: this.isLeadership ? this.leadershipTotals() : null,
+                    // Шаг мастера, на котором остановились (для возврата к черновику)
+                    wizardStep: this.step,
+                    milestones: this.milestones.map(m => ({
+                        name: m.name, deadline: m.deadline, period: m.period,
+                        rewardRub: m.rewardRub, coins: this.isLeadership ? 0 : m.coins,
+                        bonusRub: m.rewardRub,
+                        baseline: m.baseline, target: m.target, criteria: m.criteria,
+                        dataSource: m.dataSource, stopLoss: m.stopLoss,
+                        smart: m.smart, smartValid: m.smartValid, smartFeedback: m.smartFeedback,
+                    })),
+                    team: (this.isLeadership || this.form.needsRecruitment) ? [] : this.team
+                        .filter(t => t.name)
+                        .map(t => ({ name: t.name, role: t.role, coins: t.coins })),
+                },
+            };
+        },
+
+        // Сохранить без проверки обязательных полей: POST при первом сохранении,
+        // далее PUT. Возвращает true при успехе.
+        async saveDraft({ silent = false } = {}) {
+            if (this.savingDraft) return false;
+            this.savingDraft = true;
+            this.draftError = '';
+            try {
+                const payload = this.buildPayload();
+                let res;
+                if (this.projectId) {
+                    res = await authFetch('/api/v1/projects/' + this.projectId, {
+                        method: 'PUT', body: JSON.stringify(payload),
+                    });
+                } else {
+                    payload.status = 'draft';
+                    res = await authFetch('/api/v1/projects/', {
+                        method: 'POST', body: JSON.stringify(payload),
+                    });
+                }
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    this.draftError = err.detail || 'Не удалось сохранить черновик';
+                    return false;
+                }
+                const saved = await res.json();
+                const isNew = !this.projectId;
+                this.projectId = saved.id;
+                if (isNew) {
+                    // Адрес черновика — чтобы обновление страницы не потеряло данные
+                    history.replaceState(null, '', '/smart-contract-new?id=' + saved.id);
+                }
+                if ((this._docFiles || []).length) {
+                    await this.uploadDocuments(saved.id);
+                    this._docFiles = [];
+                }
+                if (!silent) {
+                    this.draftSavedAt = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+                }
+                return true;
+            } catch (e) {
+                if (e.message !== 'Unauthorized') this.draftError = 'Ошибка сети при сохранении';
+                return false;
+            } finally {
+                this.savingDraft = false;
+            }
         },
 
         async loadDirectory() {
@@ -1076,12 +1249,12 @@ function scWizard() {
             } catch (e) {}
         },
 
-        async loadNavRate() {
+        async loadNavRate(applyRate = true) {
             try {
                 const res = await authFetch('/api/v1/stats/');
                 if (res.ok) {
                     const s = await res.json();
-                    if (s.nav_rate) {
+                    if (applyRate && s.nav_rate) {
                         this.navRate = s.nav_rate;
                         this.milestones.forEach((m, i) => this.recalcCoins(i));
                     }
@@ -1390,62 +1563,22 @@ function scWizard() {
                 this.submitError = 'Проверьте состав участников и распределение coins';
                 this.goTo(4); return;
             }
-            const payload = {
-                project_type: 'smart_contract',
-                name: this.form.name,
-                business_unit: this.form.businessUnit,
-                description: this.form.shortDescription,
-                status: 'pending_approval',
-                smart_contract_data: {
-                    scType: this.form.scType,
-                    shortDescription: this.form.shortDescription,
-                    businessEffect: this.form.businessEffect,
-                    curator: this.form.curator,
-                    deadline: this.form.deadline,
-                    startDate: this.form.startDate,
-                    contractType: this.form.contractType,
-                    needsRecruitment: this.isLeadership ? false : this.form.needsRecruitment,
-                    navRate: this.navRate,
-                    totalBudget: this.form.totalBudget,
-                    distributionNote: this.form.distributionNote,
-                    documents: this.form.documents,
-                    aiSummary: this.aiSummary,
-                    // SMART не пройден полностью, но лидер подтвердил отправку на согласование
-                    smartOverride: this.smartPending().length > 0 && this.smartConfirmed,
-                    // Лидерский контракт: фикс/переменная части и помесячная разбивка (только рубли)
-                    fixedSalaryMonthly: this.form.fixedSalaryMonthly,
-                    variableTotal: this.form.variableTotal,
-                    monthlyBreakdown: this.isLeadership ? this.leadershipMonths() : [],
-                    leadershipTotals: this.isLeadership ? this.leadershipTotals() : null,
-                    milestones: this.milestones.map(m => ({
-                        name: m.name, deadline: m.deadline, period: m.period,
-                        rewardRub: m.rewardRub, coins: this.isLeadership ? 0 : m.coins,
-                        bonusRub: m.rewardRub,
-                        baseline: m.baseline, target: m.target, criteria: m.criteria,
-                        dataSource: m.dataSource, stopLoss: m.stopLoss,
-                        smartValid: m.smartValid,
-                    })),
-                    team: (this.isLeadership || this.form.needsRecruitment) ? [] : this.team
-                        .filter(t => t.name)
-                        .map(t => ({ name: t.name, role: t.role, coins: t.coins })),
-                },
-            };
+            // Сначала сохраняем (создаём черновик или обновляем), затем переводим
+            // на согласование через общий сервис статусов (уведомления, маршрут).
+            const saved = await this.saveDraft({ silent: true });
+            if (!saved) { this.submitError = this.draftError; return; }
             try {
-                const res = await authFetch('/api/v1/projects/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
+                const res = await authFetch(`/api/v1/projects/${this.projectId}/status`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ status: 'pending_approval' }),
                 });
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
-                    this.submitError = err.detail || 'Не удалось сохранить контракт';
+                    this.submitError = err.detail || 'Не удалось отправить контракт на согласование';
                     return;
                 }
-                const created = await res.json();
-                // Загружаем прикреплённые документы как реальные вложения контракта
-                await this.uploadDocuments(created.id);
                 this.submitted = true;
-                window.location.href = '/smart-contract?id=' + created.id;
+                window.location.href = '/smart-contract?id=' + this.projectId;
             } catch (e) {
                 if (e.message !== 'Unauthorized') this.submitError = 'Ошибка сети при сохранении';
             }

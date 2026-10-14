@@ -198,16 +198,28 @@ def update_project(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="CEO не может редактировать проекты",
         )
+    is_contract = (project.project_type or "") == "smart_contract"
     # Owner can only edit their own draft or pending_approval projects
-    if current_user.role == "owner" and project.status not in ("draft", "pending_approval"):
+    # (contracts: draft or returned for rework — they are edited in the wizard).
+    owner_editable = ("draft", "rework_needed") if is_contract else ("draft", "pending_approval")
+    if current_user.role == "owner" and (project.status or "draft") not in owner_editable:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Заявитель может редактировать только черновики и заявки на согласовании",
+            detail=(
+                "Заявитель может редактировать только черновики и контракты на доработке"
+                if is_contract
+                else "Заявитель может редактировать только черновики и заявки на согласовании"
+            ),
         )
 
     update_data = data.model_dump(exclude_unset=True)
     # Never allow changing the ownership via update
     update_data.pop("user_id", None)
+    update_data.pop("owner_user_id", None)
+    if is_contract:
+        # Статус контракта меняется только через PATCH /status и маршрут
+        # согласования — иначе PUT позволял бы обойти согласующих.
+        update_data.pop("status", None)
 
     for field, value in update_data.items():
         setattr(project, field, value)
