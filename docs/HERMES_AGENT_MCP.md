@@ -234,9 +234,11 @@ URL бэкенда). Поле `url` исключено из обезличива
   `python -m app.mcp.server`.
 - `app/mcp/http.py` — HTTP-транспорт (Streamable HTTP, stateless, JSON-ответы)
   на `/api/mcp` внутри основного приложения; авторизация
-  `Authorization: Bearer <токен>`, токены — env `MCP_HTTP_TOKENS`
-  (`имя=токен,…`; пусто — эндпоинт выключен, 404). Stateless-режим работает
-  при нескольких воркерах uvicorn.
+  `Authorization: Bearer <токен>`. Токены: **личные** (`imcp_…`, создаёт сам
+  пользователь CEO/CFO/менеджер в профиле; модель `McpToken`, сервис
+  `services/mcp_token_service.py`, API `api/v1/mcp_tokens.py`) и
+  **служебные** из env `MCP_HTTP_TOKENS` (`имя=токен,…`, необязательно).
+  Stateless-режим работает при нескольких воркерах uvicorn.
 - `app/mcp/gateway.py` — единая точка вызова для внешних клиентов: список
   инструментов, гейт, обезличивание, аудит.
 
@@ -245,7 +247,9 @@ URL бэкенда). Поле `url` исключено из обезличива
   — при `knowledge_enabled`). Write-набор внешним клиентам недоступен при любых
   настройках (вызов → ошибка + аудит).
 - Каждый вызов идёт через `registry.call_tool(..., actor_type="ai_gateway")`;
-  `actor_id` — имя токена (HTTP) или `stdio`.
+  `actor_id` — id пользователя (личный токен), `svc:<имя>` (служебный) или
+  `stdio`. Создание/отзыв токенов — события `mcp.token_create` /
+  `mcp.token_revoke`.
 - **Обезличивание** (флаг `mcp_anonymize_enabled`, по умолчанию on, env
   `MCP_ANONYMIZE_ENABLED`): результат маскируется структурно (`mask_obj`) по
   тем же терминам, что у агента, плюс ФИО пользователей системы (из ≥2 слов).
@@ -334,7 +338,7 @@ URL бэкенда). Поле `url` исключено из обезличива
 | `MATTERMOST_COMMAND_TOKEN` | Верификация slash-команд и кнопок |
 | `MATTERMOST_INTEGRATION_URL` | Внешний URL бэкенда для callback-ов кнопок |
 | `MATTERMOST_ALERT_WEBHOOK` | Incoming webhook служебного канала для ошибок |
-| `MCP_HTTP_TOKENS` | Токены HTTP MCP-эндпоинта `/api/mcp` (`имя=токен,…`) |
+| `MCP_HTTP_TOKENS` | Необязательные служебные токены `/api/mcp` (`имя=токен,…`); пользователи создают личные токены в профиле |
 | `APP_BASE_URL` | Публичный URL приложения для ссылок на проекты (фолбэк — integration URL) |
 | `LOG_LEVEL` | Уровень JSON-логирования |
 

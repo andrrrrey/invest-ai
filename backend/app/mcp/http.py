@@ -3,10 +3,11 @@
 Эндпоинт ``/api/mcp`` встроен в основное FastAPI-приложение, поэтому проходит
 через тот же nginx (``location /api/``) и HTTPS, что и остальной API.
 
-* Включается заданием токенов в ``MCP_HTTP_TOKENS`` (см.
-  ``settings_store.get_mcp_http_tokens``); без токенов эндпоинт отвечает 404.
-* Каждый запрос должен содержать ``Authorization: Bearer <токен>``; имя
-  токена пишется в аудит как ``actor_id`` вызова инструмента.
+* Доступ — по токену в заголовке ``Authorization: Bearer <токен>``:
+  - **личные токены пользователей** (CEO/CFO/менеджер создают их сами в
+    профиле, ``services.mcp_token_service``); в аудит пишется id пользователя;
+  - **служебные токены** из env ``MCP_HTTP_TOKENS`` (``имя=токен,…``) — для
+    интеграций без пользователя; в аудит пишется имя токена.
 * Режим stateless + JSON-ответы: сервер не хранит сессии между запросами, так
   что работает при нескольких воркерах uvicorn и за обычным прокси.
 """
@@ -77,6 +78,31 @@ def authenticate(token: Optional[str], tokens: dict) -> Optional[str]:
     return found
 
 
+def _user_client(raw: Optional[str]) -> Optional[str]:
+    """id пользователя (строкой) по личному токену из БД."""
+    from ..database import SessionLocal
+    from ..services import mcp_token_service
+
+    db = SessionLocal()
+    try:
+        user = mcp_token_service.authenticate(db, raw)
+        return str(user.id) if user is not None else None
+    finally:
+        db.close()
+
+
+async def _resolve_client(raw: Optional[str]) -> Optional[str]:
+    """Кто обращается: id пользователя (личный токен) или имя служебного токена."""
+    if not raw:
+        return None
+    client = authenticate(raw, settings_store.get_mcp_http_tokens())
+    if client is not None:
+        return f"svc:{client}"
+    import anyio
+
+    return await anyio.to_thread.run_sync(_user_client, raw)
+
+
 class McpHttpEndpoint:
     """ASGI-приложение эндпоинта ``/api/mcp``.
 
@@ -111,14 +137,7 @@ class McpHttpEndpoint:
     async def __call__(self, scope, receive, send) -> None:
         if scope.get("type") != "http":  # pragma: no cover
             return
-        tokens = settings_store.get_mcp_http_tokens()
-        if not tokens:
-            await _send_json(send, 404, {
-                "detail": "HTTP MCP-эндпоинт выключен: задайте токены в MCP_HTTP_TOKENS",
-            })
-            return
-
-        client = authenticate(_bearer_token(scope), tokens)
+        client = await _resolve_client(_bearer_token(scope))
         if client is None:
             logger.warning(
                 "MCP HTTP: отказ в доступе (неверный или отсутствующий токен)",

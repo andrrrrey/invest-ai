@@ -101,8 +101,6 @@ def get_settings(_=Depends(require_cfo)) -> dict:
         "digest_enabled": settings_store.is_digest_enabled(),
         "knowledge_enabled": settings_store.is_knowledge_enabled(),
         "mcp_anonymize_enabled": settings_store.is_mcp_anonymize_enabled(),
-        # HTTP MCP-эндпоинт включён, если заданы токены (MCP_HTTP_TOKENS).
-        "mcp_http_enabled": bool(settings_store.get_mcp_http_tokens()),
         "embedding_model": settings_store.get_embedding_model(),
         # Признак, что значение задано переменной окружения (env приоритетнее файла).
         "env_overrides": {

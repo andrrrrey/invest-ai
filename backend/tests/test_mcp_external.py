@@ -144,4 +144,85 @@ def test_http_endpoint(monkeypatch):
 
     monkeypatch.delenv("MCP_HTTP_TOKENS")
     with TestClient(app) as client:
-        assert _rpc(client, {}).status_code == 404
+        # Без служебных токенов эндпоинт всё равно работает (личные токены),
+        # но без токена — 401.
+        assert _rpc(client, {}).status_code == 401
+
+
+_INIT = {
+    "jsonrpc": "2.0", "id": 1, "method": "initialize",
+    "params": {"protocolVersion": "2025-03-26", "capabilities": {},
+               "clientInfo": {"name": "pytest", "version": "1"}},
+}
+
+
+def test_personal_tokens_lifecycle(monkeypatch):
+    from app.main import app
+    from app.models.user import User
+    from tests._helpers import mk_user, auth
+
+    monkeypatch.delenv("MCP_HTTP_TOKENS", raising=False)
+    manager = mk_user("manager")
+    owner = mk_user("owner")
+    cfo = mk_user("cfo")
+
+    with TestClient(app) as client:
+        # Заявителю (owner) создавать токены нельзя.
+        r = client.post("/api/v1/mcp-tokens/", json={"name": "x"}, headers=auth(owner))
+        assert r.status_code == 403
+        assert client.get("/api/v1/mcp-tokens/", headers=auth(owner)).json()["allowed"] is False
+
+        # Менеджер создаёт токен — он возвращается один раз.
+        r = client.post("/api/v1/mcp-tokens/", json={"name": "Мой Claude"}, headers=auth(manager))
+        assert r.status_code == 200
+        created = r.json()
+        raw = created["token"]
+        assert raw.startswith("imcp_")
+        listed = client.get("/api/v1/mcp-tokens/", headers=auth(manager)).json()
+        assert listed["allowed"] is True
+        assert [t["name"] for t in listed["items"]] == ["Мой Claude"]
+        assert "token" not in listed["items"][0]
+
+        # Токен работает на /api/mcp сразу, без перезапуска.
+        assert _rpc(client, _INIT, token=raw).status_code == 200
+        called = _rpc(client, {
+            "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+            "params": {"name": "list_pending_approvals", "arguments": {}},
+        }, token=raw)
+        assert called.status_code == 200
+
+        # В аудит пишется id пользователя.
+        s = SessionLocal()
+        try:
+            row = (
+                s.query(AuditLog)
+                .filter(AuditLog.action == "mcp.tool_call", AuditLog.target_id == "list_pending_approvals")
+                .order_by(AuditLog.id.desc())
+                .first()
+            )
+            assert row.actor_type == "ai_gateway" and row.actor_id == str(manager)
+        finally:
+            s.close()
+
+        # Чужой пользователь (не CFO) не может отозвать токен; CFO видит и может.
+        other = mk_user("ceo")
+        assert client.delete(f"/api/v1/mcp-tokens/{created['id']}", headers=auth(other)).status_code == 404
+        everyone = client.get("/api/v1/mcp-tokens/?all=true", headers=auth(cfo)).json()["items"]
+        assert any(t["id"] == created["id"] for t in everyone)
+        assert client.get("/api/v1/mcp-tokens/?all=true", headers=auth(manager)).status_code == 403
+
+        # Отзыв — доступ пропадает сразу.
+        assert client.delete(f"/api/v1/mcp-tokens/{created['id']}", headers=auth(manager)).status_code == 200
+        assert _rpc(client, _INIT, token=raw).status_code == 401
+
+        # Деактивированный пользователь / смена роли на owner — токен не работает.
+        raw2 = client.post("/api/v1/mcp-tokens/", json={"name": "2"}, headers=auth(manager)).json()["token"]
+        assert _rpc(client, _INIT, token=raw2).status_code == 200
+        s = SessionLocal()
+        try:
+            u = s.get(User, manager)
+            u.role = "owner"
+            s.commit()
+        finally:
+            s.close()
+        assert _rpc(client, _INIT, token=raw2).status_code == 401
