@@ -391,6 +391,7 @@ def call_tool(
     actor_id: Optional[str] = None,
     db=None,
     audit_arguments: Optional[dict] = None,
+    anonymized: bool = False,
 ) -> dict:
     """Выполнить разрешённую операцию по имени. Всегда пишет аудит.
 
@@ -438,6 +439,7 @@ def call_tool(
             result="ok",
             target_type="tool",
             target_id=name,
+            anonymized=anonymized,
             meta={"args": audit_args},
         )
         return result

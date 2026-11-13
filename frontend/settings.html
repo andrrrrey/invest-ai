@@ -737,11 +737,13 @@
                 hermes_chat_enabled: true,
                 digest_enabled: false,
                 knowledge_enabled: true,
+                mcp_anonymize_enabled: true,
             },
             hermesToggles: [
                 { key: 'hermes_chat_enabled', title: 'Ответы на обычные сообщения', desc: 'Отвечать на личные сообщения боту и @упоминания в каналах, а не только на команду /hermes. Требует настроенного бота Mattermost.' },
                 { key: 'knowledge_enabled', title: 'База знаний', desc: 'Учитывать знания компании из раздела «База знаний»: закреплённые — всегда в контексте, остальные бот находит по смыслу. Управление — на экране «База знаний».' },
                 { key: 'anonymize_enabled', title: 'Обезличивание данных', desc: 'Скрывать имена, названия и коды перед отправкой во внешний ИИ (рекомендуется).' },
+                { key: 'mcp_anonymize_enabled', title: 'Обезличивание для внешних MCP-клиентов', desc: 'Сторонние ИИ-программы, подключённые по MCP (Claude, Cursor и др.), получают метки вместо названий проектов, ФИО, кодов МВЗ и контактов (рекомендуется).' },
                 { key: 'anonymize_round_amounts', title: 'Округлять суммы', desc: 'Дополнительно округлять финансовые суммы при обезличивании.' },
                 { key: 'reminders_enabled', title: 'Напоминания по дедлайнам', desc: 'Фоновая рассылка напоминаний заявителям по приближающимся дедлайнам майлстоунов.' },
                 { key: 'digest_enabled', title: 'Еженедельный дайджест', desc: 'Сводка по портфелю руководству (CFO/CEO/менеджеры) по понедельникам: заявки, дедлайны, риски, бюджет.' },
@@ -797,6 +799,7 @@
                             hermes_chat_enabled: data.hermes_chat_enabled !== false,
                             digest_enabled: !!data.digest_enabled,
                             knowledge_enabled: data.knowledge_enabled !== false,
+                            mcp_anonymize_enabled: data.mcp_anonymize_enabled !== false,
                         };
                     }
                 } catch(e) {

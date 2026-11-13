@@ -51,7 +51,8 @@ Hermes работает поверх действующего процессор
               внешний ИИ (RouterAI/OpenAI)           mcp/tools.* → БД (SQLAlchemy)
               tool-calling цикл                      только разрешённые операции
 
-  Внешние ИИ-клиенты ──stdio──► app/mcp/server.py ──► тот же registry.call_tool()
+  Внешние ИИ-клиенты ──stdio / HTTP /api/mcp (Bearer)──► app/mcp/server.py
+                     ──► mcp/gateway (обезличивание) ──► тот же registry.call_tool()
 ```
 
 Сквозной аудит (`audit_log`) фиксирует каждый вызов ИИ и каждый вызов
@@ -226,35 +227,37 @@ URL бэкенда). Поле `url` исключено из обезличива
 
 ## 6. Standalone MCP-сервер (для внешних ИИ-клиентов)
 
-Файл `app/mcp/server.py` публикует **тот же реестр** `registry.TOOL_SPECS` по
-открытому стандарту MCP через транспорт **stdio**.
+Пошаговая инструкция по подключению — [`HERMES_SETUP.md`, раздел 2](HERMES_SETUP.md#2-подключение-сторонних-программ-по-mcp).
 
-**Запуск:**
-```bash
-python -m app.mcp.server
-```
-Клиент MCP сам запускает процесс; сервер стартует в окружении бэкенда (доступ к
-БД и настройкам) и требует пакет `mcp` (уже в `requirements.txt`).
+**Файлы:**
+- `app/mcp/server.py` — сервер `hermes-invest` (`build_server()`), запуск stdio:
+  `python -m app.mcp.server`.
+- `app/mcp/http.py` — HTTP-транспорт (Streamable HTTP, stateless, JSON-ответы)
+  на `/api/mcp` внутри основного приложения; авторизация
+  `Authorization: Bearer <токен>`, токены — env `MCP_HTTP_TOKENS`
+  (`имя=токен,…`; пусто — эндпоинт выключен, 404). Stateless-режим работает
+  при нескольких воркерах uvicorn.
+- `app/mcp/gateway.py` — единая точка вызова для внешних клиентов: список
+  инструментов, гейт, обезличивание, аудит.
 
 **Особенности:**
-- Публикуются только **read-only** инструменты (`TOOL_SPECS`); write-набор не
-  экспонируется во внешний сервер.
-- Каждый вызов идёт через `registry.call_tool(..., actor_type="ai_gateway")` —
-  те же контроль и аудит.
-- Имя сервера: `hermes-invest`.
-
-Пример конфигурации MCP-клиента (Claude Desktop и совместимые):
-```json
-{
-  "mcpServers": {
-    "hermes-invest": {
-      "command": "python",
-      "args": ["-m", "app.mcp.server"],
-      "cwd": "/path/to/backend"
-    }
-  }
-}
-```
+- Публикуются только **read-only** инструменты (`TOOL_SPECS`, `search_knowledge`
+  — при `knowledge_enabled`). Write-набор внешним клиентам недоступен при любых
+  настройках (вызов → ошибка + аудит).
+- Каждый вызов идёт через `registry.call_tool(..., actor_type="ai_gateway")`;
+  `actor_id` — имя токена (HTTP) или `stdio`.
+- **Обезличивание** (флаг `mcp_anonymize_enabled`, по умолчанию on, env
+  `MCP_ANONYMIZE_ENABLED`): результат маскируется структурно (`mask_obj`) по
+  тем же терминам, что у агента, плюс ФИО пользователей системы (из ≥2 слов).
+  Метки стабильные: `[КАТЕГОРИЯ_<HMAC-SHA256(SECRET_KEY) 8 hex>]`
+  (`gateway.StableAnonymizer`), поэтому совпадают между запросами и после
+  перезапуска. Метки в аргументах восстанавливаются перед выполнением; в аудит
+  пишутся аргументы как прислал клиент (обезличенные), `anonymized=true`.
+  Метки контактов/«ёлочек», найденных только в тексте, восстанавливаются, пока
+  жив процесс.
+- Версия `mcp` зафиксирована (`1.12.4`): новее требуют pydantic>=2.11.
+- Имя сервера: `hermes-invest`; клиенту передаются `instructions` с
+  объяснением меток.
 
 ---
 
@@ -331,6 +334,7 @@ python -m app.mcp.server
 | `MATTERMOST_COMMAND_TOKEN` | Верификация slash-команд и кнопок |
 | `MATTERMOST_INTEGRATION_URL` | Внешний URL бэкенда для callback-ов кнопок |
 | `MATTERMOST_ALERT_WEBHOOK` | Incoming webhook служебного канала для ошибок |
+| `MCP_HTTP_TOKENS` | Токены HTTP MCP-эндпоинта `/api/mcp` (`имя=токен,…`) |
 | `APP_BASE_URL` | Публичный URL приложения для ссылок на проекты (фолбэк — integration URL) |
 | `LOG_LEVEL` | Уровень JSON-логирования |
 
@@ -345,6 +349,7 @@ python -m app.mcp.server
 | `reminders_enabled` | off | — | Напоминания по дедлайнам |
 | `digest_enabled` | off | — | Еженедельный дайджест руководству |
 | `hermes_write_enabled` | off | — | Операции на запись (факт, майлстоуны, комментарий, request_fact_update) |
+| `mcp_anonymize_enabled` | on | `MCP_ANONYMIZE_ENABLED` | Обезличивание ответов внешним MCP-клиентам |
 | `knowledge_enabled` | on | `HERMES_KNOWLEDGE_ENABLED` | База знаний: закреплённые знания в промпте + инструмент `search_knowledge` |
 
 Дополнительно: настройка `embedding_model` (по умолчанию `text-embedding-3-small`)

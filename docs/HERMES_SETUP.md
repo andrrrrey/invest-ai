@@ -134,16 +134,74 @@ email; решение применяется, только если у него 
 
 ## 2. Подключение сторонних программ по MCP
 
-MCP-сервер работает по транспорту **stdio** — MCP-клиент сам запускает процесс.
-Сервер стартует в окружении бэкенда (доступ к БД/настройкам) и требует пакет
-`mcp` (уже в `requirements.txt`).
+MCP-сервер (`hermes-invest`) даёт внешним ИИ-программам (Claude Desktop, Claude
+Code, Cursor и др.) **только чтение** данных системы: 20 инструментов (проекты,
+портфель, сроки, факт, риски, бюджет, база знаний). Инструменты записи наружу не
+отдаются никогда. Каждый вызов пишется в аудит (`actor_type=ai_gateway`,
+`actor_id` = имя токена или `stdio`).
 
-Проверка вручную:
-```
-docker compose exec backend python -m app.mcp.server
-```
+Есть два способа подключения.
 
-Пример конфигурации MCP-клиента (Claude Desktop, `claude_desktop_config.json`):
+### 2.1. По HTTP с токеном (рекомендуется)
+
+Эндпоинт: `https://<ваш-домен>/api/mcp` (транспорт Streamable HTTP). Он идёт
+через тот же nginx и HTTPS, что и остальной API, — правки nginx не нужны.
+
+1. Сгенерируйте токен (по одному на каждого клиента — так их можно отзывать
+   по отдельности и различать в аудите):
+   ```bash
+   python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+   ```
+2. Добавьте в `.env` (формат `имя=токен` через запятую):
+   ```
+   MCP_HTTP_TOKENS=claude=ПЕРВЫЙ_ТОКЕН,cursor=ВТОРОЙ_ТОКЕН
+   ```
+3. Перезапустите бэкенд: `docker compose up -d backend`.
+4. Проверка (должно вернуть 401 без токена и 200 с токеном):
+   ```bash
+   curl -s -o /dev/null -w "%{http_code}\n" -X POST https://<домен>/api/mcp
+   ```
+5. Подключите клиента:
+   - **Claude Code:**
+     ```bash
+     claude mcp add --transport http hermes-invest https://<домен>/api/mcp \
+       --header "Authorization: Bearer ПЕРВЫЙ_ТОКЕН"
+     ```
+   - **Cursor / другие клиенты с поддержкой HTTP** (`mcp.json`):
+     ```json
+     {
+       "mcpServers": {
+         "hermes-invest": {
+           "url": "https://<домен>/api/mcp",
+           "headers": { "Authorization": "Bearer ПЕРВЫЙ_ТОКЕН" }
+         }
+       }
+     }
+     ```
+   - **Claude Desktop** (умеет только stdio в конфиге) — через мост `mcp-remote`
+     (нужен Node.js):
+     ```json
+     {
+       "mcpServers": {
+         "hermes-invest": {
+           "command": "npx",
+           "args": ["-y", "mcp-remote", "https://<домен>/api/mcp",
+                    "--header", "Authorization: Bearer ПЕРВЫЙ_ТОКЕН"]
+         }
+       }
+     }
+     ```
+
+Без `MCP_HTTP_TOKENS` эндпоинт выключен (отвечает 404). Чтобы отозвать доступ —
+уберите токен из `.env` и перезапустите бэкенд.
+
+> Сервисы, которые подключают MCP только через OAuth (например, «коннекторы» в
+> веб-версиях чат-ботов), с этим эндпоинтом не работают — нужен клиент, который
+> позволяет задать заголовок `Authorization`.
+
+### 2.2. Через stdio (клиент на той же машине или по SSH)
+
+Клиент сам запускает процесс сервера:
 ```json
 {
   "mcpServers": {
@@ -155,24 +213,24 @@ docker compose exec backend python -m app.mcp.server
   }
 }
 ```
-Локальный запуск (venv):
-```json
-{
-  "mcpServers": {
-    "hermes-invest": {
-      "command": "/путь/venv/bin/python",
-      "args": ["-m", "app.mcp.server"],
-      "cwd": "/путь/backend",
-      "env": { "DATABASE_URL": "sqlite:////data/invest_ai.db",
-               "SETTINGS_PATH": "/data/settings.json" }
-    }
-  }
-}
-```
-Клиент увидит 6 read-only инструментов (`list_projects`, `get_project`,
-`get_portfolio_stats`, `list_pending_approvals`, `get_project_facts`,
-`get_milestones`) и, если включён режим записи, ещё 2 (`update_fact`,
-`update_milestone_status`). Каждый вызов пишется в аудит (`actor_type=ai_gateway`).
+С другого компьютера — через SSH (вход по ключу):
+`"command": "ssh", "args": ["user@сервер", "docker", "exec", "-i", "invest_backend", "python", "-m", "app.mcp.server"]`.
+
+### 2.3. Обезличивание
+
+По умолчанию внешний клиент получает **метки** вместо названий проектов, ФИО
+(владельцы, кураторы, команды, пользователи системы), бизнес-юнитов, кодов МВЗ и
+контактов: `[PROJECT_1A2B3C4D]`, `[PERSON_…]`, `[ORG_…]`, `[MVZ_…]`, `[CONTACT_…]`.
+Числа (суммы, NPV, IRR, id) и ссылки `url` на карточки проектов сохраняются.
+
+Метки **стабильные**: одно и то же значение всегда даёт одну и ту же метку (между
+запросами и после перезапуска), поэтому ИИ может передать метку обратно —
+`find_projects(query="[PROJECT_1A2B3C4D]")` — и сервер найдёт проект. Метки
+считаются через HMAC от `SECRET_KEY`: если его сменить, метки поменяются.
+
+Выключить: Настройки → «Режимы Hermes» → «Обезличивание для внешних
+MCP-клиентов», или `MCP_ANONYMIZE_ENABLED=0` в `.env` (приоритетнее UI).
+Это не затрагивает обезличивание внутреннего агента Hermes (`anonymize_enabled`).
 
 ---
 
