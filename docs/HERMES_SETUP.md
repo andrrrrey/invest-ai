@@ -26,7 +26,7 @@ Hermes вернёт ошибку.
 **Ссылки на проекты** (опционально, но рекомендуется): чтобы бот давал
 кликабельные ссылки на карточки проектов (в ответах агента и в карточках
 заявок), задайте **Публичный URL приложения** (Настройки → «Помощник Hermes —
-Mattermost», или env `APP_BASE_URL`), например `https://invest.futuguru.com`.
+Mattermost», или env `APP_BASE_URL`), например `https://<адрес-вашего-проекта>`.
 Если не задан — используется «Внешний URL бэкенда».
 
 ---
@@ -134,6 +134,9 @@ email; решение применяется, только если у него 
 
 ## 2. Подключение сторонних программ по MCP
 
+> Простая инструкция для пользователей (без технических деталей):
+> [`docs/MCP_GUIDE.md`](MCP_GUIDE.md).
+
 MCP-сервер (`hermes-invest`) даёт внешним ИИ-программам (Claude Desktop, Claude
 Code, Cursor и др.) **только чтение** данных системы: 20 инструментов (проекты,
 портфель, сроки, факт, риски, бюджет, база знаний). Инструменты записи наружу не
@@ -144,7 +147,7 @@ Code, Cursor и др.) **только чтение** данных системы
 
 ### 2.1. По HTTP с токеном (рекомендуется)
 
-Эндпоинт: `https://<ваш-домен>/api/mcp` (транспорт Streamable HTTP). Он идёт
+Эндпоинт: `https://<адрес-вашего-проекта>/api/mcp` (транспорт Streamable HTTP). Он идёт
 через тот же nginx и HTTPS, что и остальной API, — правки nginx не нужны.
 
 1. Сгенерируйте токен (по одному на каждого клиента — так их можно отзывать
@@ -159,12 +162,12 @@ Code, Cursor и др.) **только чтение** данных системы
 3. Перезапустите бэкенд: `docker compose up -d backend`.
 4. Проверка (должно вернуть 401 без токена и 200 с токеном):
    ```bash
-   curl -s -o /dev/null -w "%{http_code}\n" -X POST https://<домен>/api/mcp
+   curl -s -o /dev/null -w "%{http_code}\n" -X POST https://<адрес-вашего-проекта>/api/mcp
    ```
 5. Подключите клиента:
    - **Claude Code:**
      ```bash
-     claude mcp add --transport http hermes-invest https://<домен>/api/mcp \
+     claude mcp add --transport http hermes-invest https://<адрес-вашего-проекта>/api/mcp \
        --header "Authorization: Bearer ПЕРВЫЙ_ТОКЕН"
      ```
    - **Cursor / другие клиенты с поддержкой HTTP** (`mcp.json`):
@@ -172,7 +175,7 @@ Code, Cursor и др.) **только чтение** данных системы
      {
        "mcpServers": {
          "hermes-invest": {
-           "url": "https://<домен>/api/mcp",
+           "url": "https://<адрес-вашего-проекта>/api/mcp",
            "headers": { "Authorization": "Bearer ПЕРВЫЙ_ТОКЕН" }
          }
        }
@@ -185,8 +188,9 @@ Code, Cursor и др.) **только чтение** данных системы
        "mcpServers": {
          "hermes-invest": {
            "command": "npx",
-           "args": ["-y", "mcp-remote", "https://<домен>/api/mcp",
-                    "--header", "Authorization: Bearer ПЕРВЫЙ_ТОКЕН"]
+           "args": ["-y", "mcp-remote", "https://<адрес-вашего-проекта>/api/mcp",
+                    "--header", "Authorization:${AUTH_HEADER}"],
+           "env": { "AUTH_HEADER": "Bearer ПЕРВЫЙ_ТОКЕН" }
          }
        }
      }

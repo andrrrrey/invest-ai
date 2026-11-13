@@ -217,7 +217,7 @@ URL бэкенда). Поле `url` исключено из обезличива
   "risk_level": "средний",
   "milestones_count": 0,
   "status_history": [...],
-  "url": "https://invest.futuguru.com/op-project?id=12"
+  "url": "https://<адрес-вашего-проекта>/op-project?id=12"
 }
 ```
 Числа (`id`, `npv`) и `url` сохранены; строки заменены метками и восстановлены
