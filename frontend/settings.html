@@ -558,6 +558,28 @@
                         <i class="fas" :class="testingMm ? 'fa-spinner spin' : 'fa-paper-plane'"></i>
                         <span x-text="testingMm ? 'Отправляем...' : 'Тестовое оповещение'"></span>
                     </button>
+                    <button class="btn btn-outline" @click="testBot()" :disabled="testingBot">
+                        <i class="fas" :class="testingBot ? 'fa-spinner spin' : 'fa-robot'"></i>
+                        <span x-text="testingBot ? 'Проверяем...' : 'Проверить бота'"></span>
+                    </button>
+                </div>
+                <div x-show="botCheck" style="margin-top:12px;background:#F8F7F3;border:1.5px solid #E5E5ED;border-radius:14px;padding:12px 16px;font-size:13px;line-height:1.6">
+                    <template x-if="botCheck">
+                        <div>
+                            <div>
+                                <i class="fas" :class="botCheck.token_ok ? 'fa-circle-check' : 'fa-circle-xmark'"
+                                   :style="'color:' + (botCheck.token_ok ? '#2E7D32' : '#C62828')"></i>
+                                Токен бота:
+                                <strong x-text="botCheck.token_ok ? ('работает (@' + (botCheck.bot_username || 'bot') + ')') : botCheck.token_error"></strong>
+                            </div>
+                            <div>
+                                <i class="fas" :class="botCheck.listener_state === 'connected' ? 'fa-circle-check' : 'fa-circle-xmark'"
+                                   :style="'color:' + (botCheck.listener_state === 'connected' ? '#2E7D32' : '#C62828')"></i>
+                                Слушатель сообщений:
+                                <strong x-text="botCheck.listener_text + (botCheck.listener_detail ? ' — ' + botCheck.listener_detail : '')"></strong>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </div>
 
@@ -727,6 +749,8 @@
             showMm: false,
             savingMm: false,
             testingMm: false,
+            testingBot: false,
+            botCheck: null,
             envOverrides: {},
             savingFlags: false,
             hermesFlags: {
@@ -1009,6 +1033,20 @@
                     this._toast('Ошибка: ' + e.message, 'error');
                 } finally {
                     this.testingMm = false;
+                }
+            },
+
+            async testBot() {
+                this.testingBot = true;
+                try {
+                    const res = await authFetch('/api/v1/settings/test-mattermost-bot', { method: 'POST' });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data.detail || 'Ошибка');
+                    this.botCheck = data;
+                } catch(e) {
+                    this._toast('Ошибка: ' + e.message, 'error');
+                } finally {
+                    this.testingBot = false;
                 }
             },
 

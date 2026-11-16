@@ -162,6 +162,29 @@ def get_channel_posts(channel_id: str, per_page: int = 20) -> Optional[dict]:
     return None
 
 
+def check_bot() -> dict:
+    """Проверить токен бота запросом профиля.
+
+    Возвращает ``{"ok": True, "me": {...}}`` либо ``{"ok": False, "error": "..."}``
+    с понятной причиной (нет настроек, неверный токен, сервер недоступен).
+    """
+    if not is_configured():
+        return {"ok": False, "error": "Не заданы адрес Mattermost или токен бота."}
+    try:
+        r = httpx.get(f"{_base()}/api/v4/users/me", headers=_headers(), timeout=_TIMEOUT)
+    except Exception as exc:
+        return {"ok": False, "error": f"Сервер Mattermost недоступен ({type(exc).__name__})."}
+    if r.status_code == 200:
+        return {"ok": True, "me": r.json()}
+    if r.status_code == 401:
+        return {"ok": False, "error": "Токен бота отклонён Mattermost (401): неверный, отозван или бот отключён."}
+    if r.status_code == 403:
+        return {"ok": False, "error": "Mattermost запретил доступ по токену бота (403)."}
+    if r.status_code == 404:
+        return {"ok": False, "error": "По адресу Mattermost не найден API (404) — проверьте адрес сервера."}
+    return {"ok": False, "error": f"Mattermost ответил кодом {r.status_code}."}
+
+
 def get_me() -> Optional[dict]:
     """Информация о самом боте (id, username) — для WebSocket-слушателя."""
     if not is_configured():
@@ -170,6 +193,8 @@ def get_me() -> Optional[dict]:
         r = httpx.get(f"{_base()}/api/v4/users/me", headers=_headers(), timeout=_TIMEOUT)
         if r.status_code == 200:
             return r.json()
+        logger.error("Mattermost: профиль бота не получен — HTTP %s (проверьте токен бота)",
+                     r.status_code)
     except Exception:
         logger.exception("Mattermost: не удалось получить профиль бота")
     return None
