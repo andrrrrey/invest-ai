@@ -6,11 +6,65 @@ import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
+from email.utils import formataddr, getaddresses
 from typing import List, Optional
 
 from ..config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _is_ascii(value: str) -> bool:
+    try:
+        value.encode("ascii")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
+def _resolve_sender() -> tuple[str, str]:
+    """Разобрать SMTP_FROM на (envelope-адрес, заголовок From).
+
+    SMTP-команда MAIL FROM допускает только ASCII-адрес, поэтому кириллическое
+    имя отправителя («Инвест-платформа <noreply@x.ru>», «Инвест-платформа
+    noreply@x.ru» или просто «Инвест-платформа») нельзя передавать в sendmail
+    как есть — это давало UnicodeEncodeError. Имя оставляем только в заголовке
+    From (в закодированном виде), а для конверта берём сам e-mail; если в
+    SMTP_FROM адреса нет, используем SMTP_USER.
+    """
+    raw = (settings.SMTP_FROM or "").strip()
+    name, address = "", ""
+
+    parsed = getaddresses([raw])
+    if parsed:
+        name, address = parsed[0]
+    if "@" not in address or not _is_ascii(address):
+        # Адрес без угловых скобок: ищем токен с «@», остальное — имя.
+        tokens = raw.replace("<", " ").replace(">", " ").split()
+        emails = [t for t in tokens if "@" in t]
+        address = emails[0].strip(",;\"'") if emails else ""
+        name = " ".join(t for t in tokens if t not in emails).strip("\"' ")
+
+    if address and not _is_ascii(address):
+        local, _, domain = address.rpartition("@")
+        try:
+            address = f"{local}@{domain.encode('idna').decode('ascii')}"
+        except UnicodeError:
+            address = ""
+        if address and not _is_ascii(address):
+            address = ""
+
+    if not address:
+        fallback = (settings.SMTP_USER or "").strip()
+        address = fallback if "@" in fallback and _is_ascii(fallback) else ""
+    if not address:
+        raise RuntimeError(
+            "SMTP_FROM не содержит корректного e-mail отправителя. "
+            "Укажите его в виде «Имя <noreply@домен>»."
+        )
+
+    header = formataddr((name, address), charset="utf-8") if name else address
+    return address, header
 
 
 def send_email_with_attachment(
@@ -26,9 +80,10 @@ def send_email_with_attachment(
         raise RuntimeError(
             "SMTP не настроен. Укажите SMTP_USER и SMTP_PASSWORD в конфигурации сервера."
         )
+    envelope_from, from_header = _resolve_sender()
     msg = MIMEMultipart()
     msg["Subject"] = subject
-    msg["From"] = settings.SMTP_FROM
+    msg["From"] = from_header
     msg["To"] = to_email
     msg.attach(MIMEText(text_body, "plain", "utf-8"))
 
@@ -42,7 +97,7 @@ def send_email_with_attachment(
         server.ehlo()
         server.starttls(context=context)
         server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-        server.sendmail(settings.SMTP_FROM, to_email, msg.as_string())
+        server.sendmail(envelope_from, to_email, msg.as_string())
 
 
 def _send_email(to_email: str, subject: str, html_body: str, text_body: str) -> None:
@@ -52,9 +107,10 @@ def _send_email(to_email: str, subject: str, html_body: str, text_body: str) -> 
             "SMTP не настроен. Укажите SMTP_USER и SMTP_PASSWORD в конфигурации сервера."
         )
 
+    envelope_from, from_header = _resolve_sender()
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = settings.SMTP_FROM
+    msg["From"] = from_header
     msg["To"] = to_email
     msg.attach(MIMEText(text_body, "plain", "utf-8"))
     msg.attach(MIMEText(html_body, "html", "utf-8"))
@@ -64,7 +120,7 @@ def _send_email(to_email: str, subject: str, html_body: str, text_body: str) -> 
         server.ehlo()
         server.starttls(context=context)
         server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-        server.sendmail(settings.SMTP_FROM, to_email, msg.as_string())
+        server.sendmail(envelope_from, to_email, msg.as_string())
 
 
 def send_registration_email(to_email: str, full_name: str, invite_url: str) -> None:
