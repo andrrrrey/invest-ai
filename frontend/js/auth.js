@@ -215,6 +215,22 @@ function patchSidebar() {
     patchContractsNav();
     refreshApprovalRoles();
 
+    // Вертикальная прокрутка меню: на невысоких экранах пункты не помещаются,
+    // а .app-window обрезает всё по overflow:hidden. Стили страниц у сайдбара
+    // свои (inline), поэтому добавляем правило централизованно.
+    if (!document.getElementById('sidebar-scroll-style')) {
+        const st = document.createElement('style');
+        st.id = 'sidebar-scroll-style';
+        st.textContent = [
+            '.sidebar,.sidebar.collapsed{overflow-y:auto;overflow-x:hidden;min-height:0;',
+            'scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}',
+            '.sidebar::-webkit-scrollbar{width:6px}',
+            '.sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:3px}',
+            '.sidebar::-webkit-scrollbar-track{background:transparent}',
+        ].join('');
+        document.head.appendChild(st);
+    }
+
     // Inject collapse toggle button as sibling of sidebar (outside sidebar's overflow)
     const sidebar = document.getElementById('sidebar');
     const appWindow = sidebar && sidebar.parentElement;
