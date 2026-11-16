@@ -33,6 +33,9 @@ from .api.v1 import approval_roles as approval_roles_router
 from .api.v1 import coin_rates as coin_rates_router
 from .api.v1 import contract_route as contract_route_router
 from .api.v1 import orders as orders_router
+from .api.v1 import mcp_tokens as mcp_tokens_router
+from .mcp import http as mcp_http
+from starlette.routing import Route
 
 app = FastAPI(
     title="Инвестиционный процессор",
@@ -103,6 +106,7 @@ app.include_router(coin_rates_router.router, prefix="/api/v1")
 app.include_router(contract_route_router.router, prefix="/api/v1")
 app.include_router(orders_router.router, prefix="/api/v1")
 app.include_router(knowledge_router.router, prefix="/api/v1")
+app.include_router(mcp_tokens_router.router, prefix="/api/v1")
 
 
 @app.on_event("startup")
@@ -124,6 +128,26 @@ def on_startup():
         start_bot_listener()
     except Exception:
         logging.getLogger("hermes.bot_ws").exception("Не удалось запустить слушатель сообщений бота")
+
+
+@app.on_event("startup")
+async def _start_mcp_http():
+    # HTTP-транспорт MCP для внешних ИИ-клиентов (/api/mcp). Не должен ломать
+    # старт приложения.
+    try:
+        await mcp_http.endpoint.startup()
+    except Exception:
+        logging.getLogger("hermes.mcp").exception("Не удалось запустить HTTP MCP-эндпоинт")
+
+
+@app.on_event("shutdown")
+async def _stop_mcp_http():
+    await mcp_http.endpoint.shutdown()
+
+
+# MCP по HTTP (Streamable HTTP, токен в Authorization: Bearer). Регистрируется
+# до статического mount("/"), иначе запрос перехватит фронтенд.
+app.router.routes.append(Route(mcp_http.MCP_HTTP_PATH, endpoint=mcp_http.endpoint))
 
 
 @app.get("/api/health")

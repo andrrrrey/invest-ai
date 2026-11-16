@@ -197,6 +197,18 @@
         .crop-container { height: 380px; background: #1a1a1a; border-radius: 14px; overflow: hidden; margin-bottom: 16px; }
         .crop-container img { display: block; max-width: 100%; }
 
+        /* MCP tokens */
+        [x-cloak] { display: none !important; }
+        .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+        .mcp-steps { font-size: 13px; color: #333; line-height: 1.6; padding-left: 18px; margin: 0 0 16px; }
+        .mcp-token-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #F8F7F3; border: 1.5px solid #E5E5ED; border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; }
+        .mcp-token-row .meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+        .mcp-secret { background: #FFFBEA; border: 1.5px solid #F5D76E; border-radius: 14px; padding: 16px; margin: 14px 0; }
+        .mcp-code { display: block; white-space: pre-wrap; word-break: break-all; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; background: #1C1C1E; color: #F2F2F7; border-radius: 10px; padding: 12px; margin: 8px 0; }
+        .mcp-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0 4px; }
+        .mcp-tabs button { border: 1.5px solid #E0E0E8; background: white; border-radius: 99px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+        .mcp-tabs button.active { background: var(--accent-purple); color: white; border-color: var(--accent-purple); }
+
         /* Toast */
         .toast {
             position: fixed; bottom: 28px; right: 28px;
@@ -411,6 +423,130 @@
                 </div>
             </div>
 
+            <!-- MCP: подключение ИИ-программ (Claude и др.) -->
+            <div class="card" x-show="mcpAllowed" x-cloak>
+                <h2><i class="fas fa-robot"></i> Подключение Claude и других ИИ</h2>
+                <p class="desc">
+                    Подключите систему к своему ИИ-помощнику (приложение Claude на компьютере, Claude Code, Cursor)
+                    и спрашивайте о проектах обычными словами: «какие заявки ждут согласования?», «какие проекты
+                    с высоким риском?». Помощник только читает данные — изменить ничего не может. Названия проектов
+                    и ФИО он видит в виде меток (например, [PROJECT_1A2B3C4D]); чтобы понять, о каком проекте речь,
+                    откройте ссылку из ответа.
+                </p>
+
+                <ol class="mcp-steps">
+                    <li>Нажмите «Создать токен» (токен — это ваш личный пароль для ИИ-программы).</li>
+                    <li>Выберите свою программу и скопируйте готовую настройку.</li>
+                    <li>Вставьте её в программу по подсказке ниже и перезапустите программу.</li>
+                </ol>
+
+                <div class="field">
+                    <label>Название (чтобы потом узнать токен в списке)</label>
+                    <div class="input-row">
+                        <input type="text" x-model="mcpNewName" placeholder="Например: Claude на рабочем ноутбуке" maxlength="100">
+                        <button class="btn btn-primary" @click="createMcpToken()" :disabled="mcpCreating">
+                            <i class="fas" :class="mcpCreating ? 'fa-spinner spin' : 'fa-plus'"></i>
+                            <span>Создать токен</span>
+                        </button>
+                    </div>
+                </div>
+
+                <template x-if="mcpCreated">
+                    <div class="mcp-secret">
+                        <div style="font-size:13px;font-weight:700;margin-bottom:4px">
+                            <i class="fas fa-triangle-exclamation" style="color:#C98A00"></i>
+                            Скопируйте настройку сейчас — токен показывается только один раз
+                        </div>
+                        <div class="hint" style="margin-bottom:8px">Никому не пересылайте токен. Если он попал в чужие руки — отзовите его ниже и создайте новый.</div>
+
+                        <div class="mcp-tabs">
+                            <button type="button" :class="mcpTab === 'desktop' && 'active'" @click="mcpTab = 'desktop'">Приложение Claude</button>
+                            <button type="button" :class="mcpTab === 'code' && 'active'" @click="mcpTab = 'code'">Claude Code</button>
+                            <button type="button" :class="mcpTab === 'cursor' && 'active'" @click="mcpTab = 'cursor'">Cursor и др.</button>
+                            <button type="button" :class="mcpTab === 'raw' && 'active'" @click="mcpTab = 'raw'">Адрес и токен</button>
+                        </div>
+
+                        <template x-if="mcpTab === 'desktop'">
+                            <div>
+                                <ol class="mcp-steps" style="margin-top:8px">
+                                    <li>Один раз установите Node.js с сайта nodejs.org (кнопка «LTS»).</li>
+                                    <li>В Claude: Настройки (Settings) → Developer → Edit Config. Откроется файл <code>claude_desktop_config.json</code>.</li>
+                                    <li>Замените его содержимое текстом ниже и сохраните. Если в файле уже были другие серверы — добавьте блок <code>"invest"</code> внутрь <code>"mcpServers"</code>.</li>
+                                    <li>Полностью закройте Claude (Выход / Cmd+Q) и откройте снова. В списке инструментов появится «invest».</li>
+                                </ol>
+                                <code class="mcp-code" x-text="mcpSnippet('desktop')"></code>
+                            </div>
+                        </template>
+                        <template x-if="mcpTab === 'code'">
+                            <div>
+                                <p class="hint" style="margin-top:8px">Выполните команду в терминале, затем запустите <code>claude</code>.</p>
+                                <code class="mcp-code" x-text="mcpSnippet('code')"></code>
+                            </div>
+                        </template>
+                        <template x-if="mcpTab === 'cursor'">
+                            <div>
+                                <p class="hint" style="margin-top:8px">Добавьте в настройки MCP программы (файл <code>mcp.json</code>).</p>
+                                <code class="mcp-code" x-text="mcpSnippet('cursor')"></code>
+                            </div>
+                        </template>
+                        <template x-if="mcpTab === 'raw'">
+                            <div>
+                                <p class="hint" style="margin-top:8px">Адрес подключения:</p>
+                                <code class="mcp-code" x-text="mcpUrl()"></code>
+                                <p class="hint">Токен (передаётся в заголовке <code>Authorization: Bearer …</code>):</p>
+                                <code class="mcp-code" x-text="mcpCreated.token"></code>
+                            </div>
+                        </template>
+
+                        <div class="btn-row">
+                            <button class="btn btn-primary btn-sm" @click="copyMcp()"><i class="fas fa-copy"></i> Скопировать</button>
+                            <button class="btn btn-outline btn-sm" @click="mcpCreated = null">Готово, скрыть</button>
+                        </div>
+                        <p class="hint" style="margin-top:10px">Веб-версия claude.ai в браузере так не подключается — используйте приложение на компьютере.</p>
+                    </div>
+                </template>
+
+                <div style="font-size:13px;font-weight:700;margin:18px 0 8px">Мои токены</div>
+                <template x-if="!mcpTokens.length">
+                    <p class="hint">Токенов пока нет.</p>
+                </template>
+                <template x-for="t in mcpTokens" :key="t.id">
+                    <div class="mcp-token-row">
+                        <div>
+                            <div style="font-size:13px;font-weight:600" x-text="t.name"></div>
+                            <div class="meta">
+                                <span class="mono" x-text="t.token_prefix + '…'"></span>
+                                · создан <span x-text="fmtDate(t.created_at)"></span>
+                                · <span x-text="t.last_used_at ? 'использовался ' + fmtDate(t.last_used_at) : 'ещё не использовался'"></span>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline btn-sm" @click="revokeMcpToken(t)"><i class="fas fa-ban"></i> Отозвать</button>
+                    </div>
+                </template>
+
+                <template x-if="isCfo">
+                    <div>
+                        <div style="font-size:13px;font-weight:700;margin:18px 0 8px">Токены всех пользователей (видно только CFO)</div>
+                        <template x-if="!mcpAllTokens.length">
+                            <p class="hint">Действующих токенов нет.</p>
+                        </template>
+                        <template x-for="t in mcpAllTokens" :key="'all' + t.id">
+                            <div class="mcp-token-row">
+                                <div>
+                                    <div style="font-size:13px;font-weight:600"><span x-text="t.user_name"></span> — <span x-text="t.name"></span></div>
+                                    <div class="meta">
+                                        <span x-text="t.user_email"></span>
+                                        · создан <span x-text="fmtDate(t.created_at)"></span>
+                                        · <span x-text="t.last_used_at ? 'использовался ' + fmtDate(t.last_used_at) : 'ещё не использовался'"></span>
+                                    </div>
+                                </div>
+                                <button class="btn btn-outline btn-sm" @click="revokeMcpToken(t)"><i class="fas fa-ban"></i> Отозвать</button>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+
             <!-- Danger zone -->
             <div class="danger-zone">
                 <h2 style="margin-bottom:6px"><i class="fas fa-triangle-exclamation"></i> Опасная зона</h2>
@@ -535,6 +671,16 @@
             cropper: null,
             nameInitial: '?',
 
+            // MCP tokens
+            mcpAllowed: false,
+            isCfo: false,
+            mcpTokens: [],
+            mcpAllTokens: [],
+            mcpNewName: '',
+            mcpCreating: false,
+            mcpCreated: null,
+            mcpTab: 'desktop',
+
             // Delete
             showDeleteModal: false,
             deleteConfirmPassword: '',
@@ -547,6 +693,9 @@
                 this.roleLabel = roleMap[getUserRole()] || getUserRole();
                 this.nameInitial = (getUserName() || '?').charAt(0).toUpperCase();
                 this.avatarUrl = getUserAvatar() || null;
+                this.isCfo = getUserRole() === 'cfo';
+                this.mcpAllowed = ['ceo', 'cfo', 'manager'].includes(getUserRole());
+                if (this.mcpAllowed) this.loadMcpTokens();
 
                 // Fetch fresh data from /me
                 try {
@@ -759,6 +908,94 @@
                 } catch (e) {
                     this._toast(e.message, 'error');
                     this.deletingAccount = false;
+                }
+            },
+
+            // ── MCP tokens ─────────────────────────────────────────
+            mcpUrl() {
+                return window.location.origin + '/api/mcp';
+            },
+
+            mcpSnippet(kind) {
+                const token = this.mcpCreated ? this.mcpCreated.token : '';
+                const url = this.mcpUrl();
+                if (kind === 'code') {
+                    return `claude mcp add --transport http invest ${url} --header "Authorization: Bearer ${token}"`;
+                }
+                if (kind === 'cursor') {
+                    return JSON.stringify({ mcpServers: { invest: { url, headers: { Authorization: `Bearer ${token}` } } } }, null, 2);
+                }
+                if (kind === 'raw') return token;
+                return JSON.stringify({ mcpServers: { invest: {
+                    command: 'npx',
+                    args: ['-y', 'mcp-remote', url, '--header', 'Authorization:${AUTH_HEADER}'],
+                    env: { AUTH_HEADER: `Bearer ${token}` },
+                } } }, null, 2);
+            },
+
+            async copyMcp() {
+                const text = this.mcpTab === 'raw'
+                    ? `Адрес: ${this.mcpUrl()}\nТокен: ${this.mcpCreated.token}`
+                    : this.mcpSnippet(this.mcpTab);
+                try {
+                    await navigator.clipboard.writeText(text);
+                    this._toast('Скопировано', 'success');
+                } catch (e) {
+                    this._toast('Не удалось скопировать — выделите текст вручную', 'error');
+                }
+            },
+
+            fmtDate(iso) {
+                if (!iso) return '';
+                const d = new Date(iso.endsWith('Z') || iso.includes('+') ? iso : iso + 'Z');
+                return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            },
+
+            async loadMcpTokens() {
+                try {
+                    const res = await authFetch('/api/v1/mcp-tokens/');
+                    if (res.ok) this.mcpTokens = (await res.json()).items || [];
+                    if (this.isCfo) {
+                        const all = await authFetch('/api/v1/mcp-tokens/?all=true');
+                        if (all.ok) this.mcpAllTokens = (await all.json()).items || [];
+                    }
+                } catch (e) {
+                    if (e.message !== 'Unauthorized') console.error(e);
+                }
+            },
+
+            async createMcpToken() {
+                this.mcpCreating = true;
+                try {
+                    const res = await authFetch('/api/v1/mcp-tokens/', {
+                        method: 'POST',
+                        body: JSON.stringify({ name: this.mcpNewName.trim() }),
+                    });
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        throw new Error(err.detail || 'Не удалось создать токен');
+                    }
+                    this.mcpCreated = await res.json();
+                    this.mcpTab = 'desktop';
+                    this.mcpNewName = '';
+                    await this.loadMcpTokens();
+                } catch (e) {
+                    this._toast(e.message, 'error');
+                } finally {
+                    this.mcpCreating = false;
+                }
+            },
+
+            async revokeMcpToken(t) {
+                if (!confirm(`Отозвать токен «${t.name}»? Программа, которая им пользуется, сразу потеряет доступ.`)) return;
+                try {
+                    const res = await authFetch(`/api/v1/mcp-tokens/${t.id}`, { method: 'DELETE' });
+                    if (!res.ok) throw new Error('Не удалось отозвать токен');
+                    if (this.mcpCreated && this.mcpCreated.id === t.id) this.mcpCreated = null;
+                    this._toast('Токен отозван', 'success');
+                    await this.loadMcpTokens();
+                } catch (e) {
+                    this._toast(e.message, 'error');
                 }
             },
 

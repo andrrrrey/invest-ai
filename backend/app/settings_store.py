@@ -429,6 +429,53 @@ def is_knowledge_enabled() -> bool:
     return bool(val)
 
 
+def is_mcp_anonymize_enabled() -> bool:
+    """Обезличивать ли данные, которые отдаёт ВНЕШНИЙ MCP-сервер (stdio и HTTP).
+
+    По умолчанию ВКЛЮЧЕНО: внешний ИИ-клиент получает метки вместо названий
+    проектов, ФИО, кодов МВЗ и контактов. Переменная окружения
+    MCP_ANONYMIZE_ENABLED (1/0/true/false) имеет приоритет над файлом.
+    """
+    env = os.getenv("MCP_ANONYMIZE_ENABLED")
+    if env is not None:
+        return env.strip().lower() in ("1", "true", "yes", "on")
+    val = _load().get("mcp_anonymize_enabled")
+    if val is None:
+        return True
+    return bool(val)
+
+
+def set_mcp_anonymize_enabled(enabled: bool) -> None:
+    data = _load()
+    data["mcp_anonymize_enabled"] = bool(enabled)
+    _save(data)
+
+
+def get_mcp_http_tokens() -> dict:
+    """СЛУЖЕБНЫЕ токены HTTP MCP-эндпоинта: ``{имя_клиента: токен}``.
+
+    Нужны только для интеграций, не привязанных к пользователю. Обычные
+    пользователи (CEO/CFO/менеджер) создают личные токены сами в профиле
+    (``services.mcp_token_service``). Задаются ТОЛЬКО переменной окружения
+    ``MCP_HTTP_TOKENS`` — списком через запятую: ``имя=токен`` (в аудит
+    пишется ``svc:имя``) или просто ``токен`` (имя ``client1``, ``client2``…).
+    """
+    raw = os.getenv("MCP_HTTP_TOKENS") or ""
+    tokens: dict = {}
+    for i, item in enumerate(raw.split(","), start=1):
+        item = item.strip()
+        if not item:
+            continue
+        if "=" in item:
+            name, token = item.split("=", 1)
+            name, token = name.strip(), token.strip()
+        else:
+            name, token = f"client{i}", item
+        if token:
+            tokens[name or f"client{i}"] = token
+    return tokens
+
+
 def set_knowledge_enabled(enabled: bool) -> None:
     data = _load()
     data["knowledge_enabled"] = bool(enabled)

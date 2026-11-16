@@ -44,6 +44,7 @@ class SettingsUpdate(BaseModel):
     hermes_chat_enabled: Optional[bool] = None
     digest_enabled: Optional[bool] = None
     knowledge_enabled: Optional[bool] = None
+    mcp_anonymize_enabled: Optional[bool] = None
     embedding_model: Optional[str] = None
 
 
@@ -99,6 +100,7 @@ def get_settings(_=Depends(require_cfo)) -> dict:
         "hermes_chat_enabled": settings_store.is_hermes_chat_enabled(),
         "digest_enabled": settings_store.is_digest_enabled(),
         "knowledge_enabled": settings_store.is_knowledge_enabled(),
+        "mcp_anonymize_enabled": settings_store.is_mcp_anonymize_enabled(),
         "embedding_model": settings_store.get_embedding_model(),
         # Признак, что значение задано переменной окружения (env приоритетнее файла).
         "env_overrides": {
@@ -110,6 +112,7 @@ def get_settings(_=Depends(require_cfo)) -> dict:
             "app_base_url": bool(os.getenv("APP_BASE_URL")),
             "hermes_chat_enabled": os.getenv("HERMES_CHAT_ENABLED") is not None,
             "knowledge_enabled": os.getenv("HERMES_KNOWLEDGE_ENABLED") is not None,
+            "mcp_anonymize_enabled": os.getenv("MCP_ANONYMIZE_ENABLED") is not None,
         },
     }
 
@@ -165,6 +168,8 @@ def update_settings(body: SettingsUpdate, _=Depends(require_cfo)) -> dict:
                 pass
     if body.knowledge_enabled is not None:
         settings_store.set_knowledge_enabled(body.knowledge_enabled)
+    if body.mcp_anonymize_enabled is not None:
+        settings_store.set_mcp_anonymize_enabled(body.mcp_anonymize_enabled)
     if body.embedding_model is not None:
         settings_store.set_embedding_model(body.embedding_model)
     if body.hermes_write_enabled is not None:

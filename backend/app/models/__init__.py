@@ -12,3 +12,4 @@ from .knowledge import KnowledgeEntry  # noqa: F401
 from .coin_rate import CoinRate  # noqa: F401
 from .approval_step import ApprovalStep  # noqa: F401
 from .project_change import ProjectChange  # noqa: F401
+from .mcp_token import McpToken  # noqa: F401
