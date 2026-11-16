@@ -25,6 +25,7 @@ import logging
 import os
 import re
 import threading
+import time
 from typing import Optional
 
 from .. import settings_store
@@ -243,6 +244,100 @@ async def _handle_event(event: dict, bot_user_id: str, bot_username: str, ws, ne
         )
 
 
+# ── Состояние слушателя (для диагностики в Настройках) ────────────────────────
+#
+# Слушатель живёт в одном из воркеров, а запрос «проверить бота» может прийти в
+# другой, поэтому состояние пишем в маленький JSON-файл рядом с блокировкой.
+
+def _data_dir() -> str:
+    return "/data" if os.path.isdir("/data") and os.access("/data", os.W_OK) else "/tmp"
+
+
+def _status_path() -> str:
+    return os.getenv("HERMES_BOT_STATUS_PATH") or os.path.join(_data_dir(), "hermes_bot_ws.status.json")
+
+
+_last_state: Optional[tuple] = None
+
+
+def _set_status(state: str, detail: str = "", bot_username: str = "") -> None:
+    """Запомнить состояние слушателя и залогировать его смену (без спама)."""
+    global _last_state
+    key = (state, detail)
+    if key != _last_state:
+        _last_state = key
+        log = logger.warning if state in ("auth_failed", "error", "not_configured", "chat_disabled") else logger.info
+        log("Hermes bot: %s%s", _STATE_TEXT.get(state, state), f" — {detail}" if detail else "")
+    try:
+        with open(_status_path(), "w", encoding="utf-8") as f:
+            json.dump({"state": state, "detail": detail, "bot_username": bot_username,
+                       "ts": time.time(), "pid": os.getpid()}, f, ensure_ascii=False)
+    except OSError:
+        pass
+
+
+def read_status() -> Optional[dict]:
+    try:
+        with open(_status_path(), encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+
+_STATE_TEXT = {
+    "connected": "подключён к Mattermost и слушает сообщения",
+    "connecting": "подключается к Mattermost",
+    "not_configured": "не настроен (нет адреса Mattermost или токена бота) — ждём настройки",
+    "chat_disabled": "режим «Ответы на обычные сообщения» выключен — сообщения не обрабатываются",
+    "auth_failed": "Mattermost отклонил токен бота",
+    "error": "ошибка подключения",
+}
+
+
+def _config_fingerprint() -> tuple:
+    return (settings_store.get_mattermost_base_url() or "",
+            settings_store.get_mattermost_bot_token() or "")
+
+
+class _AuthError(RuntimeError):
+    pass
+
+
+async def _await_auth_reply(ws) -> None:
+    """Дождаться ответа на authentication_challenge и проверить его.
+
+    При неверном токене Mattermost не закрывает соединение, а просто отвечает
+    FAIL и дальше не присылает событий — бот «висит» молча. Поэтому ответ
+    проверяем явно.
+    """
+    deadline = asyncio.get_running_loop().time() + 15
+    while True:
+        timeout = deadline - asyncio.get_running_loop().time()
+        if timeout <= 0:
+            raise _AuthError("нет ответа на авторизацию по WebSocket")
+        raw = await asyncio.wait_for(ws.recv(), timeout=timeout)
+        try:
+            msg = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if msg.get("seq_reply") != 1:
+            continue  # например, событие hello — ждём именно ответ на seq=1
+        if msg.get("status") == "OK":
+            return
+        err = msg.get("error") or {}
+        raise _AuthError(err.get("message") or err.get("id") or "статус авторизации FAIL")
+
+
+async def _watch_config(ws, fingerprint: tuple) -> None:
+    """Переподключиться, если в Настройках сменили адрес или токен бота."""
+    while True:
+        await asyncio.sleep(15)
+        if _config_fingerprint() != fingerprint:
+            logger.info("Hermes bot: настройки Mattermost изменились — переподключаемся")
+            await ws.close()
+            return
+
+
 async def _run_once() -> None:
     """Одно подключение к WebSocket: авторизация и цикл приёма событий."""
     import websockets  # ленивый импорт (идёт с uvicorn[standard])
@@ -251,8 +346,13 @@ async def _run_once() -> None:
     token = settings_store.get_mattermost_bot_token()
     if not url or not token:
         raise RuntimeError("Mattermost bot не настроен (нет URL или токена)")
+    fingerprint = _config_fingerprint()
 
-    me = mattermost_service.get_me() or {}
+    _set_status("connecting")
+    check = await asyncio.to_thread(mattermost_service.check_bot)
+    if not check["ok"]:
+        raise _AuthError(check["error"])
+    me = check["me"] or {}
     bot_user_id = me.get("id") or ""
     bot_username = me.get("username") or ""
 
@@ -270,31 +370,54 @@ async def _run_once() -> None:
             "action": "authentication_challenge",
             "data": {"token": token},
         }))
-        logger.info("Hermes bot WebSocket подключён (%s)", bot_username or "bot")
-        async for raw in ws:
-            try:
-                event = json.loads(raw)
-            except (json.JSONDecodeError, TypeError):
-                continue
-            # Реагируем только когда чат-режим включён (можно выключить в Настройках).
-            if not settings_store.is_hermes_chat_enabled():
-                continue
-            try:
-                await _handle_event(event, bot_user_id, bot_username, ws, next_seq)
-            except Exception:
-                logger.exception("Ошибка обработки сообщения бота Hermes")
+        await _await_auth_reply(ws)
+        _set_status("connected", f"@{bot_username}" if bot_username else "", bot_username)
+        watcher = asyncio.create_task(_watch_config(ws, fingerprint))
+        try:
+            async for raw in ws:
+                try:
+                    event = json.loads(raw)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+                # Реагируем только когда чат-режим включён (можно выключить в Настройках).
+                if not settings_store.is_hermes_chat_enabled():
+                    if event.get("event") == "posted":
+                        _set_status("chat_disabled")
+                    continue
+                if _last_state and _last_state[0] == "chat_disabled":
+                    _set_status("connected", f"@{bot_username}" if bot_username else "", bot_username)
+                parsed = parse_incoming(event, bot_user_id, bot_username)
+                if parsed:
+                    logger.info("Hermes bot: сообщение от %s (канал %s, тип %s)",
+                                parsed["sender"], parsed["channel_id"], parsed.get("channel_type"))
+                try:
+                    await _handle_event(event, bot_user_id, bot_username, ws, next_seq)
+                except Exception:
+                    logger.exception("Ошибка обработки сообщения бота Hermes")
+        finally:
+            watcher.cancel()
 
 
 async def _run_forever() -> None:
     backoff = 2
     while True:
-        if not (mattermost_service.is_configured() and settings_store.is_hermes_chat_enabled()):
-            await asyncio.sleep(30)
+        if not mattermost_service.is_configured():
+            _set_status("not_configured")
+            await asyncio.sleep(15)
+            continue
+        if not settings_store.is_hermes_chat_enabled():
+            _set_status("chat_disabled")
+            await asyncio.sleep(15)
             continue
         try:
             await _run_once()
             backoff = 2  # чистое завершение — сбрасываем задержку
+        except _AuthError as exc:
+            _set_status("auth_failed", str(exc))
+            # Неверный токен сам не исправится — не долбим сервер, ждём дольше.
+            await asyncio.sleep(60)
         except Exception as exc:
+            _set_status("error", type(exc).__name__)
             logger.warning("Hermes bot WebSocket оборван: %s — переподключение через %ss",
                            type(exc).__name__, backoff)
             await asyncio.sleep(backoff)
@@ -309,10 +432,7 @@ def _acquire_singleton_lock() -> bool:
     global _lock_handle
     import fcntl
 
-    lock_path = os.getenv("HERMES_BOT_LOCK_PATH")
-    if not lock_path:
-        data_dir = "/data" if os.path.isdir("/data") and os.access("/data", os.W_OK) else "/tmp"
-        lock_path = os.path.join(data_dir, "hermes_bot_ws.lock")
+    lock_path = os.getenv("HERMES_BOT_LOCK_PATH") or os.path.join(_data_dir(), "hermes_bot_ws.lock")
     try:
         fh = open(lock_path, "w")
         fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -324,16 +444,16 @@ def _acquire_singleton_lock() -> bool:
 
 
 def start_bot_listener() -> bool:
-    """Запустить фоновый слушатель сообщений бота (в одном процессе)."""
+    """Запустить фоновый слушатель сообщений бота (в одном процессе).
+
+    Слушатель стартует всегда, даже если бот ещё не настроен или чат-режим
+    выключен: он сам ждёт, пока настройки появятся. Раньше в этом случае он не
+    запускался вовсе, и бот молчал до перезапуска сервера, даже после того как
+    токен и адрес были сохранены в Настройках.
+    """
     global _started
     if _started:
         return True
-    if not settings_store.is_hermes_chat_enabled():
-        logger.info("Чат-режим Hermes выключен — слушатель сообщений не запущен")
-        return False
-    if not mattermost_service.is_configured():
-        logger.info("Mattermost bot не настроен — слушатель сообщений не запущен")
-        return False
     if not _acquire_singleton_lock():
         logger.info("Слушатель сообщений Hermes уже запущен в другом воркере — пропускаем")
         return False
@@ -343,6 +463,7 @@ def start_bot_listener() -> bool:
             asyncio.run(_run_forever())
         except Exception:
             logger.exception("Слушатель сообщений Hermes аварийно остановлен")
+            _set_status("error", "слушатель аварийно остановлен")
 
     t = threading.Thread(target=_thread_main, name="hermes-bot-ws", daemon=True)
     t.start()

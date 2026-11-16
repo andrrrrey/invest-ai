@@ -176,14 +176,37 @@ def update_settings(body: SettingsUpdate, _=Depends(require_cfo)) -> dict:
         settings_store.set_hermes_write_enabled(body.hermes_write_enabled)
     if body.hermes_chat_enabled is not None:
         settings_store.set_hermes_chat_enabled(body.hermes_chat_enabled)
-        # Попробовать поднять слушатель сразу, если его ещё нет (без рестарта).
-        if body.hermes_chat_enabled:
-            try:
-                from ...services.mattermost_bot_service import start_bot_listener
-                start_bot_listener()
-            except Exception:
-                pass
+    # Поднять слушатель сразу, если его ещё нет (без рестарта сервера). Уже
+    # работающий слушатель сам подхватит новый адрес/токен и переподключится.
+    if (body.hermes_chat_enabled or body.mattermost_base_url is not None
+            or body.mattermost_bot_token is not None):
+        try:
+            from ...services.mattermost_bot_service import start_bot_listener
+            start_bot_listener()
+        except Exception:
+            pass
     return {"success": True}
+
+
+@router.post("/test-mattermost-bot")
+def test_mattermost_bot(_=Depends(require_cfo)) -> dict:
+    """Проверить бота Hermes: токен (запрос профиля) и состояние слушателя. CFO only."""
+    from ...services import mattermost_service, mattermost_bot_service
+
+    check = mattermost_service.check_bot()
+    me = check.get("me") or {}
+    status = mattermost_bot_service.read_status() or {}
+    state = status.get("state")
+    return {
+        "token_ok": check["ok"],
+        "token_error": check.get("error"),
+        "bot_username": me.get("username"),
+        "chat_enabled": settings_store.is_hermes_chat_enabled(),
+        "listener_state": state,
+        "listener_text": mattermost_bot_service._STATE_TEXT.get(state, "слушатель не запущен"),
+        "listener_detail": status.get("detail") or None,
+        "listener_updated_at": status.get("ts"),
+    }
 
 
 @router.post("/test-mattermost")
