@@ -34,3 +34,31 @@ def filter_by_sc_type(projects, sc_type: str | None):
     if sc_type not in SC_TYPES:
         return list(projects)
     return [p for p in projects if sc_type_of(p) == sc_type]
+
+
+def is_contract_author(project, user) -> bool:
+    """Автор контракта (создатель; для старых записей без автора — ответственный).
+    Только автор с ролью «Заявитель» редактирует контракт и отправляет его
+    на согласование; ответственный, заказчики и куратор видят контракт
+    в режиме просмотра (с комментариями)."""
+    created_by = getattr(project, "created_by_id", None)
+    if created_by is not None:
+        return created_by == user.id
+    return getattr(project, "user_id", None) == user.id
+
+
+def curator_id(project):
+    scd = getattr(project, "smart_contract_data", None) or {}
+    try:
+        return int(scd.get("curatorUserId")) or None
+    except (TypeError, ValueError):
+        return None
+
+
+def member_ids(project) -> set:
+    """Сотрудники, которым контракт виден: ответственный, автор, заказчики, куратор."""
+    from .route_service import customer_ids
+    ids = {getattr(project, "user_id", None), getattr(project, "created_by_id", None), curator_id(project)}
+    ids.update(customer_ids(project))
+    ids.discard(None)
+    return ids

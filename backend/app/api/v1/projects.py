@@ -78,8 +78,9 @@ def _is_route_participant(db: Session, project: Project, user: User) -> bool:
     в комментарии, видят карточку — иначе ссылка из уведомления не откроется."""
     from ...models.approval_step import ApprovalStep
     from ...models.comment import Comment
-    scd = project.smart_contract_data or {}
-    if str(scd.get("customerUserId") or "") == str(user.id):
+    from ...services.contract_utils import is_contract, member_ids
+    # Ответственный, заказчики и куратор контракта — просмотр и комментарии.
+    if is_contract(project) and user.id in member_ids(project):
         return True
     if (
         db.query(ApprovalStep.id)
@@ -160,6 +161,16 @@ def list_projects(
             )
         )
     projects = q.order_by(Project.created_at.desc()).all()
+    if current_user.role == "owner" and status != "approved" and project_type == "smart_contract":
+        # Контракты, где сотрудник — заказчик или куратор (хранятся в JSON).
+        from ...services.contract_utils import member_ids
+        seen = {p.id for p in projects}
+        extra_q = db.query(Project).filter(Project.project_type == "smart_contract")
+        if status:
+            extra_q = extra_q.filter(Project.status == status)
+        extra = [p for p in extra_q.all() if p.id not in seen and current_user.id in member_ids(p)]
+        if extra:
+            projects = sorted(projects + extra, key=lambda p: p.created_at.timestamp() if p.created_at else 0, reverse=True)
     if project_type == "smart_contract" and sc_type:
         from ...services.contract_utils import filter_by_sc_type
         projects = filter_by_sc_type(projects, sc_type)
@@ -256,6 +267,13 @@ def update_project(
             detail="CEO не может редактировать проекты",
         )
     is_contract = (project.project_type or "") == "smart_contract"
+    if is_contract and current_user.role == "owner":
+        from ...services.contract_utils import is_contract_author
+        if not is_contract_author(project, current_user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Контракт доступен вам в режиме просмотра — редактирует автор контракта",
+            )
     # Owner can only edit their own draft or pending_approval projects
     # (contracts: draft or returned for rework — they are edited in the wizard).
     owner_editable = ("draft", "rework_needed") if is_contract else ("draft", "pending_approval")
@@ -453,9 +471,11 @@ def delete_project(
             detail="Недостаточно прав для удаления проекта",
         )
     # Applicant (owner) may delete only their OWN draft.
-    if role == "owner" and (
-        not _is_own(project, current_user) or (project.status or "draft") != "draft"
-    ):
+    own = _is_own(project, current_user)
+    if (project.project_type or "") == "smart_contract":
+        from ...services.contract_utils import is_contract_author
+        own = is_contract_author(project, current_user)
+    if role == "owner" and (not own or (project.status or "draft") != "draft"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Заявитель может удалять только собственные черновики",

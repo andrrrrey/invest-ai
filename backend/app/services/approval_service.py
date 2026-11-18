@@ -40,6 +40,11 @@ _DONE_LABELS = {
 
 
 def _is_own(project: Project, actor: User) -> bool:
+    if _is_contract(project):
+        # Контракт отправляет / отзывает его автор; ответственный, заказчики
+        # и куратор работают с ним в режиме просмотра.
+        from .contract_utils import is_contract_author
+        return is_contract_author(project, actor)
     return project.user_id == actor.id or getattr(project, "created_by_id", None) == actor.id
 
 

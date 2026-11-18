@@ -28,17 +28,20 @@ def employee_directory(
     authenticated user. Used to pick a curator / participants when creating
     a smart contract."""
     from ...config import settings
+    from ...services.names import surname_first
     users = (
         db.query(User)
         .filter(User.is_active == True)  # noqa: E712
         .filter(User.email != settings.HERMES_BOT_EMAIL)  # служебный аккаунт бота
-        .order_by(User.full_name)
         .all()
     )
-    return [
-        {"id": u.id, "full_name": u.full_name, "role": u.role}
+    out = [
+        {"id": u.id, "full_name": u.full_name, "display_name": surname_first(u.full_name), "role": u.role}
         for u in users
     ]
+    # В списках выбора сотрудники идут «Фамилия Имя» и по алфавиту фамилий.
+    out.sort(key=lambda u: (u["display_name"] or "").lower().replace("ё", "е"))
+    return out
 
 
 @router.post("/", response_model=UserRead, status_code=201)

@@ -153,6 +153,11 @@
         .mini.ok { background: #DDF0E1; color: #1A7A40; }
         .mini.bad { background: #FFF0EF; color: #CC2A22; }
         .mini:disabled { opacity: .6; }
+        .ms-report { margin-top: 12px; background: #F7F7FF; border: 1.5px solid #E1E0FF; border-radius: 12px; padding: 10px 14px; }
+        .ms-report textarea { width: 100%; min-height: 80px; resize: vertical; border: 1.5px solid #E5E5ED; border-radius: 10px; padding: 8px 10px; font-family: inherit; font-size: 13px; margin-top: 6px; }
+        .ms-report .rep-text { font-size: 13px; color: #333; white-space: pre-line; line-height: 1.5; margin-top: 4px; }
+        .ms-report .rep-meta { font-size: 11px; color: var(--muted); margin-top: 6px; }
+        .pill-view { background: #EEF0FF; color: var(--accent); }
         /* Команда */
         .team-grid { display: flex; flex-direction: column; gap: 10px; }
         .member { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1.5px solid #EDEDF2; border-radius: 14px; }
@@ -240,6 +245,7 @@
                     <span class="status-pill pill-lead" x-show="isLeadership"><i class="fas fa-crown"></i> Лидерский контракт</span>
                     <span class="status-pill" :class="statusClass(contract.status)" x-text="statusLabel(contract.status)"></span>
                     <span class="status-pill pill-muted" x-text="contract.contractType === 'phased' ? 'Поэтапный' : 'Единый'"></span>
+                    <span class="status-pill pill-view" x-show="isViewOnly" title="Вы указаны в контракте как ответственный, заказчик или куратор: доступны просмотр и комментарии"><i class="fas fa-eye"></i> Режим просмотра</span>
                     <span class="status-pill pill-muted" x-show="contract.businessUnit && contract.businessUnit !== '—'"><i class="fas fa-building"></i> <span x-text="contract.businessUnit"></span></span>
                 </div>
             </div>
@@ -352,6 +358,30 @@
                                             <div x-show="ms.stopLoss"><div class="lbl">Стоп-лосс</div><div x-text="ms.stopLoss"></div></div>
                                         </div>
                                         <div class="lbl" style="margin-top:10px" x-show="ms.verifiedBy" x-text="'Выполнение подтвердил: ' + ms.verifiedBy"></div>
+                                        <!-- Отчёт по этапу (текстом, при необходимости) -->
+                                        <div class="ms-report" x-show="ms.report || ms.reportEditing || canReport" @click.stop>
+                                            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+                                                <div class="lbl" style="margin:0"><i class="fas fa-file-lines"></i> Отчёт о выполнении</div>
+                                                <button class="link-btn" x-show="canReport && !ms.reportEditing" @click="startReport(ms)" x-text="ms.report ? 'Изменить' : 'Добавить отчёт'"></button>
+                                            </div>
+                                            <template x-if="!ms.reportEditing">
+                                                <div>
+                                                    <div class="rep-text" x-show="ms.report" x-text="ms.report"></div>
+                                                    <div class="rep-meta" x-show="ms.report && ms.reportBy" x-text="ms.reportBy + (ms.reportAt ? ' · ' + fmtDateTimeShort(ms.reportAt) : '')"></div>
+                                                    <div class="rep-meta" x-show="!ms.report">Отчёт не заполнен. Зафиксируйте результат этапа текстом, если нужно.</div>
+                                                </div>
+                                            </template>
+                                            <template x-if="ms.reportEditing">
+                                                <div>
+                                                    <textarea x-model="ms.reportDraft" placeholder="Что сделано по этапу, ссылки на результаты, цифры…" maxlength="10000"></textarea>
+                                                    <div class="ms-actions" style="margin-top:8px">
+                                                        <button class="mini ok" :disabled="ms.reportSaving" @click="saveReport(idx)"><i class="fas fa-floppy-disk"></i> Сохранить</button>
+                                                        <button class="mini" style="background:#F2F2F7;color:#555" @click="ms.reportEditing = false">Отмена</button>
+                                                    </div>
+                                                    <div class="rep-meta" style="color:var(--danger)" x-show="ms.reportError" x-text="ms.reportError"></div>
+                                                </div>
+                                            </template>
+                                        </div>
                                         <div class="ms-actions" x-show="canVerify && contract.status === 'approved' && ['pending','in_progress','verify'].includes(ms.status)">
                                             <button class="mini ok" @click.stop="verifyMilestone(idx, true)"><i class="fas fa-check"></i> Подтвердить выполнение</button>
                                             <button class="mini bad" @click.stop="verifyMilestone(idx, false)"><i class="fas fa-triangle-exclamation"></i> Открыть спор</button>
@@ -556,7 +586,7 @@
             <template x-if="state">
                 <div>
                     <div class="route-steps">
-                        <template x-for="(st, i) in state.steps" :key="st.id || st.role">
+                        <template x-for="(st, i) in state.steps" :key="st.id || (st.role + '-' + i)">
                             <div class="route-step" :class="{ 'is-active': st.status === 'active', 'is-ok': st.status === 'approved', 'is-rework': st.status === 'rework' }">
                                 <div class="rs-num" x-text="'Этап ' + (i + 1)"></div>
                                 <div class="rs-role" x-text="st.role_label"></div>
@@ -627,7 +657,7 @@
                                 <template x-if="state && state.steps && state.cycle">
                                     <div>
                                         <div class="route-steps">
-                                            <template x-for="(st, i) in state.steps" :key="st.id || st.role">
+                                            <template x-for="(st, i) in state.steps" :key="st.id || (st.role + '-' + i)">
                                                 <div class="route-step" :class="{ 'is-active': st.status === 'active', 'is-ok': st.status === 'approved', 'is-rework': st.status === 'rework' }">
                                                     <div class="rs-num" x-text="'Этап ' + (i + 1)"></div>
                                                     <div class="rs-role" x-text="st.role_label"></div>
@@ -706,7 +736,7 @@
 
             <div x-show="!attachments.length && !legacyDocs.length && !uploading" style="color:#8E8E93;font-size:13px;margin-bottom:10px">Документы не прикреплены</div>
 
-            <div style="display:flex;gap:10px;align-items:center">
+            <div style="display:flex;gap:10px;align-items:center" x-show="canUpload">
                 <input type="file" x-ref="fileInput" accept=".pdf,.docx,.md" style="display:none" @change="uploadFile($event)">
                 <button @click="$refs.fileInput.click()" :disabled="uploading"
                     style="background:#EEF0FF;border:1.5px solid #C7C9FF;color:var(--accent);border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
@@ -780,7 +810,19 @@ function scView() {
         get isLeadership() { return this.contract.scType === 'leadership'; },
         get canApprove() { const r = getUserRole(); return r === 'cfo' || r === 'manager'; },
         get isCfoUser() { return getUserRole() === 'cfo'; },
-        get canEditDraft() { const r = getUserRole(); return r === 'cfo' || r === 'manager' || r === 'owner'; },
+        // Автор контракта (создатель; у старых записей — ответственный).
+        get isAuthor() {
+            const me = getUserId();
+            return this.contract.createdById ? this.contract.createdById === me : this.contract.userId === me;
+        },
+        get canEditDraft() { const r = getUserRole(); return r === 'cfo' || r === 'manager' || (r === 'owner' && this.isAuthor); },
+        // Ответственный (не автор), заказчики и куратор — просмотр и комментарии.
+        get isViewOnly() { return getUserRole() === 'owner' && !this.isAuthor; },
+        // Отчёт по этапу: ответственный, автор, CFO, менеджер.
+        get canReport() {
+            const r = getUserRole(), me = getUserId();
+            return r === 'cfo' || r === 'manager' || (r === 'owner' && (this.contract.userId === me || this.contract.createdById === me));
+        },
         get canEditContract() {
             return this.projectId && this.canEditDraft && ['draft', 'rework_needed'].includes(this.contract.status);
         },
@@ -841,6 +883,10 @@ function scView() {
                     disputeNote: m.disputeNote || '',
                     arbitration: m.arbitration || null,
                     verifiedBy: m.verifiedBy || '',
+                    report: m.report || '',
+                    reportBy: m.reportBy || '',
+                    reportAt: m.reportAt || '',
+                    reportDraft: '', reportEditing: false, reportSaving: false, reportError: '',
                     open: !!prevOpen[i],
                 }));
                 const team = (scd.team || []).map(t => ({
@@ -975,6 +1021,31 @@ function scView() {
             }
         },
 
+        startReport(ms) {
+            ms.reportDraft = ms.report || '';
+            ms.reportError = '';
+            ms.reportEditing = true;
+        },
+        async saveReport(idx) {
+            const ms = this.contract.milestones[idx];
+            ms.reportSaving = true; ms.reportError = '';
+            try {
+                const res = await authFetch(`/api/v1/projects/${this.projectId}/milestones/${idx}/report`, {
+                    method: 'PUT', body: JSON.stringify({ report: ms.reportDraft || '' }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) { ms.reportError = data.detail || 'Не удалось сохранить отчёт'; return; }
+                ms.report = data.report || '';
+                ms.reportBy = data.reportBy || '';
+                ms.reportAt = data.reportAt || '';
+                ms.reportEditing = false;
+                window.dispatchEvent(new CustomEvent('route-updated'));
+            } catch (e) {
+                if (e.message !== 'Unauthorized') ms.reportError = 'Ошибка сети';
+            } finally { ms.reportSaving = false; }
+        },
+        fmtDateTimeShort(iso) { return fmtDateTime(iso); },
+
         toggleAll() {
             this.allOpen = !this.allOpen;
             this.contract.milestones.forEach(m => m.open = this.allOpen);
@@ -1084,6 +1155,7 @@ function scAttachmentsApp() {
         attachments: [],
         legacyDocs: [],
         uploading: false,
+        canUpload: false,
         async loadAttachments() {
             const id = _scProjectId();
             if (!id) return;
@@ -1100,6 +1172,8 @@ function scAttachmentsApp() {
                 const res = await authFetch('/api/v1/projects/' + id);
                 if (res.ok) {
                     const p = await res.json();
+                    const r = getUserRole(), me = getUserId();
+                    this.canUpload = r === 'cfo' || r === 'manager' || (r === 'owner' && (p.user_id === me || p.created_by_id === me));
                     const docs = (p.smart_contract_data || {}).documents || [];
                     this.legacyDocs = Array.isArray(docs) ? docs.filter(Boolean) : [];
                 }

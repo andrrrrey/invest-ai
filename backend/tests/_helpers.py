@@ -76,6 +76,7 @@ def setup_route_roles() -> dict:
     ids = {
         "cb": mk_user("manager", full_name="Кулеева Маргарита"),
         "treasurer": mk_user("owner", full_name="Кувшинчикова Кристина"),
+        "bonus_manager": mk_user("owner", full_name="Премиальная Полина"),
         "cfo": mk_user("cfo", full_name="Хагуш Лонда"),
         "lawyer": mk_user("owner", full_name="Юристов Юрий"),
         "ceo": mk_user("ceo", full_name="Генеральный Директор"),

@@ -30,6 +30,18 @@ class ArbitrationIn(BaseModel):
     dispute: str | None = None
 
 
+class MilestoneReportIn(BaseModel):
+    report: str = ""
+
+
+def _can_work_on(project, user: User) -> bool:
+    """Исполнитель контракта: ответственный или автор (CFO/менеджер — любые).
+    Заказчики и куратор видят контракт в режиме просмотра."""
+    if user.role in ("cfo", "manager"):
+        return True
+    return user.role == "owner" and user.id in (project.user_id, project.created_by_id)
+
+
 @router.patch("/{project_id}/milestones/{index}/status")
 def set_milestone_status(
     project_id: int,
@@ -40,9 +52,11 @@ def set_milestone_status(
 ):
     """Изменить статус майлстоуна. Заявитель — только для своих проектов
     (проверка в get_accessible_project); CFO/менеджер — для любых."""
-    get_accessible_project(project_id, db, current_user)
+    project = get_accessible_project(project_id, db, current_user)
     if current_user.role == "ceo":
         raise HTTPException(status_code=403, detail="CEO не может изменять данные")
+    if not _can_work_on(project, current_user):
+        raise HTTPException(status_code=403, detail="Контракт доступен вам в режиме просмотра")
     if (body.status in ("paid", "disputed") and current_user.role not in ("cfo", "manager")):
         # Выполнение этапа подтверждают (или оспаривают) куратор/CFO/менеджер,
         # а не сам исполнитель.
@@ -54,6 +68,46 @@ def set_milestone_status(
         actor_name=current_user.full_name,
     )
     return result
+
+
+@router.put("/{project_id}/milestones/{index}/report")
+def set_milestone_report(
+    project_id: int,
+    index: int,
+    body: MilestoneReportIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Текстовый отчёт о выполнении этапа (необязательный). Пустой текст удаляет отчёт."""
+    import datetime as _dt
+    from ...services import change_log
+    project = get_accessible_project(project_id, db, current_user)
+    if not _can_work_on(project, current_user):
+        raise HTTPException(status_code=403, detail="Отчёт по этапу фиксирует ответственный, автор контракта, CFO или менеджер")
+    milestones = list((project.smart_contract_data or {}).get("milestones") or [])
+    if index < 0 or index >= len(milestones):
+        raise HTTPException(status_code=404, detail="Этап не найден")
+    text = (body.report or "").strip()
+    if len(text) > 10000:
+        raise HTTPException(status_code=400, detail="Отчёт слишком длинный (не более 10 000 символов)")
+    ms = dict(milestones[index])
+    old = ms.get("report") or None
+    if text:
+        ms.update(report=text, reportBy=current_user.full_name,
+                  reportAt=_dt.datetime.utcnow().isoformat())
+    else:
+        for k in ("report", "reportBy", "reportAt"):
+            ms.pop(k, None)
+    milestones[index] = ms
+    scd = dict(project.smart_contract_data or {})
+    scd["milestones"] = milestones
+    project.smart_contract_data = scd
+    if old != (text or None):
+        change_log.log(db, project.id, current_user.id, f"milestones[{index}].report",
+                       f"Отчёт по этапу «{ms.get('name') or ms.get('title') or index + 1}»",
+                       old, text or None)
+    db.commit()
+    return ms
 
 
 @router.post("/{project_id}/milestones/{index}/arbitration")

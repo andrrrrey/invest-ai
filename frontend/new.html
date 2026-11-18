@@ -624,7 +624,7 @@
                                     <select x-model="form.owner_user_id" @change="onOwnerSelect()">
                                         <option value="">— оформляю на себя —</option>
                                         <template x-for="e in employees" :key="e.id">
-                                            <option :value="e.id" x-text="e.full_name + ' · ' + employeeRoleLabel(e.role)"></option>
+                                            <option :value="e.id" x-text="(e.display_name || e.full_name) + ' · ' + employeeRoleLabel(e.role)"></option>
                                         </template>
                                     </select>
                                     <p class="hint">Выбранный сотрудник станет ответственным (владельцем) заявки. Ответственного можно сменить и позже — в карточке проекта.</p>
@@ -1227,7 +1227,7 @@
                             <select x-model="form.owner_user_id" @change="onOwnerSelect()">
                                 <option value="">— оформляю на себя —</option>
                                 <template x-for="e in employees" :key="e.id">
-                                    <option :value="e.id" x-text="e.full_name + ' · ' + employeeRoleLabel(e.role)"></option>
+                                    <option :value="e.id" x-text="(e.display_name || e.full_name) + ' · ' + employeeRoleLabel(e.role)"></option>
                                 </template>
                             </select>
                             <p class="hint">Выбранный сотрудник станет ответственным (владельцем). Сменить можно и позже — в карточке проекта.</p>

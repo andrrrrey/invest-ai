@@ -67,7 +67,8 @@ function attachMentions(textarea) {
         items.forEach((u, i) => {
             const el = document.createElement('div');
             el.className = 'mi' + (i === active ? ' active' : '');
-            el.innerHTML = `<span class="av">${escapeHtml((u.full_name || '?').charAt(0))}</span><span>${escapeHtml(u.full_name)}</span>`;
+            const name = u.display_name || u.full_name || '?';
+            el.innerHTML = `<span class="av">${escapeHtml(name.charAt(0))}</span><span>${escapeHtml(name)}</span>`;
             el.addEventListener('mousedown', (e) => { e.preventDefault(); pick(i); });
             pop.appendChild(el);
         });
@@ -77,7 +78,7 @@ function attachMentions(textarea) {
         const u = items[i];
         if (!u || start < 0) return;
         const pos = textarea.selectionStart;
-        const insert = '@' + u.full_name + ' ';
+        const insert = '@' + (u.display_name || u.full_name) + ' ';
         textarea.value = textarea.value.slice(0, start) + insert + textarea.value.slice(pos);
         const caret = start + insert.length;
         textarea.setSelectionRange(caret, caret);

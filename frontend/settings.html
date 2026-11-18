@@ -439,7 +439,7 @@
                         <select x-model.number="r.user_id" style="padding:10px 12px;border:1.5px solid #E5E5E5;border-radius:10px;font-size:14px;font-family:inherit">
                             <option :value="null" x-text="(r.role === 'cfo' || r.role === 'ceo') ? '— по умолчанию: первый пользователь с ролью ' + r.role.toUpperCase() + ' —' : '— не назначен —'"></option>
                             <template x-for="u in employees" :key="u.id">
-                                <option :value="u.id" x-text="u.full_name + ' (' + (ROLE_LABELS[u.role] || u.role) + ')'" :selected="u.id === r.user_id"></option>
+                                <option :value="u.id" x-text="(u.display_name || u.full_name) + ' (' + (ROLE_LABELS[u.role] || u.role) + ')'" :selected="u.id === r.user_id"></option>
                             </template>
                         </select>
                     </div>
