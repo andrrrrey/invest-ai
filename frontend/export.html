@@ -262,7 +262,7 @@
                         <select class="input-field" x-model="reg.owner_id">
                             <option value="">Все</option>
                             <template x-for="u in employees" :key="u.id">
-                                <option :value="u.id" x-text="u.full_name"></option>
+                                <option :value="u.id" x-text="u.display_name || u.full_name"></option>
                             </template>
                         </select>
                     </div>

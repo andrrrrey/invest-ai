@@ -300,34 +300,42 @@
                     <label>Ответственный</label>
                     <select x-model.number="form.ownerUserId">
                         <template x-for="u in directory" :key="u.id">
-                            <option :value="u.id" x-text="u.full_name + (u.id === currentUserId ? ' (я)' : '')" :selected="u.id === form.ownerUserId"></option>
+                            <option :value="u.id" x-text="personName(u) + (u.id === currentUserId ? ' (я)' : '')" :selected="u.id === form.ownerUserId"></option>
                         </template>
                     </select>
                     <span class="hint" x-show="form.ownerUserId && form.ownerUserId !== currentUserId"
                           x-text="'Контракт заводится за сотрудника. Создатель: ' + userName + ' — доступ к контракту сохраняется.'"></span>
                 </div>
                 <div class="field">
-                    <label>Заказчик <span style="color:var(--danger)">*</span></label>
-                    <select x-model.number="form.customerUserId">
-                        <option :value="null">Выберите заказчика</option>
-                        <template x-for="u in directory" :key="u.id">
-                            <option :value="u.id" x-text="u.full_name" :selected="u.id === form.customerUserId"></option>
+                    <label>Заказчики <span style="color:var(--danger)">*</span></label>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px" x-show="form.customerUserIds.length">
+                        <template x-for="cid in form.customerUserIds" :key="cid">
+                            <span style="display:inline-flex;align-items:center;gap:6px;background:#EEEDFF;color:var(--accent);border-radius:8px;padding:4px 10px;font-size:13px;font-weight:600">
+                                <span x-text="personName(userById(cid)) || ('#' + cid)"></span>
+                                <i class="fas fa-xmark" style="cursor:pointer" title="Убрать" @click="removeCustomer(cid)"></i>
+                            </span>
+                        </template>
+                    </div>
+                    <select @change="addCustomer($event.target.value); $event.target.value = ''">
+                        <option value="" x-text="form.customerUserIds.length ? 'Добавить ещё заказчика' : 'Выберите заказчика'"></option>
+                        <template x-for="u in directory.filter(u => !form.customerUserIds.includes(u.id))" :key="u.id">
+                            <option :value="u.id" x-text="personName(u)"></option>
                         </template>
                     </select>
-                    <span class="hint">Согласует потребность — второй этап маршрута (после C&amp;B).</span>
+                    <span class="hint">Согласуют потребность — после C&amp;B, каждый заказчик по очереди. Можно выбрать нескольких.</span>
                 </div>
             </div>
 
             <div class="grid-2">
                 <div class="field">
                     <label>Куратор</label>
-                    <select x-model="form.curator" :disabled="curatorCandidates().length === 0">
-                        <option value="">Выберите куратора</option>
-                        <template x-for="name in curatorCandidates()" :key="name">
-                            <option :value="name" x-text="name"></option>
+                    <select x-model.number="form.curatorUserId">
+                        <option :value="null">Выберите куратора</option>
+                        <template x-for="u in directory" :key="u.id">
+                            <option :value="u.id" x-text="personName(u)" :selected="u.id === form.curatorUserId"></option>
                         </template>
                     </select>
-                    <span class="hint" x-show="curatorCandidates().length === 0">Куратором может быть один из участников. Добавьте участников на шаге 4 (если состав ещё не определён — не заполняйте).</span>
+                    <span class="hint">Куратор видит контракт в режиме просмотра и может его комментировать.</span>
                 </div>
             </div>
 
@@ -616,7 +624,7 @@
 
             <datalist id="emp-directory">
                 <template x-for="emp in directory" :key="emp.id">
-                    <option :value="emp.full_name"></option>
+                    <option :value="personName(emp)"></option>
                 </template>
             </datalist>
 
@@ -764,7 +772,7 @@
                 </div>
                 <div class="summary-row">
                     <span class="lbl">Куратор</span>
-                    <span class="val" x-text="form.curator || '—'"></span>
+                    <span class="val" x-text="curatorName() || '—'"></span>
                 </div>
                 <div class="summary-row">
                     <span class="lbl">Инициатор</span>
@@ -974,7 +982,7 @@
                                 <div style="font-size:11px;color:var(--muted);font-weight:700" x-text="(i + 1) + '. ' + st.label"></div>
                                 <div style="font-size:13px;font-weight:700" :style="st.name ? '' : 'color:var(--danger)'" x-text="st.name || 'не назначен'"></div>
                             </div>
-                            <i class="fas fa-chevron-right" style="color:#C7C7CC" x-show="i < 3"></i>
+                            <i class="fas fa-chevron-right" style="color:#C7C7CC" x-show="i < routePreview().length - 1"></i>
                         </div>
                     </template>
                 </div>
@@ -1054,7 +1062,8 @@ function scWizard() {
             needsRecruitment: false,
             documents: [],
             ownerUserId: null,        // ответственный (по умолчанию — текущий пользователь)
-            customerUserId: null,     // заказчик — согласует потребность (этап 2 маршрута)
+            customerUserIds: [],      // заказчики — согласуют потребность (после C&B, по очереди)
+            curatorUserId: null,      // куратор — просмотр и комментарии
             // ── Лидерский контракт ──
             fixedSalaryMonthly: 0,    // желаемая фиксированная часть (оклад), ₽/мес
             variableTotal: 0,         // желаемая переменная часть за весь период, ₽
@@ -1159,7 +1168,9 @@ function scWizard() {
                 this.projectId = p.id;
                 Object.assign(this.form, {
                     ownerUserId: p.user_id || this.currentUserId,
-                    customerUserId: scd.customerUserId || null,
+                    customerUserIds: (Array.isArray(scd.customerUserIds) && scd.customerUserIds.length
+                        ? scd.customerUserIds : (scd.customerUserId ? [scd.customerUserId] : [])).map(Number).filter(Boolean),
+                    curatorUserId: scd.curatorUserId ? Number(scd.curatorUserId) : null,
                     scType: scd.scType === 'leadership' ? 'leadership' : 'smart',
                     name: p.name || '',
                     businessUnit: p.business_unit || '',
@@ -1213,9 +1224,11 @@ function scWizard() {
                     scType: this.form.scType,
                     shortDescription: this.form.shortDescription,
                     businessEffect: this.form.businessEffect,
-                    curator: this.form.curator,
-                    customerUserId: this.form.customerUserId || null,
-                    customerName: (this.directory.find(u => u.id === this.form.customerUserId) || {}).full_name || '',
+                    curator: this.curatorName(),
+                    curatorUserId: this.form.curatorUserId || null,
+                    customerUserIds: this.form.customerUserIds.slice(),
+                    customerUserId: this.form.customerUserIds[0] || null,
+                    customerName: this.form.customerUserIds.map(id => (this.userById(id) || {}).full_name).filter(Boolean).join(', '),
                     deadline: this.form.deadline,
                     startDate: this.form.startDate,
                     contractType: this.form.contractType,
@@ -1305,11 +1318,17 @@ function scWizard() {
 
         routePreview() {
             const by = Object.fromEntries((this.approvalRoles || []).map(r => [r.role, r.full_name]));
-            const customer = (this.directory.find(u => u.id === this.form.customerUserId) || {}).full_name;
+            const customers = this.form.customerUserIds.length
+                ? this.form.customerUserIds.map((id, i) => ({ role: 'customer-' + id, label: 'Заказчик', name: (this.userById(id) || {}).full_name }))
+                : [{ role: 'customer', label: 'Заказчик', name: null }];
+            // Лидерский контракт — в рублях: вместо казначея Coin премию проверяет менеджер по премии.
+            const third = this.isLeadership
+                ? { role: 'bonus_manager', label: 'Менеджер по премии', name: by.bonus_manager }
+                : { role: 'treasurer', label: 'Казначей Coin', name: by.treasurer };
             return [
                 { role: 'cb', label: 'C&B', name: by.cb },
-                { role: 'customer', label: 'Заказчик', name: customer },
-                { role: 'treasurer', label: 'Казначей Coin', name: by.treasurer },
+                ...customers,
+                third,
                 { role: 'cfo', label: 'Финансовый директор', name: by.cfo },
             ];
         },
@@ -1344,11 +1363,16 @@ function scWizard() {
             } catch (e) {}
         },
 
-        curatorCandidates() {
-            // ФИО из справочника сотрудников + уже добавленные участники
-            const fromTeam = this.team.map(m => (m.name || '').trim()).filter(Boolean);
-            const fromDir = (this.directory || []).map(e => e.full_name).filter(Boolean);
-            return [...new Set([...fromTeam, ...fromDir])];
+        personName(u) { return u ? (u.display_name || u.full_name || '') : ''; },
+        userById(id) { return (this.directory || []).find(u => u.id === Number(id)) || null; },
+        addCustomer(id) {
+            id = Number(id);
+            if (id && !this.form.customerUserIds.includes(id)) this.form.customerUserIds.push(id);
+        },
+        removeCustomer(id) { this.form.customerUserIds = this.form.customerUserIds.filter(c => c !== id); },
+        curatorName() {
+            const u = this.userById(this.form.curatorUserId);
+            return u ? u.full_name : (this.form.curator || '');
         },
 
         milestonesValid() {
@@ -1669,11 +1693,11 @@ function scWizard() {
             const owner = (this.directory.find(u => u.id === this.form.ownerUserId) || {}).full_name || this.userName;
             if (this.isLeadership) {
                 const t = this.leadershipTotals();
-                return `Лидерский контракт «${this.form.name || 'Контракт'}» (${this.form.businessUnit || 'бизнес-юнит не указан'}), ответственный — ${owner}. Куратор: ${this.form.curator || 'не назначен'}. Дедлайн: ${this.form.deadline || 'не указан'}.\n\nОклад ${(this.form.fixedSalaryMonthly || 0).toLocaleString('ru-RU')} ₽/мес` + (this.form.variableTotal > 0 ? `, переменная часть за период — ${this.form.variableTotal.toLocaleString('ru-RU')} ₽ (распределено по этапам: ${t.totalBonus.toLocaleString('ru-RU')} ₽).` : ', без премии (только фиксированная часть).') + ` Итого за ${t.numMonths} мес.: ${t.grand.toLocaleString('ru-RU')} ₽.`;
+                return `Лидерский контракт «${this.form.name || 'Контракт'}» (${this.form.businessUnit || 'бизнес-юнит не указан'}), ответственный — ${owner}. Куратор: ${this.curatorName() || 'не назначен'}. Дедлайн: ${this.form.deadline || 'не указан'}.\n\nОклад ${(this.form.fixedSalaryMonthly || 0).toLocaleString('ru-RU')} ₽/мес` + (this.form.variableTotal > 0 ? `, переменная часть за период — ${this.form.variableTotal.toLocaleString('ru-RU')} ₽ (распределено по этапам: ${t.totalBonus.toLocaleString('ru-RU')} ₽).` : ', без премии (только фиксированная часть).') + ` Итого за ${t.numMonths} мес.: ${t.grand.toLocaleString('ru-RU')} ₽.`;
             }
             const totalCoins = this.milestones.reduce((s, m) => s + (m.coins || 0), 0);
             const totalRub = this.milestones.reduce((s, m) => s + (m.rewardRub || 0), 0);
-            return `Смарт-контракт «${this.form.name || 'Контракт'}» (${this.form.businessUnit || 'бизнес-юнит не указан'}), ответственный — ${owner}. Куратор: ${this.form.curator || 'не назначен'}. Дедлайн: ${this.form.deadline || 'не указан'}.\n\n${this.milestones.length} этап(ов), вознаграждение ${totalRub.toLocaleString('ru-RU')} ₽ ≈ ${totalCoins.toLocaleString('ru-RU')} Coin по курсу ${this.navRate} ₽. ${this.smartPending().length === 0 ? 'Все критерии прошли SMART-проверку.' : 'Не все критерии прошли SMART-проверку: ' + this.smartPending().join(', ') + '.'}`;
+            return `Смарт-контракт «${this.form.name || 'Контракт'}» (${this.form.businessUnit || 'бизнес-юнит не указан'}), ответственный — ${owner}. Куратор: ${this.curatorName() || 'не назначен'}. Дедлайн: ${this.form.deadline || 'не указан'}.\n\n${this.milestones.length} этап(ов), вознаграждение ${totalRub.toLocaleString('ru-RU')} ₽ ≈ ${totalCoins.toLocaleString('ru-RU')} Coin по курсу ${this.navRate} ₽. ${this.smartPending().length === 0 ? 'Все критерии прошли SMART-проверку.' : 'Не все критерии прошли SMART-проверку: ' + this.smartPending().join(', ') + '.'}`;
         },
 
         async submitContract() {
@@ -1684,7 +1708,7 @@ function scWizard() {
                 this.submitError = 'Заполните обязательные поля на шаге «Суть»';
                 this.goTo(2); return;
             }
-            if (!this.form.customerUserId) {
+            if (!this.form.customerUserIds.length) {
                 this.submitError = 'Выберите заказчика на шаге «Суть» — он согласует потребность';
                 this.goTo(2); return;
             }

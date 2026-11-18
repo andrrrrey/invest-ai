@@ -19,13 +19,14 @@ ROLE_LABELS: Dict[str, str] = {
     "cb": "C&B",
     "customer": "Заказчик",
     "treasurer": "Казначей системы Coin",
+    "bonus_manager": "Менеджер по премии",
     "cfo": "Финансовый директор",
     "lawyer": "Юрист",
     "ceo": "CEO",
 }
 
 # Роли, назначаемые в настройках (заказчик выбирается в самом контракте).
-ASSIGNABLE_ROLES = ("cb", "treasurer", "cfo", "lawyer", "ceo")
+ASSIGNABLE_ROLES = ("cb", "treasurer", "bonus_manager", "cfo", "lawyer", "ceo")
 
 _FALLBACK_SYSTEM_ROLE = {"cfo": "cfo", "ceo": "ceo"}
 

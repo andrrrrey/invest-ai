@@ -1,8 +1,11 @@
 """Маршруты последовательного согласования.
 
-* ``contract`` — смарт- и лидерские контракты:
-  C&B → заказчик (согласование потребности) → казначей системы Coin
+* ``contract`` — смарт-контракты (Coin):
+  C&B → заказчик(и) (согласование потребности) → казначей системы Coin
   (курс и включение в резерв) → финансовый директор.
+  Лидерские контракты (в рублях) идут без казначея Coin:
+  C&B → заказчик(и) → менеджер по премии → финансовый директор.
+  Если в контракте несколько заказчиков, каждый согласует по очереди.
 * ``order`` — проект приказа (ЛНА): C&B → юрист → CEO.
 
 Этапы идут строго по очереди: следующий согласующий получает уведомление
@@ -33,6 +36,9 @@ ROUTES: Dict[str, List[str]] = {
     "order": ["cb", "lawyer", "ceo"],
 }
 
+# Лидерский контракт — в рублях, казначей Coin не участвует.
+LEADERSHIP_CONTRACT_ROUTE: List[str] = ["cb", "customer", "bonus_manager", "cfo"]
+
 ROUTE_TITLES = {
     "contract": "Согласование контракта",
     "order": "Согласование проекта приказа",
@@ -42,6 +48,7 @@ STEP_HINTS = {
     ("contract", "cb"): "Проверка условий вознаграждения",
     ("contract", "customer"): "Согласование потребности",
     ("contract", "treasurer"): "Согласование курса и включение в резерв",
+    ("contract", "bonus_manager"): "Проверка премиальной части",
     ("contract", "cfo"): "Финальное согласование",
     ("order", "cb"): "Проверка проекта приказа",
     ("order", "lawyer"): "Юридическая проверка",
@@ -70,16 +77,55 @@ def _anchor(route: str) -> str:
     return "order" if route == "order" else "approval"
 
 
+def route_roles(project: Project, route: str) -> List[str]:
+    """Роли маршрута с учётом вида контракта."""
+    if route == "contract":
+        from .contract_utils import sc_type_of
+        if sc_type_of(project) == "leadership":
+            return list(LEADERSHIP_CONTRACT_ROUTE)
+    return list(ROUTES[route])
+
+
+def customer_ids(project: Project) -> List[int]:
+    """Заказчики контракта (``customerUserIds``; старые — ``customerUserId``)."""
+    scd = project.smart_contract_data or {}
+    raw = scd.get("customerUserIds")
+    if not isinstance(raw, list) or not raw:
+        raw = [scd.get("customerUserId")]
+    out: List[int] = []
+    for uid in raw:
+        try:
+            uid = int(uid)
+        except (TypeError, ValueError):
+            continue
+        if uid and uid not in out:
+            out.append(uid)
+    return out
+
+
+def resolve_customers(db: Session, project: Project) -> List[User]:
+    users = [db.get(User, uid) for uid in customer_ids(project)]
+    return [u for u in users if u is not None and u.is_active]
+
+
 def resolve_assignee(db: Session, project: Project, role_key: str) -> Optional[User]:
     if role_key == "customer":
-        scd = project.smart_contract_data or {}
-        uid = scd.get("customerUserId")
-        try:
-            u = db.get(User, int(uid)) if uid else None
-        except (TypeError, ValueError):
-            u = None
-        return u if u is not None and u.is_active else None
+        customers = resolve_customers(db, project)
+        return customers[0] if customers else None
     return approval_roles.user_for(db, role_key)
+
+
+def route_plan(db: Session, project: Project, route: str) -> List[tuple]:
+    """Этапы маршрута по порядку: ``[(role_key, User | None), ...]``.
+    Роль «заказчик» разворачивается в этап на каждого заказчика."""
+    plan = []
+    for role_key in route_roles(project, route):
+        if role_key == "customer":
+            customers = resolve_customers(db, project)
+            plan.extend(("customer", u) for u in customers or [None])
+        else:
+            plan.append((role_key, resolve_assignee(db, project, role_key)))
+    return plan
 
 
 def steps_of(db: Session, project_id: int, route: str, cycle: Optional[int] = None) -> List[ApprovalStep]:
@@ -121,15 +167,10 @@ def cancel_open(db: Session, project_id: int, route: str) -> int:
     return len(open_steps)
 
 
-def validate_route(db: Session, project: Project, route: str) -> Dict[str, User]:
+def validate_route(db: Session, project: Project, route: str) -> List[tuple]:
     """Проверить, что на все роли маршрута назначены сотрудники."""
-    missing, resolved = [], {}
-    for role_key in ROUTES[route]:
-        u = resolve_assignee(db, project, role_key)
-        if u is None:
-            missing.append(approval_roles.ROLE_LABELS[role_key])
-        else:
-            resolved[role_key] = u
+    plan = route_plan(db, project, route)
+    missing = [approval_roles.ROLE_LABELS[role_key] for role_key, u in plan if u is None]
     if missing:
         hint = " (выберите заказчика в контракте)" if "Заказчик" in missing else ""
         raise HTTPException(
@@ -137,20 +178,20 @@ def validate_route(db: Session, project: Project, route: str) -> Dict[str, User]
             detail="Не назначены согласующие: " + ", ".join(missing) + hint
                    + ". Роли согласования задаются в Настройках.",
         )
-    return resolved
+    return plan
 
 
 def start_route(db: Session, project: Project, route: str, actor: User,
                 *, attachment_id: Optional[int] = None) -> List[ApprovalStep]:
     """Запустить новый цикл маршрута: первый этап сразу становится активным."""
-    resolved = validate_route(db, project, route)
+    plan = validate_route(db, project, route)
     cancel_open(db, project.id, route)
     cycle = current_cycle(db, project.id, route) + 1
     steps = []
-    for idx, role_key in enumerate(ROUTES[route]):
+    for idx, (role_key, assignee) in enumerate(plan):
         step = ApprovalStep(
             project_id=project.id, route=route, cycle=cycle, order_index=idx,
-            role_key=role_key, assignee_id=resolved[role_key].id,
+            role_key=role_key, assignee_id=assignee.id,
             status="active" if idx == 0 else "waiting",
             sent_at=_now() if idx == 0 else None,
             attachment_id=attachment_id,
@@ -178,7 +219,7 @@ def _notify_step(db: Session, project: Project, step: ApprovalStep, sender: Opti
     if assignee is None:
         return
     hint = STEP_HINTS.get((step.route, step.role_key), "")
-    total = len(ROUTES[step.route])
+    total = len(steps_of(db, project.id, step.route, step.cycle)) or len(route_roles(project, step.route))
     lines = [f"Этап {step.order_index + 1} из {total}: {hint}."]
     if sender is not None:
         lines.append(f"Отправил(а): {sender.full_name}.")
@@ -333,8 +374,7 @@ def route_state(db: Session, project: Project, route: str, viewer: User) -> dict
         state = "cancelled"
     preview = []
     if not steps:
-        for role_key in ROUTES[route]:
-            u = resolve_assignee(db, project, role_key)
+        for role_key, u in route_plan(db, project, route):
             preview.append({
                 "role": role_key,
                 "role_label": approval_roles.ROLE_LABELS[role_key],

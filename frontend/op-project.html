@@ -500,7 +500,7 @@
                                 <template x-if="state && state.steps && state.cycle">
                                     <div>
                                         <div class="route-steps">
-                                            <template x-for="(st, i) in state.steps" :key="st.id || st.role">
+                                            <template x-for="(st, i) in state.steps" :key="st.id || (st.role + '-' + i)">
                                                 <div class="route-step" :class="{ 'is-active': st.status === 'active', 'is-ok': st.status === 'approved', 'is-rework': st.status === 'rework' }">
                                                     <div class="rs-num" x-text="'Этап ' + (i + 1)"></div>
                                                     <div class="rs-role" x-text="st.role_label"></div>
@@ -1021,7 +1021,7 @@
                     style="width:100%;padding:11px 14px;border:1.5px solid #E5E5E5;border-radius:12px;font-size:14px;font-family:inherit;outline:none">
                     <option value="">— выберите сотрудника —</option>
                     <template x-for="e in employees" :key="e.id">
-                        <option :value="String(e.id)" x-text="e.full_name + ' · ' + employeeRoleLabel(e.role)"></option>
+                        <option :value="String(e.id)" x-text="(e.display_name || e.full_name) + ' · ' + employeeRoleLabel(e.role)"></option>
                     </template>
                 </select>
                 <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
