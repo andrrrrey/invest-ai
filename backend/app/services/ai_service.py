@@ -290,6 +290,263 @@ def _strip_fences(text: str) -> str:
     return text.strip()
 
 
+def _loads_lenient(text: str) -> Optional[dict]:
+    """Разобрать JSON-объект из ответа модели — максимально терпимо.
+
+    LLM часто «почти-JSON»: одинарные кавычки, незаключённые в кавычки ключи,
+    висячие запятые, ``None``/``True`` вместо ``null``/``true``, обрезанный
+    хвост ответа. ``json.loads`` на таком тексте падает, и вместо результата
+    пользователь видел сырой JSON в интерфейсе.
+
+    Возвращает разобранный dict или ``None``, если разобрать не удалось.
+    """
+    if not text:
+        return None
+
+    # 1) Строгий разбор — самый частый случай.
+    try:
+        data = json.loads(text)
+        return data if isinstance(data, dict) else None
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    # 2) Починим типичные огрехи JSON от LLM.
+    fixed = text
+    fixed = re.sub(r"//[^\n\r]*", "", fixed)                 # // комментарии
+    fixed = re.sub(r",\s*([}\]])", r"\1", fixed)             # висячие запятые
+    fixed = re.sub(r"\bNone\b", "null", fixed)               # None → null
+    fixed = re.sub(r"\bTrue\b", "true", fixed)               # True → true
+    fixed = re.sub(r"\bFalse\b", "false", fixed)             # False → false
+    # Одинарные кавычки → двойные, но только если в тексте вообще нет
+    # двойных: иначе апостроф внутри значения (например «O'Brien») был бы
+    # испорчен, и разбор не удался бы вовсе.
+    if '"' not in fixed:
+        fixed = fixed.replace("'", '"')
+    fixed = re.sub(r'([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:', r'\1"\2":', fixed)  # ключи без кавычек
+    try:
+        data = json.loads(fixed)
+        if isinstance(data, dict):
+            return data
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    # 3) Обрезанный ответ — достраиваем незакрытую структуру.
+    repaired = _close_truncated_json(fixed)
+    if repaired is not None:
+        return repaired
+
+    # 4) Последняя попытка — вырезать внешний JSON-объект по балансу скобок
+    #    (учитывая строковые литералы).
+    start = fixed.find("{")
+    if start == -1:
+        return None
+    depth = 0
+    in_str = False
+    escaped = False
+    for i in range(start, len(fixed)):
+        ch = fixed[i]
+        if in_str:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    data = json.loads(fixed[start:i + 1])
+                    if isinstance(data, dict):
+                        return data
+                except (json.JSONDecodeError, TypeError):
+                    return None
+    return None
+
+
+def _close_truncated_json(text: str) -> Optional[dict]:
+    """Достроить обрезанный JSON-объект.
+
+    Модель может не успеть дописать ответ (лимит токенов обрезал его): в тексте
+    остаются незакрытые скобки и/или недописанное значение.
+
+    Стратегия: последовательно отбрасываем последний незавершённый элемент и
+    закрываем скобки, пока разбор не удастся. Так сохраняется максимум
+    корректных данных без мусора.
+    """
+    start = text.find("{")
+    if start == -1:
+        return None
+
+    body = text[start:]
+
+    # Пробуем до N раз: каждый раз отрезаем хвост и закрываем скобки.
+    for _ in range(50):
+        if not body.strip():
+            return None
+        candidate = _close_brackets(body)
+        try:
+            data = json.loads(candidate)
+            if isinstance(data, dict):
+                return data
+        except (json.JSONDecodeError, TypeError):
+            pass
+        # Не сработало — отрезаем последний «кусок» и пробуем снова.
+        shorter = _drop_last_element(body)
+        if shorter is None or shorter == body:
+            return None
+        body = shorter
+
+    return None
+
+
+def _json_bracket_stack(text: str) -> list[str]:
+    """Стек незакрытых скобок в тексте (строковые литералы игнорируются)."""
+    stack: list[str] = []
+    in_str = False
+    escaped = False
+    for ch in text:
+        if in_str:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch in "{[":
+            stack.append(ch)
+        elif ch in "}]" and stack:
+            stack.pop()
+    return stack
+
+
+def _close_brackets(text: str) -> str:
+    """Закрыть незакрытые скобки и убрать незавершённые хвосты.
+
+    Если текст обрывается посреди строкового литерала — закрываем кавычку.
+    Висячая запятая в конце убирается.
+    """
+    body = text.rstrip()
+    body = re.sub(r",\s*$", "", body)
+
+    # Незакрытая строка — закрываем её.
+    in_str = False
+    escaped = False
+    for ch in body:
+        if in_str:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_str = False
+        elif ch == '"':
+            in_str = True
+    if in_str:
+        body += '"'
+
+    # Закрываем скобки по фактическому балансу.
+    for opener in reversed(_json_bracket_stack(body)):
+        body += "}" if opener == "{" else "]"
+    return body
+
+
+def _drop_last_element(text: str) -> Optional[str]:
+    """Отбросить последний незавершённый элемент JSON.
+
+    Возвращает укороченный текст или ``None``, если укорачивать нечего.
+    """
+    body = text.rstrip()
+    if not body:
+        return None
+
+    # Отрезаем по последней запятой на верхнем уровне.
+    stack: list[str] = []
+    in_str = False
+    escaped = False
+    last_comma = -1
+    for i, ch in enumerate(body):
+        if in_str:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch in "{[":
+            stack.append(ch)
+        elif ch in "}]":
+            if stack:
+                stack.pop()
+        elif ch == "," and len(stack) == 1:
+            last_comma = i
+
+    if last_comma > 0:
+        return body[:last_comma]
+
+    # Запятой нет — отрезаем последний ключ вместе со значением.
+    stack = []
+    in_str = False
+    escaped = False
+    last_colon = -1
+    for i, ch in enumerate(body):
+        if in_str:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch in "{[":
+            stack.append(ch)
+        elif ch in "}]":
+            if stack:
+                stack.pop()
+        elif ch == ":" and len(stack) == 1:
+            last_colon = i
+
+    if last_colon > 0:
+        key_start = body.rfind('"', 0, last_colon)
+        if key_start > 0:
+            return body[:key_start].rstrip().rstrip(",").rstrip()
+    return None
+
+
+def _safe_commentary(text: str, limit: int = 300) -> str:
+    """Подготовить текст для показа пользователю, убрав «технический» мусор.
+
+    Сырой JSON или обрывок ответа модели не должны попадать в интерфейс —
+    заменяем их человекочитаемым сообщением.
+    """
+    cleaned = (text or "").strip()
+    if not cleaned:
+        return "AI недоступен"
+    # Если это явно JSON — не показываем его пользователю.
+    if cleaned[0] in "{[":
+        return "AI вернул ответ в неожиданном формате — оценка рисков выполнена по умолчанию. Попробуйте запустить пересчёт."
+    # Многострочный «протокол» — оставляем только первые строки.
+    lines = [ln.strip() for ln in cleaned.splitlines() if ln.strip()]
+    if len(lines) > 1:
+        cleaned = " ".join(lines[:3])
+    if len(cleaned) > limit:
+        cleaned = cleaned[:limit].rsplit(" ", 1)[0] + "…"
+    return cleaned
+
+
 def generate_description(
     project_name: str,
     business_unit: str,
@@ -333,14 +590,14 @@ def generate_risks(project_name: str, metrics: dict, financial_model: dict) -> d
         '"recommendation": "текст", "weaknesses": ["слабое место 1", "слабое место 2"]}}'
     )
     text = _strip_fences(_chat(prompt, max_tokens=900))
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        return {
-            "risks": ["Ошибка парсинга ответа AI"],
-            "assumptions": text,
-            "ai_assessment": {"risk_level": "средний", "recommendation": "", "weaknesses": []},
-        }
+    data = _loads_lenient(text)
+    if data is not None:
+        return data
+    return {
+        "risks": ["Не удалось разобрать ответ AI — риски оценены по умолчанию"],
+        "assumptions": _safe_commentary(text, limit=500),
+        "ai_assessment": {"risk_level": "средний", "recommendation": "", "weaknesses": []},
+    }
 
 
 def generate_risk_score(application: dict) -> dict:
@@ -409,19 +666,80 @@ def generate_risk_score(application: dict) -> dict:
         ],
     }
     text = _strip_fences(_chat(prompt, max_tokens=1000, extra_terms=risk_terms))
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        return {
-            "overall_risk": "умеренный",
-            "risk_scores": {"execution_risk": 3, "market_risk": 3, "financial_risk": 3, "strategic_risk": 3},
-            "risk_reasons": ["Ошибка парсинга ответа AI"],
-            "controls": [],
-            "stage_gate_recommendations": [],
-            "recommended_route": "efficiency_play",
-            "manual_review_required": False,
-            "commentary": text[:300] if text else "AI недоступен",
-        }
+    data = _loads_lenient(text)
+    if data is not None:
+        return _normalize_risk_score(data)
+    # Ответ разобрать не удалось — отдаём оценку по умолчанию с понятным
+    # текстом. Сырой JSON в поле commentary попадать не должен: пользователь
+    # видит блок «Общий уровень риска», а не отладочный вывод модели.
+    return {
+        "overall_risk": "умеренный",
+        "risk_scores": {"execution_risk": 3, "market_risk": 3, "financial_risk": 3, "strategic_risk": 3},
+        "risk_reasons": ["Не удалось разобрать ответ AI — оценка выполнена по умолчанию"],
+        "controls": [],
+        "stage_gate_recommendations": [],
+        "recommended_route": "efficiency_play",
+        "manual_review_required": True,
+        "commentary": _safe_commentary(text),
+    }
+
+
+_RISK_LEVELS = ("низкий", "умеренный", "высокий")
+_RISK_KEYS = ("execution_risk", "market_risk", "financial_risk", "strategic_risk")
+
+
+def _normalize_risk_score(data: dict) -> dict:
+    """Привести ответ модели к ожидаемой структуре Risk Score.
+
+    Модель может вернуть лишние поля, пропустить категорию риска или указать
+    уровень в другой форме («умеренный», «средний», «Moderate»). Приводим всё
+    к предсказуемому виду, чтобы фронтенд всегда получал корректные данные.
+    """
+    out = dict(data)
+
+    level = str(out.get("overall_risk", "") or "").strip().lower()
+    aliases = {
+        "средний": "умеренный",
+        "moderate": "умеренный",
+        "medium": "умеренный",
+        "low": "низкий",
+        "high": "высокий",
+        "критический": "высокий",
+    }
+    level = aliases.get(level, level)
+    out["overall_risk"] = level if level in _RISK_LEVELS else "умеренный"
+
+    scores = out.get("risk_scores")
+    if not isinstance(scores, dict):
+        scores = {}
+    normalized_scores = {}
+    for key in _RISK_KEYS:
+        raw = scores.get(key)
+        try:
+            value = int(float(raw))
+        except (TypeError, ValueError):
+            value = 3
+        normalized_scores[key] = min(5, max(1, value))
+    out["risk_scores"] = normalized_scores
+
+    for key in ("risk_reasons", "controls", "stage_gate_recommendations"):
+        value = out.get(key)
+        if isinstance(value, str):
+            out[key] = [value] if value.strip() else []
+        elif not isinstance(value, list):
+            out[key] = []
+        else:
+            out[key] = [str(v).strip() for v in value if str(v).strip()]
+
+    route = str(out.get("recommended_route", "") or "").strip()
+    out["recommended_route"] = route if route in (
+        "fast_track", "efficiency_play", "backlog_stop"
+    ) else "efficiency_play"
+
+    out["manual_review_required"] = bool(out.get("manual_review_required", False))
+
+    out["commentary"] = _safe_commentary(str(out.get("commentary", "") or ""))
+    return out
 
 
 def generate_portfolio_commentary(projects: list, stats: dict) -> str:

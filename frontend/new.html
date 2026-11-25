@@ -577,7 +577,7 @@
                                     <label>Главный круг</label>
                                     <select x-model="form.op_mvz_main" @change="form.op_mvz_sub1=''; form.op_mvz_sub2=''">
                                         <option value="">— Выберите —</option>
-                                        <template x-for="mc in MVZ.mainCircles" :key="mc.id">
+                                        <template x-for="mc in mvz.mainCircles" :key="mc.id">
                                             <option :value="mc.id" x-text="mc.id + ' | ' + mc.name"></option>
                                         </template>
                                     </select>
@@ -586,7 +586,7 @@
                                     <label>Подкруг 1</label>
                                     <select x-model="form.op_mvz_sub1" @change="form.op_mvz_sub2=''" :disabled="!form.op_mvz_main">
                                         <option value="">— Выберите —</option>
-                                        <template x-for="s1 in (MVZ.sub1[form.op_mvz_main] || [])" :key="s1.id">
+                                        <template x-for="s1 in (mvz.sub1[form.op_mvz_main] || [])" :key="s1.id">
                                             <option :value="s1.id" x-text="s1.id + ' | ' + s1.name"></option>
                                         </template>
                                     </select>
@@ -595,7 +595,7 @@
                                     <label>Подкруг 2</label>
                                     <select x-model="form.op_mvz_sub2" :disabled="!form.op_mvz_sub1">
                                         <option value="">— Выберите —</option>
-                                        <template x-for="s2 in (MVZ.sub2[form.op_mvz_sub1] || [])" :key="s2.id">
+                                        <template x-for="s2 in (mvz.sub2[form.op_mvz_sub1] || [])" :key="s2.id">
                                             <option :value="s2.id" x-text="s2.id + ' | ' + s2.name"></option>
                                         </template>
                                     </select>
@@ -2584,7 +2584,10 @@ function wizardApp() {
             return ['1. Тип проекта', '2. Суть проекта', '3. Фин. модель', '4. Риски', '5. Резюме'];
         },
 
-        MVZ,
+        // Справочник МВЗ. Актуальная версия загружается с сервера в init()
+        // (loadMvzReference) и попадает в this.mvz; эталон используется как
+        // фолбэк, если запрос не удался.
+        MVZ: MVZ_FALLBACK,
 
         saving: false,
         submitting: false,
@@ -2598,6 +2601,10 @@ function wizardApp() {
         docAttachments: [],
         risksData: null,
         riskScoreData: null,
+        // Справочник МВЗ (круги → подкруги). Загружается с сервера; эталонный
+        // набор (MVZ_FALLBACK) используется, если запрос не удался.
+        mvz: { mainCircles: [], sub1: {}, sub2: {} },
+        mvzLoaded: false,
         metrics: _emptyMetrics(),
         showIndexModal: false,
         indexModalRates: [],
@@ -2738,10 +2745,40 @@ function wizardApp() {
                     if (sd.ai_model) this.aiModelLabel = sd.ai_model;
                 }
             } catch(_) {}
+            await this.loadMvzReference();
             const id = new URLSearchParams(location.search).get('id');
             if (id) await this.loadProject(id);
             this.recalc();
             this.$watch('form', () => this.recalc(), { deep: true });
+        },
+
+        // ── Справочник МВЗ ─────────────────────────────────────────────
+        // Круги и подкруги МВЗ актуализирует CFO в разделе
+        // «Настройки → Справочник МВЗ». Здесь подтягиваем актуальную версию;
+        // если сервер недоступен — используем эталонный набор.
+        async loadMvzReference() {
+            try {
+                const res = await authFetch('/api/v1/mvz/reference');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && Array.isArray(data.main_circles) && data.main_circles.length) {
+                        this.mvz = {
+                            mainCircles: data.main_circles,
+                            sub1: data.sub1 || {},
+                            sub2: data.sub2 || {},
+                        };
+                        this.mvzLoaded = true;
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn('Справочник МВЗ не загружен, используется эталонный', e);
+            }
+            this.mvz = {
+                mainCircles: MVZ_FALLBACK.mainCircles,
+                sub1: MVZ_FALLBACK.sub1,
+                sub2: MVZ_FALLBACK.sub2,
+            };
         },
 
         async loadProject(id) {
@@ -2847,7 +2884,7 @@ function wizardApp() {
                 // Load risks
                 if (p.risks_data) {
                     if (p.project_type === 'operational') {
-                        this.riskScoreData = p.risks_data;
+                        this.riskScoreData = this._sanitizeRiskScore(p.risks_data);
                     } else {
                         this.risksData = p.risks_data;
                     }
@@ -3350,6 +3387,56 @@ function wizardApp() {
             return labels[score] || '';
         },
 
+        // ── Sanitize Risk Score ─────────────────────────────────────────
+        // Ранние версии складывали в risks_data сырой JSON ответа модели
+        // (в т.ч. в поле commentary). Приводим структуру к ожидаемой и
+        // убираем «технический» текст из блока «Общий уровень риска».
+        _sanitizeRiskScore(raw) {
+            let data = raw;
+            // Если risks_data пришёл строкой — пробуем разобрать JSON.
+            if (typeof data === 'string') {
+                try { data = JSON.parse(data); }
+                catch (e) { data = null; }
+            }
+            if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+
+            const out = { ...data };
+            const aliases = { 'средний': 'умеренный', 'moderate': 'умеренный', 'medium': 'умеренный',
+                              'low': 'низкий', 'high': 'высокий', 'критический': 'высокий' };
+            let level = String(out.overall_risk || '').trim().toLowerCase();
+            level = aliases[level] || level;
+            out.overall_risk = ['низкий', 'умеренный', 'высокий'].includes(level) ? level : 'умеренный';
+
+            const src = (out.risk_scores && typeof out.risk_scores === 'object') ? out.risk_scores : {};
+            const scores = {};
+            ['execution_risk', 'market_risk', 'financial_risk', 'strategic_risk'].forEach(k => {
+                let v = parseInt(src[k], 10);
+                if (isNaN(v)) v = 3;
+                scores[k] = Math.min(5, Math.max(1, v));
+            });
+            out.risk_scores = scores;
+
+            ['risk_reasons', 'controls', 'stage_gate_recommendations'].forEach(k => {
+                let v = out[k];
+                if (typeof v === 'string') v = v.trim() ? [v] : [];
+                if (!Array.isArray(v)) v = [];
+                out[k] = v.map(x => String(x).trim()).filter(Boolean);
+            });
+
+            const route = String(out.recommended_route || '');
+            out.recommended_route = ['fast_track', 'efficiency_play', 'backlog_stop'].includes(route)
+                ? route : 'efficiency_play';
+            out.manual_review_required = !!out.manual_review_required;
+
+            // Комментарий: убираем сырой JSON и обрывки ответа модели.
+            let c = String(out.commentary || '').trim();
+            if (!c || c[0] === '{' || c[0] === '[') {
+                c = 'Оценка рисков выполнена автоматически. Детали — по категориям ниже.';
+            }
+            out.commentary = c;
+            return out;
+        },
+
         // ── Value Score display helpers ─────────────────────────────────
         vsBandColor() {
             const b = this.form.vs_band;
@@ -3650,7 +3737,7 @@ function wizardApp() {
                     body: JSON.stringify({ application }),
                 });
                 if (!res.ok) throw new Error((await res.json()).detail);
-                this.riskScoreData = await res.json();
+                this.riskScoreData = this._sanitizeRiskScore(await res.json());
                 this._toast('AI Risk Score сформирован', 'success');
             } catch(e) {
                 this._toast('AI недоступен: ' + e.message, 'error');
@@ -3666,7 +3753,10 @@ function wizardApp() {
 // ─────────────────────────────────────────────────────────────────────────────
 //  MVZ Hierarchy (МВЗ каскадные списки)
 // ─────────────────────────────────────────────────────────────────────────────
-const MVZ = {
+//  Эталонный набор — используется только как фолбэк, если справочник не
+//  удалось загрузить с сервера. Актуальная версия хранится в настройках
+//  и редактируется CFO в разделе «Настройки → Справочник МВЗ».
+const MVZ_FALLBACK = {
     mainCircles: [
         {id:'1',name:'PARTNERS'},{id:'100',name:'Sales'},{id:'1000',name:'Marketing'},
         {id:'1100',name:'Board of director'},{id:'1400',name:'Relations'},

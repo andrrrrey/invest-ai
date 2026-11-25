@@ -501,6 +501,30 @@ def get_all() -> dict:
     return _load()
 
 
+# ── Справочник МВЗ ─────────────────────────────────────────────────
+
+def get_mvz_reference() -> dict:
+    """Вернуть справочник МВЗ (круги → подкруги).
+
+    Если справочник не задан в настройках, возвращается эталонный набор
+    ``services.mvz_reference.DEFAULT_MVZ`` — система работает сразу после
+    установки, без обязательной настройки.
+    """
+    from .services.mvz_reference import DEFAULT_MVZ
+
+    raw = _load().get("mvz_reference")
+    if not isinstance(raw, dict) or not raw:
+        return DEFAULT_MVZ
+    return raw
+
+
+def set_mvz_reference(reference: dict) -> None:
+    """Сохранить справочник МВЗ (уже провалидированный)."""
+    data = _load()
+    data["mvz_reference"] = reference
+    _save(data)
+
+
 # ── Роли согласования контрактов и приказов ──────────────────────────────
 # Назначение конкретных сотрудников (user_id) на роли маршрутов согласования:
 # cb — C&B, treasurer — казначей системы Coin, bonus_manager — менеджер по премии

@@ -34,6 +34,7 @@ from .api.v1 import coin_rates as coin_rates_router
 from .api.v1 import contract_route as contract_route_router
 from .api.v1 import orders as orders_router
 from .api.v1 import mcp_tokens as mcp_tokens_router
+from .api.v1 import mvz as mvz_router
 from .mcp import http as mcp_http
 from starlette.routing import Route
 
@@ -107,6 +108,7 @@ app.include_router(contract_route_router.router, prefix="/api/v1")
 app.include_router(orders_router.router, prefix="/api/v1")
 app.include_router(knowledge_router.router, prefix="/api/v1")
 app.include_router(mcp_tokens_router.router, prefix="/api/v1")
+app.include_router(mvz_router.router, prefix="/api/v1")
 
 
 @app.on_event("startup")

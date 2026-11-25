@@ -144,6 +144,46 @@
 
         .hint { font-size: 11px; color: var(--text-muted); line-height: 1.5; margin-top: 4px; }
 
+        /* ── Справочник МВЗ ─────────────────────────────────────────── */
+        .mvz-main-list { display: flex; flex-direction: column; gap: 8px; }
+        .mvz-circle {
+            border: 1.5px solid #E5E5ED; border-radius: 12px; overflow: hidden;
+            background: #FCFCFD;
+        }
+        .mvz-circle-head {
+            display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+            background: #F8F7F3; border-bottom: 1px solid #EFEFF4;
+        }
+        .mvz-circle-head .mvz-title { font-size: 13px; font-weight: 700; flex: 1; }
+        .mvz-circle-head .mvz-id {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 12px; font-weight: 700; color: var(--accent-purple);
+            background: #F0EEFF; border-radius: 8px; padding: 3px 8px;
+        }
+        .mvz-sub-list { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+        .mvz-sub {
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 10px; border: 1px solid #EDEDF2; border-radius: 10px;
+            background: #fff;
+        }
+        .mvz-sub .mvz-id {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 11px; font-weight: 700; color: #6B6B76;
+            background: #F2F2F7; border-radius: 6px; padding: 2px 7px; min-width: 62px;
+            text-align: center;
+        }
+        .mvz-sub input[type=text] { padding: 6px 10px; font-size: 12px; border-radius: 8px; }
+        .mvz-sub .mvz-id-input { flex: 0 0 84px; min-width: 84px; }
+        .mvz-empty { font-size: 12px; color: var(--text-muted); padding: 8px 0; font-style: italic; }
+        .mvz-icon-btn {
+            background: none; border: none; cursor: pointer; color: #BBB;
+            padding: 4px 7px; border-radius: 8px; transition: .15s; flex: 0 0 auto;
+            font-size: 13px;
+        }
+        .mvz-icon-btn:hover { color: var(--danger); background: #FFE5E3; }
+        .mvz-icon-btn.add:hover { color: var(--success); background: #DDF0E1; }
+        .mvz-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+
         .spin { animation: spin 1s linear infinite; display: inline-block; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -478,6 +518,92 @@
                 </button>
             </div>
 
+            <!-- МВЗ справочник card -->
+            <div class="settings-card">
+                <h2><i class="fas fa-sitemap"></i> Справочник МВЗ</h2>
+                <p class="desc">
+                    Круги и подкруги МВЗ (место возникновения затрат), которые подставляются в выпадающие списки
+                    при оформлении заявки. Изменения применяются сразу ко всем новым заявкам.
+                </p>
+
+                <div class="mvz-toolbar">
+                    <button class="btn btn-outline" @click="mvzAddMain()">
+                        <i class="fas fa-plus"></i> Добавить главный круг
+                    </button>
+                    <button class="btn btn-outline" @click="mvzLoadDefault()"
+                            title="Заменить текущий справочник эталонным набором">
+                        <i class="fas fa-rotate-left"></i> Вернуть эталон
+                    </button>
+                    <span style="flex:1"></span>
+                    <span class="hint" style="align-self:center">
+                        Главных кругов: <span x-text="mvz.main_circles.length"></span>
+                    </span>
+                </div>
+
+                <div class="mvz-main-list">
+                    <template x-for="(mc, mcIdx) in mvz.main_circles" :key="'mc-' + mcIdx">
+                        <div class="mvz-circle">
+                            <div class="mvz-circle-head">
+                                <span class="mvz-id" x-text="mc.id || '—'"></span>
+                                <span class="mvz-title" x-text="mc.name || 'Без названия'"></span>
+                                <button class="mvz-icon-btn" @click="mvzRemoveMain(mcIdx)" title="Удалить круг">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                            <div class="mvz-sub-list">
+                                <template x-for="(s1, s1Idx) in (mvz.sub1[mc.id] || [])" :key="'s1-' + mcIdx + '-' + s1Idx">
+                                    <div class="mvz-sub">
+                                        <input type="text" class="mvz-id-input" x-model="s1.id" placeholder="ID"
+                                               :title="'Код подкруга (например 3.1)'">
+                                        <input type="text" x-model="s1.name" placeholder="Название подкруга">
+                                        <button class="mvz-icon-btn" @click="mvzRemoveSub1(mc.id, s1Idx)" title="Удалить подкруг">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </template>
+                                <div x-show="!(mvz.sub1[mc.id] || []).length" class="mvz-empty">
+                                    Подкругов нет
+                                </div>
+                                <div style="display:flex;gap:8px;align-items:center;margin-top:2px">
+                                    <button class="mvz-icon-btn add" @click="mvzAddSub1(mc.id)"
+                                            title="Добавить подкруг" style="font-size:12px">
+                                        <i class="fas fa-plus"></i> Добавить подкруг
+                                    </button>
+                                </div>
+
+                                <!-- Подкруги 2-го уровня -->
+                                <template x-for="(s1, s1Idx) in (mvz.sub1[mc.id] || [])" :key="'s2wrap-' + mcIdx + '-' + s1Idx">
+                                    <div style="margin-top:4px;padding-left:16px;border-left:2px dashed #E0E0E8">
+                                        <template x-for="(s2, s2Idx) in (mvz.sub2[s1.id] || [])" :key="'s2-' + mcIdx + '-' + s1Idx + '-' + s2Idx">
+                                            <div class="mvz-sub">
+                                                <input type="text" class="mvz-id-input" x-model="s2.id" placeholder="ID"
+                                                       :title="'Код подкруга 2 (например 3.1.1)'">
+                                                <input type="text" x-model="s2.name" placeholder="Название подкруга 2">
+                                                <button class="mvz-icon-btn" @click="mvzRemoveSub2(s1.id, s2Idx)" title="Удалить подкруг">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </template>
+                                        <button class="mvz-icon-btn add" @click="mvzAddSub2(s1.id)"
+                                                title="Добавить подкруг 2" style="font-size:11px">
+                                            <i class="fas fa-plus"></i> Подкруг 2
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                    <div x-show="!mvz.main_circles.length" class="mvz-empty">
+                        Справочник пуст — добавьте хотя бы один главный круг.
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" @click="saveMvz()" :disabled="savingMvz || loading" style="margin-top:16px">
+                    <i class="fas" :class="savingMvz ? 'fa-spinner spin' : 'fa-save'"></i>
+                    <span x-text="savingMvz ? 'Сохраняем...' : 'Сохранить справочник МВЗ'"></span>
+                </button>
+            </div>
+
             <!-- Hermes / Mattermost card -->
             <div class="settings-card">
                 <h2><i class="fas fa-robot"></i> Помощник Hermes — Mattermost</h2>
@@ -787,6 +913,7 @@
                     return;
                 }
                 this.loadApprovalRoles();
+                this.loadMvz();
                 try {
                     const res = await authFetch('/api/v1/settings/');
                     if (res.ok) {
@@ -998,6 +1125,172 @@
                     this._toast('Ошибка: ' + e.message, 'error');
                 } finally {
                     this.savingDomain = false;
+                }
+            },
+
+            // ── Справочник МВЗ ───────────────────────────────────────────
+            mvz: { main_circles: [], sub1: {}, sub2: {} },
+            savingMvz: false,
+
+            _mvzNextId(parentId) {
+                // Подсказка кода нового подкруга: <родитель>.<N>, где N — ближайший
+                // свободный номер внутри текущего уровня.
+                // parentId без точки — это главный круг, и мы добавляем подкруг
+                // первого уровня (ищем среди sub1). С точкой — подкруг второго
+                // уровня (ищем среди sub2).
+                const prefix = parentId + '.';
+                const pool = parentId.includes('.')
+                    ? Object.values(this.mvz.sub2 || {}).flat()
+                    : Object.values(this.mvz.sub1 || {}).flat();
+                const used = pool
+                    .filter(x => String(x.id).startsWith(prefix))
+                    .map(x => parseInt(String(x.id).slice(prefix.length), 10))
+                    .filter(n => !isNaN(n));
+                const next = used.length ? Math.max(...used) + 1 : 1;
+                return prefix + next;
+            },
+
+            mvzAddMain() {
+                this.mvz.main_circles = this.mvz.main_circles || [];
+                // Берём наименьший свободный целый номер, чтобы не «прыгнуть»
+                // после, например, кода 1000.
+                const used = new Set(this.mvz.main_circles
+                    .map(x => parseInt(String(x.id), 10))
+                    .filter(n => !isNaN(n)));
+                let next = 1;
+                while (used.has(next)) next++;
+                this.mvz.main_circles.push({ id: String(next), name: '' });
+            },
+
+            mvzRemoveMain(idx) {
+                const mc = this.mvz.main_circles[idx];
+                if (!mc) return;
+                if (!confirm(`Удалить круг «${mc.name || mc.id}» вместе со всеми подкругами?`)) return;
+                this.mvz.main_circles.splice(idx, 1);
+                // Подкруги удалённого круга и их подкруги 2-го уровня тоже уходят.
+                const subs = this.mvz.sub1[mc.id] || [];
+                subs.forEach(s => { delete this.mvz.sub2[s.id]; });
+                delete this.mvz.sub1[mc.id];
+            },
+
+            mvzAddSub1(mainId) {
+                this.mvz.sub1 = this.mvz.sub1 || {};
+                this.mvz.sub1[mainId] = this.mvz.sub1[mainId] || [];
+                this.mvz.sub1[mainId].push({ id: this._mvzNextId(mainId), name: '' });
+            },
+
+            mvzRemoveSub1(mainId, idx) {
+                const list = this.mvz.sub1[mainId];
+                if (!list || !list[idx]) return;
+                const s = list[idx];
+                delete this.mvz.sub2[s.id];
+                list.splice(idx, 1);
+            },
+
+            mvzAddSub2(sub1Id) {
+                this.mvz.sub2 = this.mvz.sub2 || {};
+                this.mvz.sub2[sub1Id] = this.mvz.sub2[sub1Id] || [];
+                this.mvz.sub2[sub1Id].push({ id: this._mvzNextId(sub1Id), name: '' });
+            },
+
+            mvzRemoveSub2(sub1Id, idx) {
+                const list = this.mvz.sub2[sub1Id];
+                if (!list || !list[idx]) return;
+                list.splice(idx, 1);
+            },
+
+            async loadMvz() {
+                try {
+                    const res = await authFetch('/api/v1/mvz/reference');
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    if (data && Array.isArray(data.main_circles)) {
+                        this.mvz = {
+                            main_circles: data.main_circles,
+                            sub1: data.sub1 || {},
+                            sub2: data.sub2 || {},
+                        };
+                    }
+                } catch (e) {
+                    console.warn('Не удалось загрузить справочник МВЗ', e);
+                }
+            },
+
+            async mvzLoadDefault() {
+                try {
+                    const res = await authFetch('/api/v1/mvz/default');
+                    if (!res.ok) throw new Error(await res.text());
+                    const data = await res.json();
+                    this.mvz = {
+                        main_circles: data.main_circles || [],
+                        sub1: data.sub1 || {},
+                        sub2: data.sub2 || {},
+                    };
+                    this._toast('Эталонный справочник загружен — не забудьте сохранить', 'success');
+                } catch (e) {
+                    this._toast('Ошибка: ' + e.message, 'error');
+                }
+            },
+
+            async saveMvz() {
+                // Валидация на клиенте — чтобы не отправлять заведомо плохие данные.
+                const mains = (this.mvz.main_circles || []).filter(m => String(m.id || '').trim());
+                if (!mains.length) {
+                    this._toast('Нужен хотя бы один главный круг с кодом', 'error');
+                    return;
+                }
+                const seen = new Set();
+                for (const m of mains) {
+                    const id = String(m.id).trim();
+                    if (seen.has(id)) {
+                        this._toast(`Код «${id}» повторяется среди главных кругов`, 'error');
+                        return;
+                    }
+                    seen.add(id);
+                }
+                const sub1 = {}, sub2 = {};
+                for (const m of mains) {
+                    const mid = String(m.id).trim();
+                    const rows = (this.mvz.sub1[mid] || []).filter(r => String(r.id || '').trim());
+                    if (rows.length) {
+                        sub1[mid] = rows.map(r => ({
+                            id: String(r.id).trim(),
+                            name: String(r.name || r.id).trim(),
+                        }));
+                    }
+                    for (const r of rows) {
+                        const rows2 = (this.mvz.sub2[r.id] || []).filter(x => String(x.id || '').trim());
+                        if (rows2.length) {
+                            sub2[r.id] = rows2.map(x => ({
+                                id: String(x.id).trim(),
+                                name: String(x.name || x.id).trim(),
+                            }));
+                        }
+                    }
+                }
+                this.savingMvz = true;
+                try {
+                    const res = await authFetch('/api/v1/mvz/reference', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            main_circles: mains.map(m => ({
+                                id: String(m.id).trim(),
+                                name: String(m.name || m.id).trim(),
+                            })),
+                            sub1,
+                            sub2,
+                        }),
+                    });
+                    if (!res.ok) {
+                        let msg = await res.text();
+                        try { msg = JSON.parse(msg).detail || msg; } catch (_) {}
+                        throw new Error(msg);
+                    }
+                    this._toast('Справочник МВЗ сохранён', 'success');
+                } catch(e) {
+                    this._toast('Ошибка: ' + e.message, 'error');
+                } finally {
+                    this.savingMvz = false;
                 }
             },
 
